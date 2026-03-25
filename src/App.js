@@ -300,7 +300,8 @@ export default function App(){
   const [loaded,setLoaded]=useState(false);
   useEffect(()=>{
     const cr=store.get(CRM_KEY),tr=store.get(TASK_KEY),mr=store.get(MILE_KEY);
-    setContacts(cr?.value?JSON.parse(cr.value):DEFAULT_CONTACTS);
+    const parsed = cr?.value ? JSON.parse(cr.value) : null;
+    setContacts(parsed && parsed.length > 0 ? parsed : DEFAULT_CONTACTS);
     setTasks(tr?.value?JSON.parse(tr.value):DEFAULT_TASKS);
     setMiles(mr?.value?JSON.parse(mr.value):DEFAULT_MILES);
     setLoaded(true);
