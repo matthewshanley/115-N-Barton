@@ -238,7 +238,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
   return(
     <div style={{padding:"1.25rem 0"}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
-        {[["LP Pipeline (weighted)",fmt$(Math.round(weighted)),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Warm prospects",warm,B.blue],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
+        {[["Total equity target",fmt$(3332212),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Remaining to raise",fmt$(Math.max(0,3332212-committed)),committed>=3332212?"#2a6b3f":B.danger],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
           <div key={l} style={SC(c)}><div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div><div style={{fontSize:24,fontWeight:700,color:B.white}}>{v}</div></div>
         ))}
       </div>
