@@ -10,12 +10,14 @@ const statCol=s=>LP_STAT_COL[s]||LN_STAT_COL[s]||B.muted;
 const LP_STATUSES=["Deck sent","Data room accessed","In conversation","Soft commit","Committed","Passed"];
 const LN_STATUSES=["Not contacted","Outreach sent","Term sheet requested","Term sheet received","In diligence","Committed","Passed"];
 const PRIORITIES=["High","Medium","Low"];
-const OWNERS=["Jimmy","Jonathan","Jackson","Matt"];
-const TASK_STATUSES=["To do","In progress","Done","Blocked"];
+const OWNERS=["Jimmy","Jonathan","Jackson","Matt","Eric","Jason"];
+const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
 const store={get:k=>{try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(_){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}}};
 const fmt$=n=>(!n&&n!==0)?"—":"$"+Number(n).toLocaleString();
 const initials=n=>(n||"?").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
 const today=new Date();
+const todayStr=today.toISOString().split("T")[0];
+
 const Pip=({color})=><span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:color||B.muted,marginRight:6,flexShrink:0}}/>;
 const Badge=({label,color=B.muted})=><span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,background:color+"20",color,border:`1px solid ${color}44`,letterSpacing:"0.05em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{label}</span>;
 const Avatar=({name,color=B.navy})=><div style={{width:36,height:36,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:12,color:B.white,flexShrink:0}}>{initials(name)}</div>;
@@ -26,6 +28,28 @@ const btn=(g=false)=>({fontSize:11,padding:"7px 16px",borderRadius:4,cursor:"poi
 const iS={fontSize:13,fontFamily:FONT,border:`1px solid ${B.steel}`,borderRadius:4,padding:"7px 10px",color:B.navy,background:B.white,width:"100%",boxSizing:"border-box"};
 const lS={fontSize:11,color:B.muted,display:"block",marginBottom:4,letterSpacing:"0.05em",textTransform:"uppercase"};
 
+function normalizeStatus(s){
+  const l=(s||"").toLowerCase().trim();
+  if(l==="complete"||l==="done")return"Complete";
+  if(l==="in progress"||l==="in-progress"||l==="inprogress")return"In Progress";
+  if(l==="overdue")return"Overdue";
+  if(l==="blocked")return"Blocked";
+  return"Not Started";
+}
+
+function normalizeDate(d){
+  if(!d||d==="—"||d.trim()==="")return"";
+  const s=d.trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const parsed=new Date(s);
+  if(!isNaN(parsed.getTime())){
+    return`${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,"0")}-${String(parsed.getDate()).padStart(2,"0")}`;
+  }
+  const slash=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(slash){let yr=parseInt(slash[3]);if(yr<100)yr+=2000;return`${yr}-${String(parseInt(slash[1])).padStart(2,"0")}-${String(parseInt(slash[2])).padStart(2,"0")}`;}
+  return s;
+}
+
 // ── Dashboard ──────────────────────────────────────────────────────────────
 function Dashboard({contacts,tasks,miles}){
   const lps=contacts.filter(c=>c.type==="LP");
@@ -34,12 +58,12 @@ function Dashboard({contacts,tasks,miles}){
   const weighted=lps.filter(c=>c.expectedAmount&&c.likelihood).reduce((s,c)=>s+(Number(c.expectedAmount)||0)*(Number(c.likelihood)||0)/100,0);
   const warm=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).length;
   const activeLenders=lenders.filter(c=>!["Not contacted","Passed"].includes(c.status)).length;
-  const highTasks=tasks.filter(t=>t.priority==="High"&&t.status!=="Done").length;
+  const highTasks=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").length;
   const pC={"Initiation":B.navy,"Planning":B.sage,"Execution":B.blue,"Go Live":B.gold};
   const GS=new Date("2025-07-01"),GE=new Date("2027-07-01"),GT=GE-GS;
   const tP=d=>((new Date(d)-GS)/GT)*100;
   const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
-  const urgT=tasks.filter(t=>t.priority==="High"&&t.status!=="Done").slice(0,4);
+  const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
   const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).slice(0,5);
   return(
     <div style={{padding:"1.25rem 0"}}>
@@ -68,9 +92,9 @@ function Dashboard({contacts,tasks,miles}){
           {urgT.length===0&&<div style={{fontSize:13,color:B.muted}}>All caught up.</div>}
           {urgT.map(t=>(
             <div key={t.id} style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${B.light}`}}>
-              <div style={{width:28,height:28,borderRadius:"50%",background:B.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:B.white,fontWeight:700,flexShrink:0}}>{t.owner?.[0]}</div>
+              <div style={{width:28,height:28,borderRadius:"50%",background:B.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:B.white,fontWeight:700,flexShrink:0}}>{(t.owner||"?")[0]}</div>
               <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy}}>{t.title}</div><div style={{fontSize:11,color:B.muted,marginTop:1}}>{t.owner} · Due {t.due||"TBD"}</div></div>
-              <Badge label={t.status} color={t.status==="In progress"?B.blue:t.status==="Blocked"?B.danger:B.muted}/>
+              <Badge label={normalizeStatus(t.status)} color={normalizeStatus(t.status)==="In Progress"?B.blue:normalizeStatus(t.status)==="Overdue"?B.danger:B.muted}/>
             </div>
           ))}
         </div>
@@ -249,45 +273,10 @@ function Timeline({miles,setMiles}){
     <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any milestone row to edit dates.</div>
   </div>);
 }
+
 // ── Tasks ──────────────────────────────────────────────────────────────────
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
-const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
-const statusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger,"To do":B.muted,"Done":"#2a6b3f","In progress":B.blue};
-
-function normalizeStatus(s){
-  const l=(s||"").toLowerCase().trim();
-  if(l==="complete"||l==="done")return"Complete";
-  if(l==="in progress"||l==="in-progress"||l==="inprogress")return"In Progress";
-  if(l==="overdue")return"Overdue";
-  if(l==="blocked")return"Blocked";
-  return"Not Started";
-}
-
-// Normalize any date format to YYYY-MM-DD
-function normalizeDate(d){
-  if(!d||d==="—"||d.trim()==="")return"";
-  const s=d.trim();
-  // Already YYYY-MM-DD
-  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
-  // Try parsing directly
-  const parsed=new Date(s);
-  if(!isNaN(parsed.getTime())){
-    const y=parsed.getFullYear();
-    const m=String(parsed.getMonth()+1).padStart(2,"0");
-    const dd=String(parsed.getDate()).padStart(2,"0");
-    return`${y}-${m}-${dd}`;
-  }
-  // M/D/YY or MM/DD/YY or M/D/YYYY
-  const slashMatch=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if(slashMatch){
-    let yr=parseInt(slashMatch[3]);
-    if(yr<100)yr+=2000;
-    const mo=String(parseInt(slashMatch[1])).padStart(2,"0");
-    const dy=String(parseInt(slashMatch[2])).padStart(2,"0");
-    return`${yr}-${mo}-${dy}`;
-  }
-  return s;
-}
+const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
 
 function Tasks({tasks,setTasks}){
   const [view,setView]=useState("calendar");
@@ -298,36 +287,31 @@ function Tasks({tasks,setTasks}){
   const [sortDir,setSortDir]=useState("asc");
   const [calMonth,setCalMonth]=useState(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;});
 
-  const todayStr=new Date().toISOString().split("T")[0];
-
-  // Normalize dates + auto-mark overdue
   const enriched=tasks.map(t=>{
     const due=normalizeDate(t.due);
-    let status=t.status||"Not Started";
-    if(due&&due<todayStr&&normalizeStatus(status)!=="Complete"&&normalizeStatus(status)!=="Done"){
-      status="Overdue";
-    }
+    let status=normalizeStatus(t.status);
+    if(due&&due<todayStr&&status!=="Complete")status="Overdue";
     return{...t,due,status};
   });
 
   const counts={
-    "Not Started":enriched.filter(t=>normalizeStatus(t.status)==="Not Started").length,
-    "In Progress":enriched.filter(t=>normalizeStatus(t.status)==="In Progress").length,
-    "Complete":enriched.filter(t=>normalizeStatus(t.status)==="Complete").length,
-    "Overdue":enriched.filter(t=>normalizeStatus(t.status)==="Overdue").length,
+    "Not Started":enriched.filter(t=>t.status==="Not Started").length,
+    "In Progress":enriched.filter(t=>t.status==="In Progress").length,
+    "Complete":enriched.filter(t=>t.status==="Complete").length,
+    "Overdue":enriched.filter(t=>t.status==="Overdue").length,
   };
 
-  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||normalizeStatus(t.status)===filterStatus));
+  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||t.status===filterStatus));
 
   function saveTask(f){
-    const normalized={...f,due:normalizeDate(f.due)};
-    const ex=tasks.find(t=>t.id===normalized.id);
-    setTasks(ex?tasks.map(t=>t.id===normalized.id?normalized:t):[...tasks,normalized]);
+    const n={...f,due:normalizeDate(f.due)};
+    const ex=tasks.find(t=>t.id===n.id);
+    setTasks(ex?tasks.map(t=>t.id===n.id?n:t):[...tasks,n]);
     setForm(null);
   }
   function deleteTask(id){setTasks(tasks.filter(t=>t.id!==id));setForm(null);}
 
-  // ── Calendar ─────────────────────────────────────────────────────────────
+  // Calendar
   function calDays(){
     const y=calMonth.getFullYear(),m=calMonth.getMonth();
     const first=new Date(y,m,1),last=new Date(y,m+1,0);
@@ -337,22 +321,16 @@ function Tasks({tasks,setTasks}){
     while(days.length%7!==0)days.push(null);
     return days;
   }
-
   function tasksOnDay(d){
-    if(!d)return[];
     const ds=d.toISOString().split("T")[0];
     return enriched.filter(t=>t.due===ds);
   }
-
   const monthName=calMonth.toLocaleString("default",{month:"long",year:"numeric"});
   const days=calDays();
   const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-  // ── Table sort ────────────────────────────────────────────────────────────
-  function toggleSort(col){
-    if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");
-    else{setSortCol(col);setSortDir("asc");}
-  }
+  // Table sort
+  function toggleSort(col){if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortCol(col);setSortDir("asc");}}
   const sorted=[...filtered].sort((a,b)=>{
     let av=a[sortCol]||"",bv=b[sortCol]||"";
     if(sortCol==="due"){av=av||"9999";bv=bv||"9999";}
@@ -374,10 +352,7 @@ function Tasks({tasks,setTasks}){
           <div style={{gridColumn:"span 2"}}><label style={lS}>Notes</label><textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={3} style={{...iS,resize:"vertical"}}/></div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:"1rem",justifyContent:"space-between"}}>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>saveTask(form)} style={btn()}>Save</button>
-            <button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button>
-          </div>
+          <div style={{display:"flex",gap:8}}><button onClick={()=>saveTask(form)} style={btn()}>Save</button><button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button></div>
           {tasks.find(t=>t.id===form.id)&&<button onClick={()=>deleteTask(form.id)} style={{...btn(),background:B.danger}}>Delete</button>}
         </div>
       </div>
@@ -386,11 +361,10 @@ function Tasks({tasks,setTasks}){
 
   return(
     <div style={{padding:"1rem 0"}}>
-
-      {/* Status summary cards */}
+      {/* Status cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
         {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
-          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.55:1,transition:"opacity 0.15s"}}>
+          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.55:1}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{s}</div>
             <div style={{fontSize:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
           </div>
@@ -399,9 +373,7 @@ function Tasks({tasks,setTasks}){
 
       {/* Controls */}
       <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
-        <select value={filterOwner} onChange={e=>setFilterOwner(e.target.value)} style={{...iS,width:"auto"}}>
-          <option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}
-        </select>
+        <select value={filterOwner} onChange={e=>setFilterOwner(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}</select>
         <div style={{flex:1}}/>
         <div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
           {[["calendar","Calendar"],["table","Table"]].map(([v,label])=>(
@@ -411,82 +383,51 @@ function Tasks({tasks,setTasks}){
         <button onClick={()=>setForm({...ET,id:Date.now()})} style={btn()}>+ Add task</button>
       </div>
 
-      {/* ── CALENDAR ── */}
+      {/* Calendar */}
       {view==="calendar"&&(
         <div style={{background:B.white,border:`1px solid ${B.steel}`,borderRadius:10,overflow:"hidden"}}>
-          {/* Month nav */}
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${B.light}`}}>
-            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()-1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:13}}>‹</button>
-            <div style={{fontSize:16,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{monthName}</div>
+            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()-1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:16}}>‹</button>
+            <div style={{fontSize:15,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{monthName}</div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <button onClick={()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);setCalMonth(d);}} style={{...btn(true),padding:"4px 12px",fontSize:11}}>Today</button>
-              <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()+1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:13}}>›</button>
+              <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()+1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:16}}>›</button>
             </div>
           </div>
-
-          {/* Day headers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>
-            {DOW.map(d=>(
-              <div key={d} style={{padding:"8px 0",textAlign:"center",fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.06em"}}>{d}</div>
-            ))}
+            {DOW.map(d=><div key={d} style={{padding:"8px 0",textAlign:"center",fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.06em"}}>{d}</div>)}
           </div>
-
-          {/* Grid */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))"}}>
             {days.map((d,i)=>{
               const dayTasks=d?tasksOnDay(d):[];
               const isToday=d&&d.toISOString().split("T")[0]===todayStr;
               const isCurrentMonth=d&&d.getMonth()===calMonth.getMonth();
-              const maxVisible=3;
-              const overflow=dayTasks.length-maxVisible;
+              const overflow=dayTasks.length-3;
               return(
-                <div key={i} style={{height:110,overflow:"hidden",padding:"6px 6px",borderRight:i%7!==6?`1px solid ${B.light}`:"none",borderBottom:`1px solid ${B.light}`,background:isCurrentMonth?B.white:B.offwhite}}>
-                  {d&&(
-                    <>
-                      <div style={{marginBottom:4}}>
-                        <span style={{
-                          display:"inline-flex",alignItems:"center",justifyContent:"center",
-                          width:22,height:22,borderRadius:"50%",fontSize:12,fontWeight:isToday?700:400,
-                          background:isToday?B.navy:"transparent",
-                          color:isToday?B.white:isCurrentMonth?B.navy:B.muted,
-                        }}>{d.getDate()}</span>
-                      </div>
-                      {dayTasks.slice(0,maxVisible).map(t=>{
-                        const sc=statusColor[normalizeStatus(t.status)]||B.muted;
-                        return(
-                          <div key={t.id} onClick={()=>setForm({...t})} style={{
-                            fontSize:11,fontWeight:500,padding:"2px 6px",borderRadius:3,marginBottom:2,
-                            cursor:"pointer",background:sc,color:B.white,
-                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                            borderLeft:`3px solid ${sc}`,
-                          }} title={t.title}>
-                            {t.title}
-                          </div>
-                        );
-                      })}
-                      {overflow>0&&(
-                        <div style={{fontSize:10,color:B.muted,paddingLeft:2,marginTop:1}}>+{overflow} more</div>
-                      )}
-                    </>
-                  )}
+                <div key={i} style={{height:110,overflow:"hidden",padding:"5px 6px",borderRight:i%7!==6?`1px solid ${B.light}`:"none",borderBottom:`1px solid ${B.light}`,background:isCurrentMonth?B.white:B.offwhite}}>
+                  {d&&<>
+                    <div style={{marginBottom:3}}>
+                      <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:22,height:22,borderRadius:"50%",fontSize:12,fontWeight:isToday?700:400,background:isToday?B.navy:"transparent",color:isToday?B.white:isCurrentMonth?B.navy:B.muted}}>{d.getDate()}</span>
+                    </div>
+                    {dayTasks.slice(0,3).map(t=>{
+                      const sc=taskStatusColor[t.status]||B.muted;
+                      return(<div key={t.id} onClick={()=>setForm({...t})} title={t.title} style={{fontSize:10,fontWeight:600,padding:"2px 5px",borderRadius:3,marginBottom:2,cursor:"pointer",background:sc,color:B.white,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.title}</div>);
+                    })}
+                    {overflow>0&&<div style={{fontSize:10,color:B.muted,paddingLeft:2}}>+{overflow} more</div>}
+                  </>}
                 </div>
               );
             })}
           </div>
-
-          {/* Legend */}
           <div style={{display:"flex",gap:16,padding:"10px 16px",borderTop:`1px solid ${B.light}`,flexWrap:"wrap"}}>
             {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
-              <span key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:B.muted}}>
-                <span style={{width:10,height:10,borderRadius:2,background:c,display:"inline-block"}}/>
-                {s}
-              </span>
+              <span key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:B.muted}}><span style={{width:10,height:10,borderRadius:2,background:c,display:"inline-block"}}/>{s}</span>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── TABLE ── */}
+      {/* Table */}
       {view==="table"&&(
         <div style={{...card,padding:0,overflow:"hidden"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
@@ -502,21 +443,16 @@ function Tasks({tasks,setTasks}){
             </thead>
             <tbody>
               {sorted.map((t,i)=>{
-                const sc=statusColor[normalizeStatus(t.status)]||B.muted;
-                const isOverdue=normalizeStatus(t.status)==="Overdue";
+                const sc=taskStatusColor[t.status]||B.muted;
                 return(
                   <tr key={t.id} onClick={()=>setForm({...t})} style={{cursor:"pointer",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
                     <td style={{padding:"9px 12px",fontSize:11,color:B.muted}}>{i+1}</td>
                     <td style={{padding:"9px 12px",color:B.muted,fontSize:12,whiteSpace:"nowrap"}}>{t.workstream||"—"}</td>
                     <td style={{padding:"9px 12px",color:B.navy,fontWeight:600,maxWidth:240}}>{t.title}</td>
-                    <td style={{padding:"9px 12px",color:B.muted,fontSize:12,whiteSpace:"nowrap"}}>{t.owner||"—"}</td>
-                    <td style={{padding:"9px 12px"}}>
-                      <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:sc+"22",color:sc,border:`1px solid ${sc}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{normalizeStatus(t.status)}</span>
-                    </td>
-                    <td style={{padding:"9px 12px",fontSize:12,color:isOverdue?B.danger:B.muted,fontWeight:isOverdue?700:400,whiteSpace:"nowrap"}}>{t.due||"—"}</td>
-                    <td style={{padding:"9px 12px"}}>
-                      <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)+"22",color:t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue,border:`1px solid ${(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)}44`,letterSpacing:"0.04em",textTransform:"uppercase"}}>{t.priority||"Medium"}</span>
-                    </td>
+                    <td style={{padding:"9px 12px",fontSize:12,whiteSpace:"nowrap"}}>{t.owner||"—"}</td>
+                    <td style={{padding:"9px 12px"}}><span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:sc+"22",color:sc,border:`1px solid ${sc}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{t.status}</span></td>
+                    <td style={{padding:"9px 12px",fontSize:12,color:t.status==="Overdue"?B.danger:B.muted,fontWeight:t.status==="Overdue"?700:400,whiteSpace:"nowrap"}}>{t.due||"—"}</td>
+                    <td style={{padding:"9px 12px"}}><span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)+"22",color:t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue,border:`1px solid ${(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)}44`,letterSpacing:"0.04em",textTransform:"uppercase"}}>{t.priority||"Medium"}</span></td>
                     <td style={{padding:"9px 12px",fontSize:12,color:B.muted,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.notes||"—"}</td>
                   </tr>
                 );
@@ -526,11 +462,11 @@ function Tasks({tasks,setTasks}){
           {sorted.length===0&&<div style={{padding:"3rem",textAlign:"center",color:B.muted,fontSize:13}}>No tasks match your filters.</div>}
         </div>
       )}
-
       <TaskModal/>
     </div>
   );
 }
+
 // ── Import helpers ─────────────────────────────────────────────────────────
 const LP_PORTAL_FIELDS=["bio","relationship","whatTheyCareAbout","howWeKnowThem","nextStep","linkedinUrl"];
 const LN_PORTAL_FIELDS=["bio","dealsDone","minLoanSize","maxLoanSize","ltcAppetite","geographies","nextStep","linkedinUrl"];
@@ -577,10 +513,11 @@ function mapPriority(s){
 
 function mapTaskStatus(s){
   const l=(s||'').toLowerCase();
-  if(l.includes('complete')||l.includes('done'))return'Done';
-  if(l.includes('progress')||l.includes('active'))return'In progress';
+  if(l.includes('complete')||l==='done')return'Complete';
+  if(l.includes('progress')||l.includes('active'))return'In Progress';
   if(l.includes('block'))return'Blocked';
-  return'To do';
+  if(l.includes('overdue'))return'Overdue';
+  return'Not Started';
 }
 
 function mergeJSProspects(rows,existing){
@@ -644,10 +581,19 @@ function mergeLenders(rows,existing){
 }
 
 function mergeTasks(rows,existing){
-  const incoming=rows.filter(r=>r['Title']).map(r=>{
-    const ex=existing.find(t=>String(t.id)===String(r['Task_ID']));
-    const sheetData={id:r['Task_ID']||Date.now()+Math.random(),title:r['Title'],owner:r['Owner']||'Jimmy',due:r['Due_Date']||r['Due_Date_Parsed']||'',priority:mapPriority(r['Priority'])};
-    if(ex)return{...ex,...sheetData,status:ex.status!=='To do'?ex.status:mapTaskStatus(r['Status']||''),notes:ex.notes&&ex.notes!==r['Notes']?ex.notes:(r['Notes']||ex.notes||'')};
+  const incoming=rows.filter(r=>r['Title']&&r['Title'].trim()).map((r,i)=>{
+    const rawId=r['Task_ID']&&r['Task_ID'].trim()?r['Task_ID'].trim():null;
+    const due=normalizeDate(r['Due_Date_Parsed']||r['Due_Date']||'');
+    const ex=rawId?existing.find(t=>String(t.id)===rawId):existing.find(t=>t.title&&t.title.trim().toLowerCase()===r['Title'].trim().toLowerCase());
+    const sheetData={
+      id:rawId||ex?.id||`task-${Date.now()}-${i}`,
+      title:r['Title'].trim(),
+      workstream:r['Workstream']||'',
+      owner:r['Owner']||'Jimmy',
+      due,
+      priority:mapPriority(r['Priority']),
+    };
+    if(ex)return{...ex,...sheetData,status:normalizeStatus(ex.status)!=='Not Started'?ex.status:mapTaskStatus(r['Status']||''),notes:ex.notes&&ex.notes!==r['Notes']?ex.notes:(r['Notes']||ex.notes||'')};
     return{...sheetData,status:mapTaskStatus(r['Status']||''),notes:r['Notes']||''};
   });
   const importedIds=new Set(incoming.map(t=>String(t.id)));
@@ -713,7 +659,7 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles}){
     <div style={{padding:'1.25rem 0',maxWidth:700}}>
       <div style={{background:'#e8f0f7',borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
         <div style={{fontSize:12,color:B.navy,lineHeight:1.8}}>
-          <strong>How to export:</strong> Juniper Square → Prospects tab → Export button. Google Sheets → File → Download → Tab-separated values (.tsv).<br/>
+          <strong>How to export:</strong> Juniper Square → Prospects tab → Export. Google Sheets → File → Download → Tab-separated values (.tsv).<br/>
           <strong>Merge rules:</strong> Sheet updates status, amounts & contact info. Portal keeps your bios, notes & next steps.
         </div>
       </div>
