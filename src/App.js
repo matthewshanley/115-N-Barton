@@ -1,9 +1,180 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS } from "./data";
 
+// ── Supabase config ────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://bhwfnogroaxttmtvulft.supabase.co";
+const SUPABASE_KEY = "sb_publishable_E6WAINsjfdTeGs0_xAK6ig_VGIzDI_w";
+const SB = (path, opts = {}) =>
+  fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: opts.prefer || "return=representation",
+      ...(opts.headers || {}),
+    },
+  });
+
+// ── Supabase helpers ───────────────────────────────────────────────────────
+async function sbFetch(table) {
+  const res = await SB(`${table}?select=*`);
+  if (!res.ok) throw new Error(`Fetch ${table} failed: ${res.status}`);
+  return res.json();
+}
+
+async function sbUpsert(table, rows) {
+  const res = await SB(table, {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=representation",
+    body: JSON.stringify(rows),
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Upsert ${table} failed: ${err}`);
+  }
+  return res.json();
+}
+
+async function sbDelete(table, id) {
+  const res = await SB(`${table}?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
+  if (!res.ok) throw new Error(`Delete ${table} failed: ${res.status}`);
+}
+
+// Map JS objects → DB rows and back
+function contactToRow(c) {
+  return {
+    id: String(c.id),
+    type: c.type === "LP" ? "lp" : "lender",
+    name: c.name || "",
+    email: c.email || "",
+    phone: c.phone || "",
+    status: c.status || "",
+    priority: c.priority || "Medium",
+    expected_amount: c.expectedAmount ? Number(c.expectedAmount) : null,
+    likelihood: c.likelihood ? Number(c.likelihood) : null,
+    tag: c.tag || "",
+    bio: c.bio || "",
+    prior_deal_history: c.relationship || "",
+    relationship_notes: c.howWeKnowThem || "",
+    what_they_care_about: c.whatTheyCareAbout || "",
+    next_step: c.nextStep || "",
+    notes: c.notes || "",
+    // extra LP fields stored in notes as JSON suffix — we flatten into notes
+    // lender-specific fields stored in notes
+    updated_at: new Date().toISOString(),
+    // We store extra fields as serialized JSON in a spare column via notes augmentation
+    // Actually store full object as JSON in notes_json virtual approach:
+    // Instead, store supplementary fields in a single "notes" blob approach won't work cleanly.
+    // We'll persist full contact as JSON in the notes field prefixed with a sentinel,
+    // and parse it back out. This avoids schema changes while keeping all portal fields.
+    _extra: JSON.stringify({
+      firm: c.firm || "",
+      title: c.title || "",
+      linkedinUrl: c.linkedinUrl || "",
+      howWeKnowThem: c.howWeKnowThem || "",
+      whatTheyCareAbout: c.whatTheyCareAbout || "",
+      relationship: c.relationship || "",
+      // lender fields
+      projectedLoanAmount: c.projectedLoanAmount || "",
+      loanType: c.loanType || "",
+      dealsDone: c.dealsDone || "",
+      minLoanSize: c.minLoanSize || "",
+      maxLoanSize: c.maxLoanSize || "",
+      ltcAppetite: c.ltcAppetite || "",
+      geographies: c.geographies || "",
+    }),
+  };
+}
+
+function rowToContact(r) {
+  let extra = {};
+  try { extra = JSON.parse(r._extra || "{}"); } catch (_) {}
+  return {
+    id: r.id,
+    type: r.type === "lp" ? "LP" : "Lender",
+    name: r.name || "",
+    firm: extra.firm || "",
+    title: extra.title || "",
+    email: r.email || "",
+    phone: r.phone || "",
+    linkedinUrl: extra.linkedinUrl || "",
+    status: r.status || "",
+    priority: r.priority || "Medium",
+    expectedAmount: r.expected_amount || "",
+    likelihood: r.likelihood || "",
+    tag: r.tag || "",
+    bio: r.bio || "",
+    relationship: extra.relationship || r.prior_deal_history || "",
+    howWeKnowThem: extra.howWeKnowThem || r.relationship_notes || "",
+    whatTheyCareAbout: extra.whatTheyCareAbout || r.what_they_care_about || "",
+    nextStep: r.next_step || "",
+    notes: r.notes || "",
+    projectedLoanAmount: extra.projectedLoanAmount || "",
+    loanType: extra.loanType || "Construction-to-perm",
+    dealsDone: extra.dealsDone || "",
+    minLoanSize: extra.minLoanSize || "",
+    maxLoanSize: extra.maxLoanSize || "",
+    ltcAppetite: extra.ltcAppetite || "",
+    geographies: extra.geographies || "",
+  };
+}
+
+function taskToRow(t) {
+  return {
+    id: String(t.id),
+    task_id: String(t.id),
+    workstream: t.workstream || "",
+    title: t.title || "",
+    owner: t.owner || "Jimmy",
+    status: t.status || "Not Started",
+    due_date: t.due || null,
+    priority: t.priority || "Medium",
+    notes: t.notes || "",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToTask(r) {
+  return {
+    id: r.id,
+    task_id: r.task_id,
+    workstream: r.workstream || "",
+    title: r.title || "",
+    owner: r.owner || "Jimmy",
+    status: r.status || "Not Started",
+    due: r.due_date || "",
+    priority: r.priority || "Medium",
+    notes: r.notes || "",
+  };
+}
+
+function mileToRow(m) {
+  return {
+    id: String(m.id),
+    milestone_id: String(m.id),
+    label: m.label || "",
+    phase: m.phase || "Execution",
+    start_date: m.start || null,
+    end_date: m.end || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToMile(r) {
+  return {
+    id: r.id,
+    label: r.label || "",
+    phase: r.phase || "Execution",
+    start: r.start_date || "",
+    end: r.end_date || "",
+  };
+}
+
+// ── Brand / style constants (unchanged) ───────────────────────────────────
 const B={navy:"#021d2b",blue:"#033b57",steel:"#ccd5de",sage:"#5e7361",white:"#ffffff",offwhite:"#f4f6f8",muted:"#6b8497",border:"#ccd5de",danger:"#7a1e1e",gold:"#c9a84c",light:"#e8edf1"};
 const FONT="'Gill Sans','Gill Sans MT','Trebuchet MS',sans-serif";
-const CRM_KEY="ecg-crm-v3",TASK_KEY="ecg-tasks-v1",MILE_KEY="ecg-miles-v1";
 const LP_STAT_COL={"Deck sent":B.blue,"Data room accessed":B.sage,"In conversation":B.sage,"Soft commit":B.gold,"Committed":"#2a6b3f","Passed":B.danger};
 const LN_STAT_COL={"Not contacted":B.muted,"Outreach sent":B.blue,"Term sheet requested":B.gold,"Term sheet received":B.gold,"In diligence":B.sage,"Committed":"#2a6b3f","Passed":B.danger};
 const statCol=s=>LP_STAT_COL[s]||LN_STAT_COL[s]||B.muted;
@@ -12,7 +183,6 @@ const LN_STATUSES=["Not contacted","Outreach sent","Term sheet requested","Term 
 const PRIORITIES=["High","Medium","Low"];
 const OWNERS=["Jimmy","Jonathan","Jackson","Matt","Eric","Jason"];
 const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
-const store={get:k=>{try{const v=localStorage.getItem(k);return v?{value:v}:null;}catch(_){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(_){}}};
 const fmt$=n=>(!n&&n!==0)?"—":"$"+Number(n).toLocaleString();
 const initials=n=>(n||"?").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
 const today=new Date();
@@ -121,7 +291,7 @@ function Dashboard({contacts,tasks,miles}){
 const ELP={id:null,type:"LP",name:"",firm:"",title:"",email:"",phone:"",linkedinUrl:"",status:"Deck sent",priority:"Medium",likelihood:"",expectedAmount:"",tag:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""};
 const ELN={id:null,type:"Lender",name:"",firm:"",title:"",email:"",phone:"",linkedinUrl:"",status:"Not contacted",priority:"Medium",projectedLoanAmount:"",loanType:"Construction-to-perm",dealsDone:"",minLoanSize:"",maxLoanSize:"",ltcAppetite:"",geographies:"",bio:"",nextStep:"",notes:""};
 
-function CRM({contacts,setContacts}){
+function CRM({contacts,setContacts,onSave,onDelete}){
   const [tab,setTab]=useState("LP");
   const [sf,setSf]=useState("All");
   const [tf,setTf]=useState("All");
@@ -129,6 +299,7 @@ function CRM({contacts,setContacts}){
   const [view,setView]=useState("list");
   const [sel,setSel]=useState(null);
   const [form,setForm]=useState(ELP);
+  const [saving,setSaving]=useState(false);
   const sts=tab==="LP"?LP_STATUSES:LN_STATUSES;
   const tags=["All",...Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()];
   const vis=contacts.filter(c=>{
@@ -143,18 +314,35 @@ function CRM({contacts,setContacts}){
   const lpW=lps.filter(c=>c.expectedAmount&&c.likelihood).reduce((s,c)=>s+(Number(c.expectedAmount)||0)*(Number(c.likelihood)||0)/100,0);
   const lpWm=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).length;
   const lnT=lnds.reduce((s,c)=>s+(Number(c.projectedLoanAmount)||0),0);
-  function openNew(){setForm(tab==="LP"?{...ELP,id:Date.now()}:{...ELN,id:Date.now()});setView("form");}
+  function openNew(){setForm(tab==="LP"?{...ELP,id:`lp-${Date.now()}`}:{...ELN,id:`ln-${Date.now()}`});setView("form");}
   function openEdit(c){setForm({...c});setView("form");}
   function openDetail(c){setSel(c);setView("detail");}
   function goBack(){setView("list");setSel(null);}
-  function submit(){const ex=contacts.find(c=>c.id===form.id);const up=ex?contacts.map(c=>c.id===form.id?{...form}:c):[...contacts,{...form}];setContacts(up);if(sel?.id===form.id)setSel({...form});setView(sel?.id===form.id?"detail":"list");}
-  function del(id){setContacts(contacts.filter(c=>c.id!==id));goBack();}
+  async function submit(){
+    setSaving(true);
+    try{
+      const ex=contacts.find(c=>c.id===form.id);
+      const up=ex?contacts.map(c=>c.id===form.id?{...form}:c):[...contacts,{...form}];
+      await onSave("contacts",[form]);
+      setContacts(up);
+      if(sel?.id===form.id)setSel({...form});
+      setView(sel?.id===form.id?"detail":"list");
+    }finally{setSaving(false);}
+  }
+  async function del(id){
+    setSaving(true);
+    try{
+      await onDelete("contacts",id);
+      setContacts(contacts.filter(c=>c.id!==id));
+      goBack();
+    }finally{setSaving(false);}
+  }
   const tB=a=>({fontSize:11,padding:"8px 18px",background:"none",border:"none",borderBottom:a?`2px solid ${B.navy}`:"2px solid transparent",fontWeight:a?700:400,color:a?B.navy:B.muted,cursor:"pointer",marginBottom:-1,letterSpacing:"0.07em",textTransform:"uppercase",fontFamily:FONT});
 
   if(view==="detail"&&sel){
     const c=contacts.find(x=>x.id===sel.id)||sel;
     return(<div style={{padding:"1rem 0"}}>
-      <div style={{display:"flex",gap:8,marginBottom:"1rem"}}><button onClick={goBack} style={btn(true)}>← Back</button><button onClick={()=>openEdit(c)} style={btn()}>Edit</button><button onClick={()=>del(c.id)} style={{...btn(),background:B.danger}}>Delete</button></div>
+      <div style={{display:"flex",gap:8,marginBottom:"1rem"}}><button onClick={goBack} style={btn(true)}>← Back</button><button onClick={()=>openEdit(c)} style={btn()}>Edit</button><button onClick={()=>del(c.id)} style={{...btn(),background:B.danger}}>{saving?"Deleting…":"Delete"}</button></div>
       <div style={card}>
         <div style={{display:"flex",gap:14,marginBottom:"1rem",alignItems:"flex-start"}}>
           <Avatar name={c.name} color={c.type==="LP"?B.navy:B.sage}/>
@@ -193,7 +381,7 @@ function CRM({contacts,setContacts}){
           {form.type==="Lender"&&<><F label="Projected loan ($)" field="projectedLoanAmount" type="number"/><F label="Loan type" field="loanType" opts={["Construction-to-perm","Bridge","Construction only","Permanent","SBA","Other"]}/><F label="Min loan ($)" field="minLoanSize" type="number"/><F label="Max loan ($)" field="maxLoanSize" type="number"/><F label="LTC appetite (%)" field="ltcAppetite" type="number"/><F label="Geographies" field="geographies"/><F label="Deals done" field="dealsDone" span/></>}
         </div>
         {["relationship","bio","nextStep","notes"].map(f=>(<div key={f} style={{marginTop:12}}><label style={lS}>{f==="relationship"?"Prior deal history":f==="nextStep"?"Next step":f}</label><textarea value={form[f]||""} onChange={e=>setForm(fm=>({...fm,[f]:e.target.value}))} rows={f==="notes"?4:2} style={{...iS,resize:"vertical"}}/></div>))}
-        <div style={{display:"flex",gap:8,marginTop:"1rem"}}><button onClick={submit} style={btn()}>Save contact</button></div>
+        <div style={{display:"flex",gap:8,marginTop:"1rem"}}><button onClick={submit} style={btn()} disabled={saving}>{saving?"Saving…":"Save contact"}</button></div>
       </div>
     </div>);
   }
@@ -239,11 +427,19 @@ const wP=(s,e)=>Math.max(((new Date(e)-new Date(s))/GT)*100,1);
 const QS=[];
 for(let y=2025;y<=2027;y++)for(let q=0;q<4;q++){const d=new Date(y,q*3,1);if(d>=GS&&d<=GE)QS.push({label:`Q${q+1} ${y}`,pct:tP(d)});}
 
-function Timeline({miles,setMiles}){
+function Timeline({miles,setMiles,onSave}){
   const [editing,setEditing]=useState(null);
   const [form,setForm]=useState({});
+  const [saving,setSaving]=useState(false);
   const nowP=tP(today);
-  function save(){setMiles(miles.map(m=>m.id===form.id?{...form}:m));setEditing(null);}
+  async function save(){
+    setSaving(true);
+    try{
+      await onSave("milestones",[form]);
+      setMiles(miles.map(m=>m.id===form.id?{...form}:m));
+      setEditing(null);
+    }finally{setSaving(false);}
+  }
   return(<div style={{padding:"1rem 0"}}>
     <div style={{fontSize:11,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"1rem",display:"flex",gap:16,flexWrap:"wrap"}}>
       {Object.entries(pC).map(([ph,col])=><span key={ph} style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:2,background:col,display:"inline-block"}}/>{ph}</span>)}
@@ -268,7 +464,7 @@ function Timeline({miles,setMiles}){
         <div><label style={lS}>End</label><input type="date" value={form.end||""} onChange={e=>setForm(f=>({...f,end:e.target.value}))} style={iS}/></div>
         <div><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
       </div>
-      <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={save} style={btn()}>Save</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
+      <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={save} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
     </div>}
     <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any milestone row to edit dates.</div>
   </div>);
@@ -278,7 +474,7 @@ function Timeline({miles,setMiles}){
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
 
-function Tasks({tasks,setTasks}){
+function Tasks({tasks,setTasks,onSave,onDelete}){
   const [view,setView]=useState("calendar");
   const [form,setForm]=useState(null);
   const [filterOwner,setFilterOwner]=useState("All");
@@ -286,6 +482,7 @@ function Tasks({tasks,setTasks}){
   const [sortCol,setSortCol]=useState("due");
   const [sortDir,setSortDir]=useState("asc");
   const [calMonth,setCalMonth]=useState(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;});
+  const [saving,setSaving]=useState(false);
 
   const enriched=tasks.map(t=>{
     const due=normalizeDate(t.due);
@@ -303,15 +500,25 @@ function Tasks({tasks,setTasks}){
 
   const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||t.status===filterStatus));
 
-  function saveTask(f){
-    const n={...f,due:normalizeDate(f.due)};
-    const ex=tasks.find(t=>t.id===n.id);
-    setTasks(ex?tasks.map(t=>t.id===n.id?n:t):[...tasks,n]);
-    setForm(null);
+  async function saveTask(f){
+    setSaving(true);
+    try{
+      const n={...f,due:normalizeDate(f.due)};
+      await onSave("tasks",[n]);
+      const ex=tasks.find(t=>t.id===n.id);
+      setTasks(ex?tasks.map(t=>t.id===n.id?n:t):[...tasks,n]);
+      setForm(null);
+    }finally{setSaving(false);}
   }
-  function deleteTask(id){setTasks(tasks.filter(t=>t.id!==id));setForm(null);}
+  async function deleteTask(id){
+    setSaving(true);
+    try{
+      await onDelete("tasks",id);
+      setTasks(tasks.filter(t=>t.id!==id));
+      setForm(null);
+    }finally{setSaving(false);}
+  }
 
-  // Calendar
   function calDays(){
     const y=calMonth.getFullYear(),m=calMonth.getMonth();
     const first=new Date(y,m,1),last=new Date(y,m+1,0);
@@ -329,7 +536,6 @@ function Tasks({tasks,setTasks}){
   const days=calDays();
   const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-  // Table sort
   function toggleSort(col){if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");else{setSortCol(col);setSortDir("asc");}}
   const sorted=[...filtered].sort((a,b)=>{
     let av=a[sortCol]||"",bv=b[sortCol]||"";
@@ -352,8 +558,8 @@ function Tasks({tasks,setTasks}){
           <div style={{gridColumn:"span 2"}}><label style={lS}>Notes</label><textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={3} style={{...iS,resize:"vertical"}}/></div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:"1rem",justifyContent:"space-between"}}>
-          <div style={{display:"flex",gap:8}}><button onClick={()=>saveTask(form)} style={btn()}>Save</button><button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button></div>
-          {tasks.find(t=>t.id===form.id)&&<button onClick={()=>deleteTask(form.id)} style={{...btn(),background:B.danger}}>Delete</button>}
+          <div style={{display:"flex",gap:8}}><button onClick={()=>saveTask(form)} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button></div>
+          {tasks.find(t=>t.id===form.id)&&<button onClick={()=>deleteTask(form.id)} style={{...btn(),background:B.danger}} disabled={saving}>Delete</button>}
         </div>
       </div>
     </div>
@@ -361,7 +567,6 @@ function Tasks({tasks,setTasks}){
 
   return(
     <div style={{padding:"1rem 0"}}>
-      {/* Status cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
         {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
           <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.55:1}}>
@@ -370,8 +575,6 @@ function Tasks({tasks,setTasks}){
           </div>
         ))}
       </div>
-
-      {/* Controls */}
       <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
         <select value={filterOwner} onChange={e=>setFilterOwner(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}</select>
         <div style={{flex:1}}/>
@@ -380,10 +583,8 @@ function Tasks({tasks,setTasks}){
             <button key={v} onClick={()=>setView(v)} style={{fontSize:11,padding:"7px 18px",background:view===v?B.navy:"transparent",color:view===v?B.white:B.muted,border:"none",cursor:"pointer",fontFamily:FONT,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}</button>
           ))}
         </div>
-        <button onClick={()=>setForm({...ET,id:Date.now()})} style={btn()}>+ Add task</button>
+        <button onClick={()=>setForm({...ET,id:`task-${Date.now()}`})} style={btn()}>+ Add task</button>
       </div>
-
-      {/* Calendar */}
       {view==="calendar"&&(
         <div style={{background:B.white,border:`1px solid ${B.steel}`,borderRadius:10,overflow:"hidden"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${B.light}`}}>
@@ -426,8 +627,6 @@ function Tasks({tasks,setTasks}){
           </div>
         </div>
       )}
-
-      {/* Table */}
       {view==="table"&&(
         <div style={{...card,padding:0,overflow:"hidden"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
@@ -467,7 +666,7 @@ function Tasks({tasks,setTasks}){
   );
 }
 
-// ── Import helpers ─────────────────────────────────────────────────────────
+// ── Import helpers (unchanged logic) ──────────────────────────────────────
 const LP_PORTAL_FIELDS=["bio","relationship","whatTheyCareAbout","howWeKnowThem","nextStep","linkedinUrl"];
 const LN_PORTAL_FIELDS=["bio","dealsDone","minLoanSize","maxLoanSize","ltcAppetite","geographies","nextStep","linkedinUrl"];
 
@@ -482,179 +681,122 @@ function parseCSV(text){
     return obj;
   });
 }
-
-function mapJSStatus(s){
-  const l=s.toLowerCase();
-  if(l==='closed')return'Committed';
-  if(l==='contacted')return'Deck sent';
-  if(l==='new')return'Deck sent';
-  if(l.includes('commit'))return'Soft commit';
-  if(l==='passed')return'Passed';
-  return'Deck sent';
-}
-
-function mapLenderStatus(s){
-  const l=s.toLowerCase();
-  if(l.includes('term sheet received'))return'Term sheet received';
-  if(l.includes('term sheet'))return'Term sheet requested';
-  if(l.includes('diligence'))return'In diligence';
-  if(l.includes('commit'))return'Committed';
-  if(l.includes('passed'))return'Passed';
-  if(l.includes('target')||l.includes('outreach'))return'Outreach sent';
-  return'Not contacted';
-}
-
-function mapPriority(s){
-  const l=(s||'').toLowerCase();
-  if(l==='high')return'High';
-  if(l==='low')return'Low';
-  return'Medium';
-}
-
-function mapTaskStatus(s){
-  const l=(s||'').toLowerCase();
-  if(l.includes('complete')||l==='done')return'Complete';
-  if(l.includes('progress')||l.includes('active'))return'In Progress';
-  if(l.includes('block'))return'Blocked';
-  if(l.includes('overdue'))return'Overdue';
-  return'Not Started';
-}
+function mapJSStatus(s){const l=s.toLowerCase();if(l==='closed')return'Committed';if(l==='contacted')return'Deck sent';if(l==='new')return'Deck sent';if(l.includes('commit'))return'Soft commit';if(l==='passed')return'Passed';return'Deck sent';}
+function mapLenderStatus(s){const l=s.toLowerCase();if(l.includes('term sheet received'))return'Term sheet received';if(l.includes('term sheet'))return'Term sheet requested';if(l.includes('diligence'))return'In diligence';if(l.includes('commit'))return'Committed';if(l.includes('passed'))return'Passed';if(l.includes('target')||l.includes('outreach'))return'Outreach sent';return'Not contacted';}
+function mapPriority(s){const l=(s||'').toLowerCase();if(l==='high')return'High';if(l==='low')return'Low';return'Medium';}
+function mapTaskStatus(s){const l=(s||'').toLowerCase();if(l.includes('complete')||l==='done')return'Complete';if(l.includes('progress')||l.includes('active'))return'In Progress';if(l.includes('block'))return'Blocked';if(l.includes('overdue'))return'Overdue';return'Not Started';}
 
 function mergeJSProspects(rows,existing){
-  const seen=new Set();
-  const incoming=[];
+  const seen=new Set();const incoming=[];
   rows.forEach(r=>{
     const names=(r['Contacts']||'').split(';').map(s=>s.trim()).filter(Boolean);
-    const emails=r['Email addresses']||'';
-    const phones=r['Phone numbers']||'';
+    const emails=r['Email addresses']||'';const phones=r['Phone numbers']||'';
     const tag=(r['Prospect tags']||'').split(';')[0].trim();
     const likelihood=parseInt(r['Likelihood'])||null;
     const expected=parseFloat((r['Expected']||'').replace(/[$,]/g,''))||null;
     const jsStatus=mapJSStatus(r['Prospect Status']||'');
     const dataRoomAccessed=(r[' Data room access detail']||r['Data room last accessed']||'').toLowerCase().includes('accessed');
     const status=dataRoomAccessed&&jsStatus==='Deck sent'?'Data room accessed':jsStatus;
-    const positions=r['Positions']||'';
-    const notes=r['Notes']||'';
-    const lastUpdate=r['Latest update']||'';
-    const latestTask=r['Latest task']||'';
+    const positions=r['Positions']||'';const notes=r['Notes']||'';const lastUpdate=r['Latest update']||'';const latestTask=r['Latest task']||'';
     names.forEach((name,idx)=>{
-      if(seen.has(name))return;
-      seen.add(name);
+      if(seen.has(name))return;seen.add(name);
       const emailRaw=emails.split(';').find(e=>e.toLowerCase().includes(name.split(' ')[0].toLowerCase()))||emails.split(';')[0]||'';
       const email=(emailRaw.includes(':')?emailRaw.split(':')[1]:emailRaw).trim().split(',')[0].trim();
-      const phoneRaw=phones.split(';')[0]||'';
-      const phone=(phoneRaw.includes(':')?phoneRaw.split(':')[1]:phoneRaw).trim().split(',')[0].trim();
+      const phoneRaw=phones.split(';')[0]||'';const phone=(phoneRaw.includes(':')?phoneRaw.split(':')[1]:phoneRaw).trim().split(',')[0].trim();
       const sheetData={status,likelihood,expectedAmount:idx===0?expected:null,tag,email,phone,firm:r['Organization']||'',notes:[notes,lastUpdate].filter(Boolean).join('\n').trim()};
       const ex=existing.find(c=>c.type==='LP'&&c.name.toLowerCase()===name.toLowerCase());
-      if(ex){
-        const merged={...ex,...sheetData};
-        LP_PORTAL_FIELDS.forEach(f=>{merged[f]=ex[f]||'';});
-        if(!ex.nextStep&&latestTask)merged.nextStep=latestTask;
-        incoming.push(merged);
-      } else {
-        incoming.push({id:Date.now()+Math.random(),type:'LP',name,title:'',linkedinUrl:'',bio:'',relationship:positions.split(';')[0]?.trim()||'',whatTheyCareAbout:'',howWeKnowThem:tag||'',nextStep:latestTask,priority:'Medium',...sheetData});
-      }
+      if(ex){const merged={...ex,...sheetData};LP_PORTAL_FIELDS.forEach(f=>{merged[f]=ex[f]||'';});if(!ex.nextStep&&latestTask)merged.nextStep=latestTask;incoming.push(merged);}
+      else{incoming.push({id:`lp-${Date.now()}-${Math.random()}`,type:'LP',name,title:'',linkedinUrl:'',bio:'',relationship:positions.split(';')[0]?.trim()||'',whatTheyCareAbout:'',howWeKnowThem:tag||'',nextStep:latestTask,priority:'Medium',...sheetData});}
     });
   });
   const importedNames=new Set(incoming.map(c=>c.name.toLowerCase()));
-  const manualOnly=existing.filter(c=>c.type==='LP'&&!importedNames.has(c.name.toLowerCase()));
-  return[...incoming,...manualOnly];
+  return[...incoming,...existing.filter(c=>c.type==='LP'&&!importedNames.has(c.name.toLowerCase()))];
 }
-
 function mergeLenders(rows,existing){
   const incoming=rows.filter(r=>r['Contact']||r['Firm']).map(r=>{
-    const name=r['Contact']||'';
-    const ex=existing.find(c=>c.type==='Lender'&&c.name.toLowerCase()===name.toLowerCase());
+    const name=r['Contact']||'';const ex=existing.find(c=>c.type==='Lender'&&c.name.toLowerCase()===name.toLowerCase());
     const emailPhone=r['Email_Phone']||'';
     const sheetData={name,firm:r['Firm']||'',status:mapLenderStatus(r['Stage']||r['Status']||''),projectedLoanAmount:parseFloat((r['Amount_Terms']||'').replace(/[$,]/g,''))||'',loanType:'Construction-to-perm',notes:r['Notes']||'',email:emailPhone.includes('@')?emailPhone.split(';')[0].trim():'',phone:!emailPhone.includes('@')?emailPhone.split(';')[0].trim():''};
-    if(ex){
-      const merged={...ex,...sheetData};
-      LN_PORTAL_FIELDS.forEach(f=>{merged[f]=ex[f]||'';});
-      if(!ex.nextStep&&r['Next_Step'])merged.nextStep=r['Next_Step'];
-      return merged;
-    }
-    return{id:Date.now()+Math.random(),type:'Lender',title:'',linkedinUrl:r['Link']||'',priority:'Medium',bio:'',dealsDone:'',minLoanSize:'',maxLoanSize:'',ltcAppetite:'',geographies:'',nextStep:r['Next_Step']||'',...sheetData};
+    if(ex){const merged={...ex,...sheetData};LN_PORTAL_FIELDS.forEach(f=>{merged[f]=ex[f]||'';});if(!ex.nextStep&&r['Next_Step'])merged.nextStep=r['Next_Step'];return merged;}
+    return{id:`ln-${Date.now()}-${Math.random()}`,type:'Lender',title:'',linkedinUrl:r['Link']||'',priority:'Medium',bio:'',dealsDone:'',minLoanSize:'',maxLoanSize:'',ltcAppetite:'',geographies:'',nextStep:r['Next_Step']||'',...sheetData};
   });
   const importedNames=new Set(incoming.map(c=>c.name.toLowerCase()));
-  const manualOnly=existing.filter(c=>c.type==='Lender'&&!importedNames.has(c.name.toLowerCase()));
-  return[...incoming,...manualOnly];
+  return[...incoming,...existing.filter(c=>c.type==='Lender'&&!importedNames.has(c.name.toLowerCase()))];
 }
-
 function mergeTasks(rows,existing){
   const incoming=rows.filter(r=>r['Title']&&r['Title'].trim()).map((r,i)=>{
     const rawId=r['Task_ID']&&r['Task_ID'].trim()?r['Task_ID'].trim():null;
     const due=normalizeDate(r['Due_Date_Parsed']||r['Due_Date']||'');
     const ex=rawId?existing.find(t=>String(t.id)===rawId):existing.find(t=>t.title&&t.title.trim().toLowerCase()===r['Title'].trim().toLowerCase());
-    const sheetData={
-      id:rawId||ex?.id||`task-${Date.now()}-${i}`,
-      title:r['Title'].trim(),
-      workstream:r['Workstream']||'',
-      owner:r['Owner']||'Jimmy',
-      due,
-      priority:mapPriority(r['Priority']),
-    };
+    const sheetData={id:rawId||ex?.id||`task-${Date.now()}-${i}`,title:r['Title'].trim(),workstream:r['Workstream']||'',owner:r['Owner']||'Jimmy',due,priority:mapPriority(r['Priority'])};
     if(ex)return{...ex,...sheetData,status:normalizeStatus(ex.status)!=='Not Started'?ex.status:mapTaskStatus(r['Status']||''),notes:ex.notes&&ex.notes!==r['Notes']?ex.notes:(r['Notes']||ex.notes||'')};
     return{...sheetData,status:mapTaskStatus(r['Status']||''),notes:r['Notes']||''};
   });
   const importedIds=new Set(incoming.map(t=>String(t.id)));
   return[...incoming,...existing.filter(t=>!importedIds.has(String(t.id)))];
 }
-
 function mergeMilestones(rows,existing,override){
   if(!override)return existing;
   const phaseMap={'entitlement':'Initiation','design':'Planning','budget':'Planning','permit':'Execution','construction':'Execution','fundrais':'Execution','break ground':'Execution','marketing':'Go Live','opening':'Go Live','punch':'Go Live','ff&e':'Go Live'};
   return rows.filter(r=>r['Milestone']).map((r,i)=>{
-    const label=r['Milestone']||'';
-    const phase=Object.entries(phaseMap).find(([k])=>label.toLowerCase().includes(k))?.[1]||'Execution';
+    const label=r['Milestone']||'';const phase=Object.entries(phaseMap).find(([k])=>label.toLowerCase().includes(k))?.[1]||'Execution';
     const ex=existing.find(m=>m.label.toLowerCase()===label.toLowerCase());
     const target=r['Target_Date']||'';
     const start=ex?.start||(target?new Date(new Date(target).getTime()-90*24*60*60*1000).toISOString().split('T')[0]:'2026-01-01');
-    return{id:ex?.id||r['Milestone_ID']||i+1,label,phase:ex?.phase||phase,start,end:target||ex?.end||'2027-01-01'};
+    return{id:ex?.id||r['Milestone_ID']||String(i+1),label,phase:ex?.phase||phase,start,end:target||ex?.end||'2027-01-01'};
   });
 }
 
 // ── Import UI ──────────────────────────────────────────────────────────────
-function Import({contacts,setContacts,tasks,setTasks,miles,setMiles}){
+function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
   const [jsText,setJsText]=useState('');
   const [lenderText,setLenderText]=useState('');
   const [taskText,setTaskText]=useState('');
   const [mileText,setMileText]=useState('');
   const [overrideMiles,setOverrideMiles]=useState(false);
   const [results,setResults]=useState(null);
+  const [running,setRunning]=useState(false);
 
-  function runImport(){
+  async function runImport(){
+    setRunning(true);
     const log=[];
-    let newContacts=[...contacts];
-    if(jsText.trim()){
-      const lps=mergeJSProspects(parseCSV(jsText),contacts);
-      newContacts=[...lps,...newContacts.filter(c=>c.type==='Lender')];
-      log.push(`✓ ${lps.length} LP prospects merged from Juniper Square`);
-    }
-    if(lenderText.trim()){
-      const lenders=mergeLenders(parseCSV(lenderText),newContacts);
-      newContacts=[...newContacts.filter(c=>c.type==='LP'),...lenders];
-      log.push(`✓ ${lenders.length} lenders merged`);
-    }
-    if(jsText.trim()||lenderText.trim()){
-      setContacts(newContacts);
-      log.push('  → Bios, notes & next steps you added manually were preserved');
-    }
-    if(taskText.trim()){
-      const merged=mergeTasks(parseCSV(taskText),tasks);
-      setTasks(merged);
-      log.push(`✓ ${merged.length} tasks merged — your status updates preserved`);
-    }
-    if(mileText.trim()){
-      const merged=mergeMilestones(parseCSV(mileText),miles,overrideMiles);
-      setMiles(merged);
-      log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
-    }
-    if(log.length===0)log.push('Nothing imported — paste at least one export above.');
+    try{
+      let newContacts=[...contacts];
+      if(jsText.trim()){
+        const lps=mergeJSProspects(parseCSV(jsText),contacts);
+        newContacts=[...lps,...newContacts.filter(c=>c.type==='Lender')];
+        await onSave("contacts",lps);
+        log.push(`✓ ${lps.length} LP prospects merged from Juniper Square`);
+      }
+      if(lenderText.trim()){
+        const lenders=mergeLenders(parseCSV(lenderText),newContacts);
+        newContacts=[...newContacts.filter(c=>c.type==='LP'),...lenders];
+        await onSave("contacts",lenders);
+        log.push(`✓ ${lenders.length} lenders merged`);
+      }
+      if(jsText.trim()||lenderText.trim()){
+        setContacts(newContacts);
+        log.push('  → Bios, notes & next steps you added manually were preserved');
+      }
+      if(taskText.trim()){
+        const merged=mergeTasks(parseCSV(taskText),tasks);
+        await onSave("tasks",merged);
+        setTasks(merged);
+        log.push(`✓ ${merged.length} tasks merged — your status updates preserved`);
+      }
+      if(mileText.trim()){
+        const merged=mergeMilestones(parseCSV(mileText),miles,overrideMiles);
+        await onSave("milestones",merged);
+        setMiles(merged);
+        log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
+      }
+      if(log.length===0)log.push('Nothing imported — paste at least one export above.');
+    }catch(e){log.push(`✗ Error: ${e.message}`);}
     setResults(log);
+    setRunning(false);
   }
 
   const box={width:'100%',minHeight:90,fontSize:12,fontFamily:'monospace',border:`1px solid ${B.steel}`,borderRadius:4,padding:'8px 10px',color:B.navy,resize:'vertical',boxSizing:'border-box'};
-
   return(
     <div style={{padding:'1.25rem 0',maxWidth:700}}>
       <div style={{background:'#e8f0f7',borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
@@ -675,7 +817,7 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles}){
           )}
         </div>
       ))}
-      <button onClick={runImport} style={{...btn(),fontSize:13,padding:'10px 24px'}}>Run import</button>
+      <button onClick={runImport} style={{...btn(),fontSize:13,padding:'10px 24px'}} disabled={running}>{running?"Importing…":"Run import"}</button>
       {results&&(
         <div style={{marginTop:'1rem',background:B.navy,borderRadius:8,padding:'1rem 1.25rem'}}>
           {results.map((r,i)=><div key={i} style={{fontSize:13,color:B.white,marginBottom:4,lineHeight:1.6}}>{r}</div>)}
@@ -692,25 +834,98 @@ export default function App(){
   const [tasks,setTasks]=useState([]);
   const [miles,setMiles]=useState([]);
   const [loaded,setLoaded]=useState(false);
+  const [loadError,setLoadError]=useState(null);
+  const [syncing,setSyncing]=useState(false);
 
+  // ── Seed Supabase if tables are empty ──────────────────────────────────
+  async function seedIfEmpty(contactRows, taskRows, mileRows) {
+    const promises = [];
+    if (contactRows.length === 0) {
+      promises.push(sbUpsert("contacts", DEFAULT_CONTACTS.map(contactToRow)));
+    }
+    if (taskRows.length === 0) {
+      promises.push(sbUpsert("tasks", DEFAULT_TASKS.map(taskToRow)));
+    }
+    if (mileRows.length === 0) {
+      promises.push(sbUpsert("milestones", DEFAULT_MILES.map(mileToRow)));
+    }
+    await Promise.all(promises);
+  }
+
+  // ── Initial load ───────────────────────────────────────────────────────
   useEffect(()=>{
-    const cr=store.get(CRM_KEY),tr=store.get(TASK_KEY),mr=store.get(MILE_KEY);
-    const parsed=cr?.value?JSON.parse(cr.value):null;
-    setContacts(parsed&&parsed.length>0?parsed:DEFAULT_CONTACTS);
-    setTasks(tr?.value?JSON.parse(tr.value):DEFAULT_TASKS);
-    setMiles(mr?.value?JSON.parse(mr.value):DEFAULT_MILES);
-    setLoaded(true);
+    async function load(){
+      try{
+        const [cRows, tRows, mRows] = await Promise.all([
+          sbFetch("contacts"),
+          sbFetch("tasks"),
+          sbFetch("milestones"),
+        ]);
+        // Seed on first run
+        if(cRows.length===0||tRows.length===0||mRows.length===0){
+          await seedIfEmpty(cRows, tRows, mRows);
+          const [c2, t2, m2] = await Promise.all([sbFetch("contacts"), sbFetch("tasks"), sbFetch("milestones")]);
+          setContacts(c2.map(rowToContact));
+          setTasks(t2.map(rowToTask));
+          setMiles(m2.map(rowToMile));
+        } else {
+          setContacts(cRows.map(rowToContact));
+          setTasks(tRows.map(rowToTask));
+          setMiles(mRows.map(rowToMile));
+        }
+        setLoaded(true);
+      }catch(e){
+        console.error("Load error:",e);
+        setLoadError(e.message);
+        // Fall back to seed data so the app still works
+        setContacts(DEFAULT_CONTACTS);
+        setTasks(DEFAULT_TASKS);
+        setMiles(DEFAULT_MILES);
+        setLoaded(true);
+      }
+    }
+    load();
   },[]);
 
-  useEffect(()=>{
-    if(!loaded)return;
-    store.set(CRM_KEY,JSON.stringify(contacts));
-    store.set(TASK_KEY,JSON.stringify(tasks));
-    store.set(MILE_KEY,JSON.stringify(miles));
-  },[contacts,tasks,miles,loaded]);
+  // ── Save helper (upsert one or many rows) ─────────────────────────────
+  const handleSave = useCallback(async (table, items) => {
+    setSyncing(true);
+    try {
+      let rows;
+      if (table === "contacts") rows = items.map(contactToRow);
+      else if (table === "tasks") rows = items.map(taskToRow);
+      else if (table === "milestones") rows = items.map(mileToRow);
+      else throw new Error(`Unknown table: ${table}`);
+      await sbUpsert(table, rows);
+    } catch (e) {
+      console.error("Save error:", e);
+      alert(`Save failed: ${e.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  // ── Delete helper ─────────────────────────────────────────────────────
+  const handleDelete = useCallback(async (table, id) => {
+    setSyncing(true);
+    try {
+      await sbDelete(table, String(id));
+    } catch (e) {
+      console.error("Delete error:", e);
+      alert(`Delete failed: ${e.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
 
   const TABS=["Dashboard","CRM","Timeline","Tasks","Import"];
-  if(!loaded)return <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>Loading...</div>;
+
+  if(!loaded)return(
+    <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
+      <div style={{marginBottom:8}}>Connecting to database…</div>
+      <div style={{fontSize:12,color:B.steel}}>bhwfnogroaxttmtvulft.supabase.co</div>
+    </div>
+  );
 
   return(<div style={{fontFamily:FONT,background:B.offwhite,minHeight:"100vh"}}>
     <div style={{background:B.navy,padding:"0 2rem",display:"flex",alignItems:"center",gap:0}}>
@@ -719,13 +934,16 @@ export default function App(){
         <div style={{fontSize:14,fontWeight:700,color:B.white,letterSpacing:"0.06em",textTransform:"uppercase"}}>115 N Barton</div>
       </div>
       {TABS.map(t=>(<button key={t} onClick={()=>setNav(t)} style={{background:"none",border:"none",borderBottom:nav===t?"2px solid #ccd5de":"2px solid transparent",color:nav===t?B.white:"rgba(255,255,255,0.55)",fontSize:11,fontWeight:nav===t?700:400,letterSpacing:"0.07em",textTransform:"uppercase",padding:"1rem 1.25rem",cursor:"pointer",fontFamily:FONT,marginBottom:-1}}>{t}</button>))}
+      <div style={{flex:1}}/>
+      {syncing&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.05em"}}>Saving…</div>}
+      {loadError&&<div style={{fontSize:11,color:B.gold,letterSpacing:"0.05em"}} title={loadError}>⚠ Offline mode</div>}
     </div>
     <div style={{maxWidth:980,margin:"0 auto",padding:"0 1.5rem 3rem"}}>
       {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles}/>}
-      {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts}/>}
-      {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles}/>}
-      {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks}/>}
-      {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles}/>}
+      {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
+      {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
+      {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
+      {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
 }
