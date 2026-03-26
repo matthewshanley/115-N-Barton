@@ -251,52 +251,234 @@ function Timeline({miles,setMiles}){
 }
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
-const ET={id:null,title:"",owner:"Jimmy",due:"",priority:"Medium",status:"To do",notes:""};
-const stC={"To do":B.muted,"In progress":B.blue,"Done":"#2a6b3f","Blocked":B.danger};
+// ── Tasks ──────────────────────────────────────────────────────────────────
+const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"To do",notes:""};
+const stC={"To do":B.muted,"In progress":B.blue,"Done":"#2a6b3f","Blocked":B.danger,"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger};
+const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
+
+function normalizeStatus(s){
+  const l=(s||"").toLowerCase();
+  if(l==="complete"||l==="done")return"Complete";
+  if(l==="in progress"||l==="in-progress")return"In Progress";
+  if(l==="overdue")return"Overdue";
+  if(l==="blocked")return"Blocked";
+  return"Not Started";
+}
 
 function Tasks({tasks,setTasks}){
+  const [view,setView]=useState("calendar");
   const [form,setForm]=useState(null);
-  const [filter,setFilter]=useState("All");
-  const [ownerF,setOwnerF]=useState("All");
-  const vis=tasks.filter(t=>(filter==="All"||t.status===filter)&&(ownerF==="All"||t.owner===ownerF));
-  function save(){const ex=tasks.find(t=>t.id===form.id);setTasks(ex?tasks.map(t=>t.id===form.id?{...form}:t):[...tasks,{...form}]);setForm(null);}
-  return(<div style={{padding:"1rem 0"}}>
-    <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
-      <select value={filter} onChange={e=>setFilter(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{TASK_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
-      <select value={ownerF} onChange={e=>setOwnerF(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}</select>
-      <div style={{flex:1}}/><button onClick={()=>setForm({...ET,id:Date.now()})} style={btn()}>+ Add task</button>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:12}}>
-      {TASK_STATUSES.map(col=>(<div key={col}>
-        <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:stC[col],marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
-          <span style={{width:8,height:8,borderRadius:"50%",background:stC[col],display:"inline-block"}}/>{col} <span style={{color:B.muted,fontWeight:400}}>({vis.filter(t=>t.status===col).length})</span>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {vis.filter(t=>t.status===col).map(t=>(<div key={t.id} onClick={()=>setForm({...t})} style={{...card,cursor:"pointer",padding:"10px 12px"}}>
-            <div style={{fontSize:13,fontWeight:600,color:B.navy,marginBottom:4}}>{t.title}</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:t.notes?6:0}}><Badge label={t.priority} color={t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue}/><Badge label={t.owner} color={B.navy}/>{t.due&&<span style={{fontSize:10,color:B.muted}}>Due {t.due}</span>}</div>
-            {t.notes&&<div style={{fontSize:11,color:B.muted,lineHeight:1.5,borderTop:`1px solid ${B.light}`,paddingTop:6,marginTop:4}}>{t.notes}</div>}
-          </div>))}
-        </div>
-      </div>))}
-    </div>
-    {form&&(<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(2,29,43,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
-      <div style={{...card,width:480,maxWidth:"90vw",maxHeight:"85vh",overflowY:"auto"}}>
+  const [filterOwner,setFilterOwner]=useState("All");
+  const [filterStatus,setFilterStatus]=useState("All");
+  const [sortCol,setSortCol]=useState("due");
+  const [sortDir,setSortDir]=useState("asc");
+  const [calMonth,setCalMonth]=useState(()=>{
+    const d=new Date();d.setDate(1);return d;
+  });
+
+  const today2=new Date();today2.setHours(0,0,0,0);
+
+  // Auto-mark overdue
+  const enriched=tasks.map(t=>{
+    if(t.due&&t.status!=="Complete"&&t.status!=="Done"){
+      const d=new Date(t.due);d.setHours(0,0,0,0);
+      if(d<today2&&t.status!=="Overdue")return{...t,status:"Overdue"};
+    }
+    return t;
+  });
+
+  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||normalizeStatus(t.status)===filterStatus));
+
+  const counts={
+    "Not Started":enriched.filter(t=>normalizeStatus(t.status)==="Not Started").length,
+    "In Progress":enriched.filter(t=>normalizeStatus(t.status)==="In Progress").length,
+    "Complete":enriched.filter(t=>normalizeStatus(t.status)==="Complete").length,
+    "Overdue":enriched.filter(t=>normalizeStatus(t.status)==="Overdue").length,
+  };
+
+  function saveTask(f){
+    const ex=tasks.find(t=>t.id===f.id);
+    setTasks(ex?tasks.map(t=>t.id===f.id?{...f}:t):[...tasks,{...f}]);
+    setForm(null);
+  }
+  function deleteTask(id){setTasks(tasks.filter(t=>t.id!==id));setForm(null);}
+
+  // ── Calendar helpers ─────────────────────────────────────────────────────
+  function calDays(){
+    const y=calMonth.getFullYear(),m=calMonth.getMonth();
+    const first=new Date(y,m,1),last=new Date(y,m+1,0);
+    const days=[];
+    for(let i=0;i<first.getDay();i++)days.push(null);
+    for(let d=1;d<=last.getDate();d++)days.push(new Date(y,m,d));
+    while(days.length%7!==0)days.push(null);
+    return days;
+  }
+
+  function tasksOnDay(d){
+    if(!d)return[];
+    const ds=d.toISOString().split('T')[0];
+    return enriched.filter(t=>t.due===ds);
+  }
+
+  const monthName=calMonth.toLocaleString('default',{month:'long',year:'numeric'});
+  const days=calDays();
+  const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+  // ── Table sort ────────────────────────────────────────────────────────────
+  function toggleSort(col){
+    if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc");
+    else{setSortCol(col);setSortDir("asc");}
+  }
+  const sorted=[...filtered].sort((a,b)=>{
+    let av=a[sortCol]||"",bv=b[sortCol]||"";
+    if(sortCol==="due"){av=av||"9999";bv=bv||"9999";}
+    const r=av<bv?-1:av>bv?1:0;
+    return sortDir==="asc"?r:-r;
+  });
+
+  const statusColorMap={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger,"To do":B.muted,"Done":"#2a6b3f"};
+
+  // ── Task form modal ───────────────────────────────────────────────────────
+  const TaskModal=()=>form?(
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(2,29,43,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
+      <div style={{...card,width:520,maxWidth:"92vw",maxHeight:"88vh",overflowY:"auto"}}>
         <div style={{fontSize:13,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"1rem"}}>{tasks.find(t=>t.id===form.id)?"Edit task":"New task"}</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 14px"}}>
           <div style={{gridColumn:"span 2"}}><label style={lS}>Title</label><input value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={iS}/></div>
-          {[["Owner","owner","select",OWNERS],["Priority","priority","select",PRIORITIES],["Status","status","select",TASK_STATUSES],["Due date","due","date",null]].map(([l,f,type,opts])=>(<div key={f}><label style={lS}>{l}</label>{opts?<select value={form[f]||""} onChange={e=>setForm(fm=>({...fm,[f]:e.target.value}))} style={iS}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input type={type} value={form[f]||""} onChange={e=>setForm(fm=>({...fm,[f]:e.target.value}))} style={iS}/>}</div>))}
-          <div style={{gridColumn:"span 2"}}><label style={lS}>Notes</label><textarea value={form.notes||""} onChange={e=>setForm(fm=>({...fm,notes:e.target.value}))} rows={3} style={{...iS,resize:"vertical"}}/></div>
+          <div><label style={lS}>Workstream</label><input value={form.workstream||""} onChange={e=>setForm(f=>({...f,workstream:e.target.value}))} style={iS}/></div>
+          <div><label style={lS}>Owner</label><select value={form.owner||"Jimmy"} onChange={e=>setForm(f=>({...f,owner:e.target.value}))} style={iS}>{OWNERS.map(o=><option key={o}>{o}</option>)}</select></div>
+          <div><label style={lS}>Priority</label><select value={form.priority||"Medium"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))} style={iS}>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select></div>
+          <div><label style={lS}>Status</label><select value={form.status||"Not Started"} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={iS}>{TASK_STATUS_DISPLAY.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div style={{gridColumn:"span 2"}}><label style={lS}>Due date</label><input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} style={iS}/></div>
+          <div style={{gridColumn:"span 2"}}><label style={lS}>Notes</label><textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={3} style={{...iS,resize:"vertical"}}/></div>
         </div>
         <div style={{display:"flex",gap:8,marginTop:"1rem",justifyContent:"space-between"}}>
-          <div style={{display:"flex",gap:8}}><button onClick={save} style={btn()}>Save</button><button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button></div>
-          {tasks.find(t=>t.id===form.id)&&<button onClick={()=>{setTasks(tasks.filter(t=>t.id!==form.id));setForm(null);}} style={{...btn(),background:B.danger}}>Delete</button>}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>saveTask(form)} style={btn()}>Save</button>
+            <button onClick={()=>setForm(null)} style={btn(true)}>Cancel</button>
+          </div>
+          {tasks.find(t=>t.id===form.id)&&<button onClick={()=>deleteTask(form.id)} style={{...btn(),background:B.danger}}>Delete</button>}
         </div>
       </div>
-    </div>)}
-  </div>);
-}
+    </div>
+  ):null;
 
+  return(
+    <div style={{padding:"1rem 0"}}>
+
+      {/* Status summary cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
+        {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
+          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.5:1}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{s}</div>
+            <div style={{fontSize:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
+        <select value={filterOwner} onChange={e=>setFilterOwner(e.target.value)} style={{...iS,width:"auto"}}>
+          <option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}
+        </select>
+        <div style={{flex:1}}/>
+        <div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
+          {["calendar","table"].map(v=>(
+            <button key={v} onClick={()=>setView(v)} style={{fontSize:11,padding:"6px 16px",background:view===v?B.navy:"transparent",color:view===v?B.white:B.muted,border:"none",cursor:"pointer",fontFamily:FONT,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>
+              {v==="calendar"?"📅 Calendar":"≡ Table"}
+            </button>
+          ))}
+        </div>
+        <button onClick={()=>setForm({...ET,id:Date.now()})} style={btn()}>+ Add task</button>
+      </div>
+
+      {/* ── CALENDAR VIEW ── */}
+      {view==="calendar"&&(
+        <div style={card}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1rem"}}>
+            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()-1);return d;})} style={{...btn(true),padding:"4px 12px"}}>←</button>
+            <div style={{fontSize:14,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{monthName}</div>
+            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()+1);return d;})} style={{...btn(true),padding:"4px 12px"}}>→</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,background:B.steel,borderRadius:4,overflow:"hidden"}}>
+            {DOW.map(d=>(
+              <div key={d} style={{background:B.navy,padding:"6px 0",textAlign:"center",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.6)",letterSpacing:"0.06em"}}>{d}</div>
+            ))}
+            {days.map((d,i)=>{
+              const dayTasks=d?tasksOnDay(d):[];
+              const isToday=d&&d.toDateString()===today2.toDateString();
+              return(
+                <div key={i} style={{background:B.white,minHeight:80,padding:"4px 6px",borderTop:`1px solid ${B.light}`}}>
+                  {d&&(
+                    <>
+                      <div style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?B.blue:B.muted,marginBottom:3}}>{d.getDate()}</div>
+                      {dayTasks.map(t=>(
+                        <div key={t.id} onClick={()=>setForm({...t})} style={{fontSize:10,fontWeight:600,padding:"2px 5px",borderRadius:3,marginBottom:2,cursor:"pointer",background:(statusColorMap[normalizeStatus(t.status)]||B.muted)+"22",color:statusColorMap[normalizeStatus(t.status)]||B.muted,border:`1px solid ${(statusColorMap[normalizeStatus(t.status)]||B.muted)}44`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          {t.title}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:16,marginTop:"0.75rem",flexWrap:"wrap"}}>
+            {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
+              <span key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:B.muted}}>
+                <span style={{width:10,height:10,borderRadius:2,background:c+"44",border:`1px solid ${c}66`,display:"inline-block"}}/>
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── TABLE VIEW ── */}
+      {view==="table"&&(
+        <div style={{...card,padding:0,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:B.navy}}>
+                <th style={{width:32,padding:"10px 12px",color:"rgba(255,255,255,0.5)",fontSize:10,fontWeight:600,textAlign:"left"}}>#</th>
+                {[["workstream","Workstream"],["title","Title"],["owner","Owner"],["status","Status"],["due","Due date"],["priority","Priority"],["notes","Notes"]].map(([col,label])=>(
+                  <th key={col} onClick={()=>toggleSort(col)} style={{padding:"10px 12px",color:sortCol===col?"#ccd5de":"rgba(255,255,255,0.6)",fontSize:10,fontWeight:600,textAlign:"left",cursor:"pointer",letterSpacing:"0.05em",textTransform:"uppercase",userSelect:"none",whiteSpace:"nowrap"}}>
+                    {label}{sortCol===col?(sortDir==="asc"?" ↑":" ↓"):""}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((t,i)=>(
+                <tr key={t.id} onClick={()=>setForm({...t})} style={{cursor:"pointer",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
+                  <td style={{padding:"9px 12px",fontSize:11,color:B.muted}}>{i+1}</td>
+                  <td style={{padding:"9px 12px",color:B.muted,fontSize:12}}>{t.workstream||"—"}</td>
+                  <td style={{padding:"9px 12px",color:B.navy,fontWeight:600,maxWidth:260}}>{t.title}</td>
+                  <td style={{padding:"9px 12px",color:B.muted,fontSize:12}}>{t.owner||"—"}</td>
+                  <td style={{padding:"9px 12px"}}>
+                    <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(statusColorMap[normalizeStatus(t.status)]||B.muted)+"20",color:statusColorMap[normalizeStatus(t.status)]||B.muted,border:`1px solid ${(statusColorMap[normalizeStatus(t.status)]||B.muted)}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
+                      {normalizeStatus(t.status)}
+                    </span>
+                  </td>
+                  <td style={{padding:"9px 12px",fontSize:12,color:normalizeStatus(t.status)==="Overdue"?B.danger:B.muted,fontWeight:normalizeStatus(t.status)==="Overdue"?600:400,whiteSpace:"nowrap"}}>{t.due||"—"}</td>
+                  <td style={{padding:"9px 12px"}}>
+                    <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)+"20",color:t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue,border:`1px solid ${(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)}44`,letterSpacing:"0.04em",textTransform:"uppercase"}}>
+                      {t.priority||"Medium"}
+                    </span>
+                  </td>
+                  <td style={{padding:"9px 12px",fontSize:12,color:B.muted,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.notes||"—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sorted.length===0&&<div style={{padding:"3rem",textAlign:"center",color:B.muted,fontSize:13}}>No tasks match your filters.</div>}
+        </div>
+      )}
+
+      <TaskModal/>
+    </div>
+  );
+}
 // ── Import helpers ─────────────────────────────────────────────────────────
 const LP_PORTAL_FIELDS=["bio","relationship","whatTheyCareAbout","howWeKnowThem","nextStep","linkedinUrl"];
 const LN_PORTAL_FIELDS=["bio","dealsDone","minLoanSize","maxLoanSize","ltcAppetite","geographies","nextStep","linkedinUrl"];
