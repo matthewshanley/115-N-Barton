@@ -221,7 +221,7 @@ function normalizeDate(d){
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
-function Dashboard({contacts,tasks,miles}){
+function Dashboard({contacts,tasks,miles,setNav}){
   const lps=contacts.filter(c=>c.type==="LP");
   const lenders=contacts.filter(c=>c.type==="Lender");
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
@@ -234,7 +234,7 @@ function Dashboard({contacts,tasks,miles}){
   const tP=d=>((new Date(d)-GS)/GT)*100;
   const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
   const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
-  const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).slice(0,5);
+  const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status));
   return(
     <div style={{padding:"1.25rem 0"}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
@@ -270,11 +270,13 @@ function Dashboard({contacts,tasks,miles}){
         </div>
       </div>
       <div style={card}>
-        <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Warm LP pipeline</div>
+        <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>
+          Warm LP pipeline <span style={{marginLeft:8,fontSize:11,color:B.blue,fontWeight:400,cursor:"pointer",textTransform:"none",letterSpacing:0}} onClick={()=>setNav("CRM")}>View all →</span>
+        </div>
         {wLPs.length===0?<div style={{fontSize:13,color:B.muted}}>No warm prospects yet.</div>:
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{maxHeight:320,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
             {wLPs.map(c=>(
-              <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`}}>
+              <div key={c.id} onClick={()=>setNav("CRM")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
                 <Avatar name={c.name} color={B.navy}/>
                 <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy}}>{c.name}</div><div style={{fontSize:11,color:B.muted}}>{c.firm||c.tag||""}</div></div>
                 <div style={{fontSize:13,color:B.navy,fontWeight:600}}>{fmt$(c.expectedAmount)}</div>
@@ -957,7 +959,7 @@ export default function App(){
       {loadError&&<div style={{fontSize:11,color:B.gold,letterSpacing:"0.05em"}} title={loadError}>⚠ Offline mode</div>}
     </div>
     <div style={{maxWidth:1400,margin:"0 auto",padding:"0 2rem 3rem"}}>
-      {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles}/>}
+      {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles} setNav={setNav}/>}
       {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
