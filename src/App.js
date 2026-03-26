@@ -366,19 +366,37 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   }
 
   if(view==="form"){
-    const F=({label,field,type="text",opts,span})=>(<div style={span?{gridColumn:"span 2"}:{}}><label style={lS}>{label}</label>{opts?<select value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} style={iS}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input type={type} value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} style={iS}/>}</div>);
+    const fi=(field,type="text")=><input type={type} value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} style={iS}/>;
+    const fs=(field,opts)=><select value={form[field]||""} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} style={iS}>{opts.map(o=><option key={o}>{o}</option>)}</select>;
     return(<div style={{padding:"1rem 0"}}>
       <div style={{display:"flex",gap:8,marginBottom:"1rem"}}><button onClick={()=>setView(sel?"detail":"list")} style={btn(true)}>Cancel</button></div>
       <div style={card}>
         <h3 style={{margin:"0 0 1rem",fontSize:15,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{contacts.find(c=>c.id===form.id)?"Edit":"New"} {form.type}</h3>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px 16px"}}>
-          <F label="Name" field="name"/><F label="Firm" field="firm"/>
-          <F label="Title" field="title"/><F label="Email" field="email" type="email"/>
-          <F label="Phone" field="phone" type="tel"/><F label="LinkedIn URL" field="linkedinUrl" type="url"/>
-          <F label="Status" field="status" opts={form.type==="LP"?LP_STATUSES:LN_STATUSES}/>
-          <F label="Priority" field="priority" opts={PRIORITIES}/>
-          {form.type==="LP"&&<><F label="Expected ($)" field="expectedAmount" type="number"/><F label="Likelihood (%)" field="likelihood" type="number"/><F label="Tag" field="tag"/><F label="How we know them" field="howWeKnowThem"/><F label="What they care about" field="whatTheyCareAbout" span/></>}
-          {form.type==="Lender"&&<><F label="Projected loan ($)" field="projectedLoanAmount" type="number"/><F label="Loan type" field="loanType" opts={["Construction-to-perm","Bridge","Construction only","Permanent","SBA","Other"]}/><F label="Min loan ($)" field="minLoanSize" type="number"/><F label="Max loan ($)" field="maxLoanSize" type="number"/><F label="LTC appetite (%)" field="ltcAppetite" type="number"/><F label="Geographies" field="geographies"/><F label="Deals done" field="dealsDone" span/></>}
+          <div><label style={lS}>Name</label>{fi("name")}</div>
+          <div><label style={lS}>Firm</label>{fi("firm")}</div>
+          <div><label style={lS}>Title</label>{fi("title")}</div>
+          <div><label style={lS}>Email</label>{fi("email","email")}</div>
+          <div><label style={lS}>Phone</label>{fi("phone","tel")}</div>
+          <div><label style={lS}>LinkedIn URL</label>{fi("linkedinUrl","url")}</div>
+          <div><label style={lS}>Status</label>{fs("status",form.type==="LP"?LP_STATUSES:LN_STATUSES)}</div>
+          <div><label style={lS}>Priority</label>{fs("priority",PRIORITIES)}</div>
+          {form.type==="LP"&&<>
+            <div><label style={lS}>Expected ($)</label>{fi("expectedAmount","number")}</div>
+            <div><label style={lS}>Likelihood (%)</label>{fi("likelihood","number")}</div>
+            <div><label style={lS}>Tag</label>{fi("tag")}</div>
+            <div><label style={lS}>How we know them</label>{fi("howWeKnowThem")}</div>
+            <div style={{gridColumn:"span 2"}}><label style={lS}>What they care about</label>{fi("whatTheyCareAbout")}</div>
+          </>}
+          {form.type==="Lender"&&<>
+            <div><label style={lS}>Projected loan ($)</label>{fi("projectedLoanAmount","number")}</div>
+            <div><label style={lS}>Loan type</label>{fs("loanType",["Construction-to-perm","Bridge","Construction only","Permanent","SBA","Other"])}</div>
+            <div><label style={lS}>Min loan ($)</label>{fi("minLoanSize","number")}</div>
+            <div><label style={lS}>Max loan ($)</label>{fi("maxLoanSize","number")}</div>
+            <div><label style={lS}>LTC appetite (%)</label>{fi("ltcAppetite","number")}</div>
+            <div><label style={lS}>Geographies</label>{fi("geographies")}</div>
+            <div style={{gridColumn:"span 2"}}><label style={lS}>Deals done</label>{fi("dealsDone")}</div>
+          </>}
         </div>
         {["relationship","bio","nextStep","notes"].map(f=>(<div key={f} style={{marginTop:12}}><label style={lS}>{f==="relationship"?"Prior deal history":f==="nextStep"?"Next step":f}</label><textarea value={form[f]||""} onChange={e=>setForm(fm=>({...fm,[f]:e.target.value}))} rows={f==="notes"?4:2} style={{...iS,resize:"vertical"}}/></div>))}
         <div style={{display:"flex",gap:8,marginTop:"1rem"}}><button onClick={submit} style={btn()} disabled={saving}>{saving?"Saving…":"Save contact"}</button></div>
