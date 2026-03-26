@@ -847,6 +847,255 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
   );
 }
 
+// ── Budget (Sources & Uses) ────────────────────────────────────────────────
+const OSLO_LINES=[
+  {code:"017100",trade:"Survey and Layout",amount:14500},
+  {code:"017400",trade:"Cleaning and Protection",amount:104872},
+  {code:"018900",trade:"Site Requirements",amount:33400},
+  {code:"024000",trade:"Demolition",amount:108190},
+  {code:"030000",trade:"Cast-in-place Concrete",amount:179000},
+  {code:"040000",trade:"Masonry",amount:133890},
+  {code:"051000",trade:"Structural Steel",amount:124350},
+  {code:"055000",trade:"Misc Metals",amount:130700},
+  {code:"061000",trade:"Rough Carpentry",amount:299840},
+  {code:"062000",trade:"Finish Carpentry",amount:113739},
+  {code:"072100",trade:"Insulation",amount:101065},
+  {code:"074600",trade:"Siding & Deck",amount:134275},
+  {code:"075000",trade:"Roofing",amount:118029},
+  {code:"078100",trade:"Fireproofing",amount:36550},
+  {code:"079000",trade:"Joint Sealants",amount:14000},
+  {code:"080000",trade:"Doors, Frames and Hardware",amount:139505},
+  {code:"084000",trade:"Storefront",amount:8800},
+  {code:"085000",trade:"Windows & Sliding Doors",amount:99729},
+  {code:"088000",trade:"Interior Glazing",amount:19200},
+  {code:"092000",trade:"Gypsum Board & Insulation",amount:148600},
+  {code:"093000",trade:"Tile",amount:91728},
+  {code:"096500",trade:"LVT Flooring",amount:83399},
+  {code:"096800",trade:"Carpet Tile Flooring",amount:7763},
+  {code:"099000",trade:"Painting",amount:89992},
+  {code:"100000",trade:"Specialties",amount:23610},
+  {code:"102800",trade:"Toilet Accessories",amount:13100},
+  {code:"113100",trade:"Appliances",amount:43842},
+  {code:"120000",trade:"Closets",amount:11850},
+  {code:"122000",trade:"Window Treatments",amount:17100},
+  {code:"123000",trade:"Cabinets",amount:47500},
+  {code:"123600",trade:"Countertops",amount:52950},
+  {code:"142000",trade:"Elevator",amount:130000},
+  {code:"210000",trade:"Fire Protection",amount:114100},
+  {code:"220000",trade:"Plumbing",amount:317850},
+  {code:"220000",trade:"Plumbing Fixtures",amount:59382},
+  {code:"230000",trade:"HVAC",amount:312000},
+  {code:"260000",trade:"Electrical",amount:497700},
+  {code:"260000",trade:"Light Fixtures & Lighting Control",amount:49645},
+  {code:"274000",trade:"Low Voltage",amount:19950},
+  {code:"310000",trade:"Earthwork",amount:75249},
+  {code:"321000",trade:"Concrete & Asphalt Sitework",amount:113930},
+  {code:"329000",trade:"Landscaping, Pavers & Irrigation",amount:74555},
+  {code:"330000",trade:"Site Utilities",amount:115145},
+];
+
+const SEEK_LINES=[
+  {phase:"Schematic Design",amount:20000,note:"Complete"},
+  {phase:"Design Development",amount:62000,note:"$35k paid · $27k due Feb-26"},
+  {phase:"Construction Documents",amount:80000,note:"$40k Mar-26 · $40k Apr-26"},
+  {phase:"Permitting",amount:7000,note:"May-26"},
+  {phase:"Construction Administration",amount:30000,note:"$3k/month × 10 months"},
+  {phase:"Civil Engineering",amount:10000,note:"Consultant"},
+  {phase:"MEP Engineering",amount:7000,note:"Consultant"},
+  {phase:"Additional Architecture",amount:10000,note:"Consultant"},
+];
+
+// ── Real model figures (21-key, v8) ──
+const KEYS=21;
+const GSF=14686;
+const TOTAL_PROJECT=8432212;
+const DEBT=5059541;
+const EQUITY=3372670;
+const LP_TARGET=3332212;
+const USE_ACQUISITION=1196089;
+const USE_SOFT=778700;
+const USE_HARD=5144475;
+const USE_FFE=542932;
+const USE_INTEREST=353959;
+const USE_PREOPENING=100000;
+const USE_CONTINGENCY=316057;
+
+function Budget({committed}){
+  const [osloOpen,setOsloOpen]=useState(false);
+  const [seekOpen,setSeekOpen]=useState(false);
+
+  const pKey=v=>fmt$(Math.round(v/KEYS));
+  const pGSF=v=>"$"+(v/GSF).toFixed(2);
+
+  const ColHead=({label})=><div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",textAlign:"right"}}>{label}</div>;
+  const SU=({label,total,perKey,perGSF,bold,indent,muted})=>(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
+      <div style={{display:"flex",alignItems:"baseline",gap:0}}>
+        {indent&&<span style={{display:"inline-block",width:16,flexShrink:0}}/>}
+        <span style={{fontSize:bold?13:12,fontWeight:bold?700:400,color:muted?B.muted:B.navy}}>{label}</span>
+      </div>
+      <div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:bold?700:400,color:muted?B.muted:B.navy}}>{fmt$(total)}</div>
+      <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(total)}</div>
+      <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(total)}</div>
+    </div>
+  );
+
+  const TotalBar=({label,amount})=>(
+    <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"12px 14px",background:B.navy,alignItems:"center"}}>
+      <span style={{fontSize:13,fontWeight:700,color:B.white,letterSpacing:"0.04em"}}>{label}</span>
+      <span style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.white}}>{fmt$(amount)}</span>
+      <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pKey(amount)}/key</span>
+      <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pGSF(amount)}/sf</span>
+    </div>
+  );
+
+  const SectionToggle=({label,total,open,onToggle,note})=>(
+    <div onClick={onToggle} style={{display:"grid",gridTemplateColumns:"1fr 110px auto",gap:8,padding:"10px 14px",background:open?B.navy:B.light,cursor:"pointer",alignItems:"center",marginBottom:open?0:1}}>
+      <span style={{fontSize:12,fontWeight:600,color:open?B.white:B.navy,letterSpacing:"0.03em"}}>{label}{note&&<span style={{fontSize:10,fontWeight:400,marginLeft:8,opacity:0.7}}>{note}</span>}</span>
+      <span style={{textAlign:"right",fontSize:12,fontWeight:700,color:open?B.white:B.navy}}>{fmt$(total)}</span>
+      <span style={{fontSize:11,color:open?"rgba(255,255,255,0.5)":B.muted}}>{open?"▲":"▼"}</span>
+    </div>
+  );
+
+  return(
+    <div style={{padding:"1.25rem 0"}}>
+      {/* KPI row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
+        {[
+          ["Total Project Cost",fmt$(TOTAL_PROJECT),B.navy],
+          ["Total Debt",fmt$(DEBT),B.blue],
+          ["Total Equity",fmt$(EQUITY),B.sage],
+          ["LP Equity Committed",fmt$(committed)+` / ${fmt$(LP_TARGET)}`,committed>=LP_TARGET?"#2a6b3f":B.danger],
+        ].map(([l,v,c])=>(
+          <div key={l} style={SC(c)}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+            <div style={{fontSize:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1.5rem",alignItems:"start"}}>
+
+        {/* SOURCES */}
+        <div>
+          <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Sources</div>
+          <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            </div>
+            <SU label="Construction Debt" total={DEBT} bold/>
+            <SU label="LTC (w/ interest reserve)" total={0} bold muted/>{/* label only */}
+            <div style={{padding:"4px 14px 8px",borderBottom:`1px solid ${B.light}`}}>
+              <div style={{fontSize:11,color:B.muted}}>60% LTC · SOFR +500bps · Floor 3% / Ceiling 10%</div>
+              <div style={{fontSize:11,color:B.muted}}>Loan fee 0.99% · Dial-in closing costs $25,322</div>
+            </div>
+            <SU label="LP Equity (target)" total={LP_TARGET} bold/>
+            <SU label="Committed to date" total={committed} indent muted/>
+            <SU label="Remaining to raise" total={Math.max(0,LP_TARGET-committed)} indent muted/>
+            <TotalBar label="Total Sources" amount={TOTAL_PROJECT}/>
+          </div>
+
+          {/* Returns */}
+          <div style={{marginTop:"1.5rem"}}>
+            <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Returns Summary</div>
+            <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 60px 60px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+                <div/><ColHead label="Cash Out"/><ColHead label="Profit"/><ColHead label="IRR"/><ColHead label="MOIC"/>
+              </div>
+              {[
+                ["Unlevered","(8,432,212)","13,392,850","14.63%","2.67x"],
+                ["Levered","(3,372,670)","9,178,867","22.46%","3.06x"],
+                ["Limited Partner","(4,001,170)","6,732,755","20.66%","2.68x"],
+                ["Sponsor","(444,574)","2,446,112","32.26%","6.50x"],
+              ].map(([label,out,profit,irr,moic])=>(
+                <div key={label} style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
+                  <span style={{fontSize:13,fontWeight:600,color:B.navy}}>{label}</span>
+                  <span style={{textAlign:"right",fontSize:12,color:B.muted}}>{out}</span>
+                  <span style={{textAlign:"right",fontSize:12,color:"#2a6b3f",fontWeight:600}}>{profit}</span>
+                  <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{irr}</span>
+                  <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{moic}</span>
+                </div>
+              ))}
+              <div style={{padding:"8px 14px",background:B.offwhite}}>
+                <div style={{fontSize:11,color:B.muted}}>Exit: May 2036 · 9.00% cap rate · $13,167,519 sale price · 9yr hold from operations</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* USES */}
+        <div>
+          <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Uses</div>
+          <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            </div>
+
+            {/* Acquisition */}
+            <SU label="Acquisition & Due Diligence" total={USE_ACQUISITION} bold/>
+            <SU label="Land" total={225000} indent/>
+            <SU label="Building" total={225000} indent/>
+            <SU label="109 N Barton Parcel" total={470389} indent/>
+            <SU label="Closing Costs & Legal" total={8503} indent/>
+            <SU label="Due Diligence (Survey, PCA, Geo)" total={11386} indent/>
+            <SU label="Other / Pre-Dev" total={USE_ACQUISITION-225000-225000-470389-8503-11386} indent muted/>
+
+            {/* Hard Costs */}
+            <SectionToggle label="Hard Costs — OSLO Builders (21-key GMP)" total={USE_HARD} open={osloOpen} onToggle={()=>setOsloOpen(o=>!o)} note="12/4/2025"/>
+            {osloOpen&&(
+              <div style={{borderBottom:`1px solid ${B.steel}`}}>
+                {OSLO_LINES.map((l,i)=>(
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"52px 1fr 90px",gap:8,padding:"6px 14px",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
+                    <span style={{fontSize:10,color:B.muted}}>{l.code}</span>
+                    <span style={{fontSize:12,color:B.navy}}>{l.trade}</span>
+                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(l.amount)}</span>
+                  </div>
+                ))}
+                {[["General Conditions",295720],["Insurance (1%)",47203],["OH&P (2.75%)",131106],["Contingency (5%)",236015]].map(([label,amt],i)=>(
+                  <div key={label} style={{display:"grid",gridTemplateColumns:"52px 1fr 90px",gap:8,padding:"7px 14px",borderBottom:`1px solid ${B.light}`,background:B.offwhite}}>
+                    <span/>
+                    <span style={{fontSize:12,color:B.muted,fontStyle:"italic"}}>{label}</span>
+                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(amt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Soft Costs */}
+            <SectionToggle label="Soft Costs — Architecture & Design" total={USE_SOFT} open={seekOpen} onToggle={()=>setSeekOpen(o=>!o)} note="SEEK + Consultants"/>
+            {seekOpen&&(
+              <div style={{borderBottom:`1px solid ${B.steel}`}}>
+                {SEEK_LINES.map((l,i)=>(
+                  <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 120px 80px",gap:8,padding:"7px 14px",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
+                    <span style={{fontSize:12,color:B.navy}}>{l.phase}</span>
+                    <span style={{fontSize:11,color:B.muted}}>{l.note}</span>
+                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(l.amount)}</span>
+                  </div>
+                ))}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 120px 80px",gap:8,padding:"8px 14px",background:B.offwhite}}>
+                  <span style={{fontSize:11,color:B.muted,fontStyle:"italic"}}>Remaining soft costs in model</span>
+                  <span/>
+                  <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(USE_SOFT-226000)}</span>
+                </div>
+              </div>
+            )}
+
+            <SU label="FF&E / OS&E" total={USE_FFE} bold/>
+            <SU label="Interest Reserve + Loan Fees" total={USE_INTEREST} bold/>
+            <SU label="Pre-Opening Costs" total={USE_PREOPENING} bold/>
+            <SU label="Contingency" total={USE_CONTINGENCY} bold/>
+            <TotalBar label="Total Uses" amount={TOTAL_PROJECT}/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{marginTop:"1rem",fontSize:11,color:B.muted}}>
+        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders GMP (21-key) dated 12/4/2025.
+      </div>
+    </div>
+  );
+}
+
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App(){
   const [nav,setNav]=useState("Dashboard");
@@ -938,7 +1187,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Import"];
 
   if(!loaded)return(
     <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
@@ -963,6 +1212,7 @@ export default function App(){
       {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
+      {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
