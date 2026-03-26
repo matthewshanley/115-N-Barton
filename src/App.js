@@ -249,20 +249,44 @@ function Timeline({miles,setMiles}){
     <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any milestone row to edit dates.</div>
   </div>);
 }
-
 // ── Tasks ──────────────────────────────────────────────────────────────────
-// ── Tasks ──────────────────────────────────────────────────────────────────
-const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"To do",notes:""};
-const stC={"To do":B.muted,"In progress":B.blue,"Done":"#2a6b3f","Blocked":B.danger,"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger};
+const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
+const statusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger,"To do":B.muted,"Done":"#2a6b3f","In progress":B.blue};
 
 function normalizeStatus(s){
-  const l=(s||"").toLowerCase();
+  const l=(s||"").toLowerCase().trim();
   if(l==="complete"||l==="done")return"Complete";
-  if(l==="in progress"||l==="in-progress")return"In Progress";
+  if(l==="in progress"||l==="in-progress"||l==="inprogress")return"In Progress";
   if(l==="overdue")return"Overdue";
   if(l==="blocked")return"Blocked";
   return"Not Started";
+}
+
+// Normalize any date format to YYYY-MM-DD
+function normalizeDate(d){
+  if(!d||d==="—"||d.trim()==="")return"";
+  const s=d.trim();
+  // Already YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  // Try parsing directly
+  const parsed=new Date(s);
+  if(!isNaN(parsed.getTime())){
+    const y=parsed.getFullYear();
+    const m=String(parsed.getMonth()+1).padStart(2,"0");
+    const dd=String(parsed.getDate()).padStart(2,"0");
+    return`${y}-${m}-${dd}`;
+  }
+  // M/D/YY or MM/DD/YY or M/D/YYYY
+  const slashMatch=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(slashMatch){
+    let yr=parseInt(slashMatch[3]);
+    if(yr<100)yr+=2000;
+    const mo=String(parseInt(slashMatch[1])).padStart(2,"0");
+    const dy=String(parseInt(slashMatch[2])).padStart(2,"0");
+    return`${yr}-${mo}-${dy}`;
+  }
+  return s;
 }
 
 function Tasks({tasks,setTasks}){
@@ -272,22 +296,19 @@ function Tasks({tasks,setTasks}){
   const [filterStatus,setFilterStatus]=useState("All");
   const [sortCol,setSortCol]=useState("due");
   const [sortDir,setSortDir]=useState("asc");
-  const [calMonth,setCalMonth]=useState(()=>{
-    const d=new Date();d.setDate(1);return d;
-  });
+  const [calMonth,setCalMonth]=useState(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;});
 
-  const today2=new Date();today2.setHours(0,0,0,0);
+  const todayStr=new Date().toISOString().split("T")[0];
 
-  // Auto-mark overdue
+  // Normalize dates + auto-mark overdue
   const enriched=tasks.map(t=>{
-    if(t.due&&t.status!=="Complete"&&t.status!=="Done"){
-      const d=new Date(t.due);d.setHours(0,0,0,0);
-      if(d<today2&&t.status!=="Overdue")return{...t,status:"Overdue"};
+    const due=normalizeDate(t.due);
+    let status=t.status||"Not Started";
+    if(due&&due<todayStr&&normalizeStatus(status)!=="Complete"&&normalizeStatus(status)!=="Done"){
+      status="Overdue";
     }
-    return t;
+    return{...t,due,status};
   });
-
-  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||normalizeStatus(t.status)===filterStatus));
 
   const counts={
     "Not Started":enriched.filter(t=>normalizeStatus(t.status)==="Not Started").length,
@@ -296,14 +317,17 @@ function Tasks({tasks,setTasks}){
     "Overdue":enriched.filter(t=>normalizeStatus(t.status)==="Overdue").length,
   };
 
+  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||normalizeStatus(t.status)===filterStatus));
+
   function saveTask(f){
-    const ex=tasks.find(t=>t.id===f.id);
-    setTasks(ex?tasks.map(t=>t.id===f.id?{...f}:t):[...tasks,{...f}]);
+    const normalized={...f,due:normalizeDate(f.due)};
+    const ex=tasks.find(t=>t.id===normalized.id);
+    setTasks(ex?tasks.map(t=>t.id===normalized.id?normalized:t):[...tasks,normalized]);
     setForm(null);
   }
   function deleteTask(id){setTasks(tasks.filter(t=>t.id!==id));setForm(null);}
 
-  // ── Calendar helpers ─────────────────────────────────────────────────────
+  // ── Calendar ─────────────────────────────────────────────────────────────
   function calDays(){
     const y=calMonth.getFullYear(),m=calMonth.getMonth();
     const first=new Date(y,m,1),last=new Date(y,m+1,0);
@@ -316,11 +340,11 @@ function Tasks({tasks,setTasks}){
 
   function tasksOnDay(d){
     if(!d)return[];
-    const ds=d.toISOString().split('T')[0];
+    const ds=d.toISOString().split("T")[0];
     return enriched.filter(t=>t.due===ds);
   }
 
-  const monthName=calMonth.toLocaleString('default',{month:'long',year:'numeric'});
+  const monthName=calMonth.toLocaleString("default",{month:"long",year:"numeric"});
   const days=calDays();
   const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -336,9 +360,6 @@ function Tasks({tasks,setTasks}){
     return sortDir==="asc"?r:-r;
   });
 
-  const statusColorMap={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger,"To do":B.muted,"Done":"#2a6b3f"};
-
-  // ── Task form modal ───────────────────────────────────────────────────────
   const TaskModal=()=>form?(
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(2,29,43,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
       <div style={{...card,width:520,maxWidth:"92vw",maxHeight:"88vh",overflowY:"auto"}}>
@@ -369,7 +390,7 @@ function Tasks({tasks,setTasks}){
       {/* Status summary cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
         {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
-          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.5:1}}>
+          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.55:1,transition:"opacity 0.15s"}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{s}</div>
             <div style={{fontSize:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
           </div>
@@ -383,50 +404,81 @@ function Tasks({tasks,setTasks}){
         </select>
         <div style={{flex:1}}/>
         <div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
-          {["calendar","table"].map(v=>(
-            <button key={v} onClick={()=>setView(v)} style={{fontSize:11,padding:"6px 16px",background:view===v?B.navy:"transparent",color:view===v?B.white:B.muted,border:"none",cursor:"pointer",fontFamily:FONT,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>
-              {v==="calendar"?"📅 Calendar":"≡ Table"}
-            </button>
+          {[["calendar","Calendar"],["table","Table"]].map(([v,label])=>(
+            <button key={v} onClick={()=>setView(v)} style={{fontSize:11,padding:"7px 18px",background:view===v?B.navy:"transparent",color:view===v?B.white:B.muted,border:"none",cursor:"pointer",fontFamily:FONT,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}</button>
           ))}
         </div>
         <button onClick={()=>setForm({...ET,id:Date.now()})} style={btn()}>+ Add task</button>
       </div>
 
-      {/* ── CALENDAR VIEW ── */}
+      {/* ── CALENDAR ── */}
       {view==="calendar"&&(
-        <div style={card}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1rem"}}>
-            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()-1);return d;})} style={{...btn(true),padding:"4px 12px"}}>←</button>
-            <div style={{fontSize:14,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{monthName}</div>
-            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()+1);return d;})} style={{...btn(true),padding:"4px 12px"}}>→</button>
+        <div style={{background:B.white,border:`1px solid ${B.steel}`,borderRadius:10,overflow:"hidden"}}>
+          {/* Month nav */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${B.light}`}}>
+            <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()-1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:13}}>‹</button>
+            <div style={{fontSize:16,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{monthName}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button onClick={()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);setCalMonth(d);}} style={{...btn(true),padding:"4px 12px",fontSize:11}}>Today</button>
+              <button onClick={()=>setCalMonth(m=>{const d=new Date(m);d.setMonth(d.getMonth()+1);return d;})} style={{...btn(true),padding:"4px 14px",fontSize:13}}>›</button>
+            </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:1,background:B.steel,borderRadius:4,overflow:"hidden"}}>
+
+          {/* Day headers */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>
             {DOW.map(d=>(
-              <div key={d} style={{background:B.navy,padding:"6px 0",textAlign:"center",fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.6)",letterSpacing:"0.06em"}}>{d}</div>
+              <div key={d} style={{padding:"8px 0",textAlign:"center",fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.06em"}}>{d}</div>
             ))}
+          </div>
+
+          {/* Grid */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
             {days.map((d,i)=>{
               const dayTasks=d?tasksOnDay(d):[];
-              const isToday=d&&d.toDateString()===today2.toDateString();
+              const isToday=d&&d.toISOString().split("T")[0]===todayStr;
+              const isCurrentMonth=d&&d.getMonth()===calMonth.getMonth();
+              const maxVisible=3;
+              const overflow=dayTasks.length-maxVisible;
               return(
-                <div key={i} style={{background:B.white,minHeight:80,padding:"4px 6px",borderTop:`1px solid ${B.light}`}}>
+                <div key={i} style={{minHeight:100,padding:"6px 8px",borderRight:i%7!==6?`1px solid ${B.light}`:"none",borderBottom:`1px solid ${B.light}`,background:isCurrentMonth?B.white:B.offwhite}}>
                   {d&&(
                     <>
-                      <div style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?B.blue:B.muted,marginBottom:3}}>{d.getDate()}</div>
-                      {dayTasks.map(t=>(
-                        <div key={t.id} onClick={()=>setForm({...t})} style={{fontSize:10,fontWeight:600,padding:"2px 5px",borderRadius:3,marginBottom:2,cursor:"pointer",background:(statusColorMap[normalizeStatus(t.status)]||B.muted)+"22",color:statusColorMap[normalizeStatus(t.status)]||B.muted,border:`1px solid ${(statusColorMap[normalizeStatus(t.status)]||B.muted)}44`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          {t.title}
-                        </div>
-                      ))}
+                      <div style={{marginBottom:4}}>
+                        <span style={{
+                          display:"inline-flex",alignItems:"center",justifyContent:"center",
+                          width:22,height:22,borderRadius:"50%",fontSize:12,fontWeight:isToday?700:400,
+                          background:isToday?B.navy:"transparent",
+                          color:isToday?B.white:isCurrentMonth?B.navy:B.muted,
+                        }}>{d.getDate()}</span>
+                      </div>
+                      {dayTasks.slice(0,maxVisible).map(t=>{
+                        const sc=statusColor[normalizeStatus(t.status)]||B.muted;
+                        return(
+                          <div key={t.id} onClick={()=>setForm({...t})} style={{
+                            fontSize:11,fontWeight:500,padding:"2px 6px",borderRadius:3,marginBottom:2,
+                            cursor:"pointer",background:sc,color:B.white,
+                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+                            borderLeft:`3px solid ${sc}`,
+                          }} title={t.title}>
+                            {t.title}
+                          </div>
+                        );
+                      })}
+                      {overflow>0&&(
+                        <div style={{fontSize:10,color:B.muted,paddingLeft:2,marginTop:1}}>+{overflow} more</div>
+                      )}
                     </>
                   )}
                 </div>
               );
             })}
           </div>
-          <div style={{display:"flex",gap:16,marginTop:"0.75rem",flexWrap:"wrap"}}>
+
+          {/* Legend */}
+          <div style={{display:"flex",gap:16,padding:"10px 16px",borderTop:`1px solid ${B.light}`,flexWrap:"wrap"}}>
             {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
               <span key={s} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:B.muted}}>
-                <span style={{width:10,height:10,borderRadius:2,background:c+"44",border:`1px solid ${c}66`,display:"inline-block"}}/>
+                <span style={{width:10,height:10,borderRadius:2,background:c,display:"inline-block"}}/>
                 {s}
               </span>
             ))}
@@ -434,13 +486,13 @@ function Tasks({tasks,setTasks}){
         </div>
       )}
 
-      {/* ── TABLE VIEW ── */}
+      {/* ── TABLE ── */}
       {view==="table"&&(
         <div style={{...card,padding:0,overflow:"hidden"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
               <tr style={{background:B.navy}}>
-                <th style={{width:32,padding:"10px 12px",color:"rgba(255,255,255,0.5)",fontSize:10,fontWeight:600,textAlign:"left"}}>#</th>
+                <th style={{width:36,padding:"10px 12px",color:"rgba(255,255,255,0.5)",fontSize:10,fontWeight:600,textAlign:"left"}}>#</th>
                 {[["workstream","Workstream"],["title","Title"],["owner","Owner"],["status","Status"],["due","Due date"],["priority","Priority"],["notes","Notes"]].map(([col,label])=>(
                   <th key={col} onClick={()=>toggleSort(col)} style={{padding:"10px 12px",color:sortCol===col?"#ccd5de":"rgba(255,255,255,0.6)",fontSize:10,fontWeight:600,textAlign:"left",cursor:"pointer",letterSpacing:"0.05em",textTransform:"uppercase",userSelect:"none",whiteSpace:"nowrap"}}>
                     {label}{sortCol===col?(sortDir==="asc"?" ↑":" ↓"):""}
@@ -449,26 +501,26 @@ function Tasks({tasks,setTasks}){
               </tr>
             </thead>
             <tbody>
-              {sorted.map((t,i)=>(
-                <tr key={t.id} onClick={()=>setForm({...t})} style={{cursor:"pointer",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
-                  <td style={{padding:"9px 12px",fontSize:11,color:B.muted}}>{i+1}</td>
-                  <td style={{padding:"9px 12px",color:B.muted,fontSize:12}}>{t.workstream||"—"}</td>
-                  <td style={{padding:"9px 12px",color:B.navy,fontWeight:600,maxWidth:260}}>{t.title}</td>
-                  <td style={{padding:"9px 12px",color:B.muted,fontSize:12}}>{t.owner||"—"}</td>
-                  <td style={{padding:"9px 12px"}}>
-                    <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(statusColorMap[normalizeStatus(t.status)]||B.muted)+"20",color:statusColorMap[normalizeStatus(t.status)]||B.muted,border:`1px solid ${(statusColorMap[normalizeStatus(t.status)]||B.muted)}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
-                      {normalizeStatus(t.status)}
-                    </span>
-                  </td>
-                  <td style={{padding:"9px 12px",fontSize:12,color:normalizeStatus(t.status)==="Overdue"?B.danger:B.muted,fontWeight:normalizeStatus(t.status)==="Overdue"?600:400,whiteSpace:"nowrap"}}>{t.due||"—"}</td>
-                  <td style={{padding:"9px 12px"}}>
-                    <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)+"20",color:t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue,border:`1px solid ${(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)}44`,letterSpacing:"0.04em",textTransform:"uppercase"}}>
-                      {t.priority||"Medium"}
-                    </span>
-                  </td>
-                  <td style={{padding:"9px 12px",fontSize:12,color:B.muted,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.notes||"—"}</td>
-                </tr>
-              ))}
+              {sorted.map((t,i)=>{
+                const sc=statusColor[normalizeStatus(t.status)]||B.muted;
+                const isOverdue=normalizeStatus(t.status)==="Overdue";
+                return(
+                  <tr key={t.id} onClick={()=>setForm({...t})} style={{cursor:"pointer",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
+                    <td style={{padding:"9px 12px",fontSize:11,color:B.muted}}>{i+1}</td>
+                    <td style={{padding:"9px 12px",color:B.muted,fontSize:12,whiteSpace:"nowrap"}}>{t.workstream||"—"}</td>
+                    <td style={{padding:"9px 12px",color:B.navy,fontWeight:600,maxWidth:240}}>{t.title}</td>
+                    <td style={{padding:"9px 12px",color:B.muted,fontSize:12,whiteSpace:"nowrap"}}>{t.owner||"—"}</td>
+                    <td style={{padding:"9px 12px"}}>
+                      <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:sc+"22",color:sc,border:`1px solid ${sc}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{normalizeStatus(t.status)}</span>
+                    </td>
+                    <td style={{padding:"9px 12px",fontSize:12,color:isOverdue?B.danger:B.muted,fontWeight:isOverdue?700:400,whiteSpace:"nowrap"}}>{t.due||"—"}</td>
+                    <td style={{padding:"9px 12px"}}>
+                      <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:3,background:(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)+"22",color:t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue,border:`1px solid ${(t.priority==="High"?B.danger:t.priority==="Low"?B.muted:B.blue)}44`,letterSpacing:"0.04em",textTransform:"uppercase"}}>{t.priority||"Medium"}</span>
+                    </td>
+                    <td style={{padding:"9px 12px",fontSize:12,color:B.muted,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.notes||"—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {sorted.length===0&&<div style={{padding:"3rem",textAlign:"center",color:B.muted,fontSize:13}}>No tasks match your filters.</div>}
