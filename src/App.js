@@ -938,7 +938,7 @@ export default function App(){
       {syncing&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.05em"}}>Saving…</div>}
       {loadError&&<div style={{fontSize:11,color:B.gold,letterSpacing:"0.05em"}} title={loadError}>⚠ Offline mode</div>}
     </div>
-    <div style={{maxWidth:980,margin:"0 auto",padding:"0 1.5rem 3rem"}}>
+    <div style={{maxWidth:1400,margin:"0 auto",padding:"0 2rem 3rem"}}>
       {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles}/>}
       {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
