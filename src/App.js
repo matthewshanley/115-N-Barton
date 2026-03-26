@@ -432,7 +432,7 @@ function Tasks({tasks,setTasks}){
           </div>
 
           {/* Grid */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))"}}>
             {days.map((d,i)=>{
               const dayTasks=d?tasksOnDay(d):[];
               const isToday=d&&d.toISOString().split("T")[0]===todayStr;
@@ -440,7 +440,7 @@ function Tasks({tasks,setTasks}){
               const maxVisible=3;
               const overflow=dayTasks.length-maxVisible;
               return(
-                <div key={i} style={{minHeight:100,padding:"6px 8px",borderRight:i%7!==6?`1px solid ${B.light}`:"none",borderBottom:`1px solid ${B.light}`,background:isCurrentMonth?B.white:B.offwhite}}>
+                <div key={i} style={{height:110,overflow:"hidden",padding:"6px 6px",borderRight:i%7!==6?`1px solid ${B.light}`:"none",borderBottom:`1px solid ${B.light}`,background:isCurrentMonth?B.white:B.offwhite}}>
                   {d&&(
                     <>
                       <div style={{marginBottom:4}}>
