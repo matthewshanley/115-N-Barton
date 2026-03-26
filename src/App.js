@@ -920,6 +920,42 @@ const USE_INTEREST=353959;
 const USE_PREOPENING=100000;
 const USE_CONTINGENCY=316057;
 
+function BudgetSection({section,pKey,pGSF}){
+  const [open,setOpen]=useState(false);
+  const hasChildren=section.children&&section.children.length>0;
+  return(
+    <>
+      <div onClick={hasChildren?()=>setOpen(o=>!o):undefined}
+        style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"10px 14px",
+          borderBottom:`1px solid ${B.light}`,background:B.offwhite,
+          cursor:hasChildren?"pointer":"default",alignItems:"baseline"}}>
+        <div style={{fontSize:10,color:B.muted,textAlign:"right"}}>{section.pct}</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:13,fontWeight:700,color:B.navy}}>{section.label}</span>
+          {hasChildren&&<span style={{fontSize:10,color:B.muted}}>{open?"▲":"▼"}</span>}
+        </div>
+        <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.navy}}>{fmt$(section.total)}</div>
+        <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(section.total)}</div>
+        <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(section.total)}</div>
+      </div>
+      {open&&section.children.map((child,i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,
+          padding:"7px 14px",borderBottom:`1px solid ${B.light}`,
+          background:i%2===0?B.white:"#fafbfc",alignItems:"baseline"}}>
+          <div style={{fontSize:10,color:B.muted,textAlign:"right"}}>{child.pct}</div>
+          <div style={{display:"flex",alignItems:"baseline",gap:0}}>
+            <span style={{display:"inline-block",width:16,flexShrink:0}}/>
+            <span style={{fontSize:12,color:B.navy}}>{child.label}</span>
+          </div>
+          <div style={{textAlign:"right",fontSize:12,color:B.navy}}>{fmt$(child.total)}</div>
+          <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(child.total)}</div>
+          <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(child.total)}</div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function Budget({committed}){
   const [osloOpen,setOsloOpen]=useState(false);
   const [seekOpen,setSeekOpen]=useState(false);
@@ -928,9 +964,10 @@ function Budget({committed}){
   const pGSF=v=>"$"+(v/GSF).toFixed(2);
 
   const ColHead=({label})=><div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",textAlign:"right"}}>{label}</div>;
-  const SU=({label,total,perKey,perGSF,bold,indent,muted})=>(
-    <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
-      <div style={{display:"flex",alignItems:"baseline",gap:0}}>
+  const SU=({label,total,bold,indent,muted,pct})=>(
+    <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
+      <div style={{textAlign:"right",fontSize:10,color:B.muted}}>{pct||""}</div>
+      <div style={{display:"flex",alignItems:"baseline"}}>
         {indent&&<span style={{display:"inline-block",width:16,flexShrink:0}}/>}
         <span style={{fontSize:bold?13:12,fontWeight:bold?700:400,color:muted?B.muted:B.navy}}>{label}</span>
       </div>
@@ -941,8 +978,8 @@ function Budget({committed}){
   );
 
   const TotalBar=({label,amount})=>(
-    <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"12px 14px",background:B.navy,alignItems:"center"}}>
-      <span style={{fontSize:13,fontWeight:700,color:B.white,letterSpacing:"0.04em"}}>{label}</span>
+    <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"12px 14px",background:B.navy,alignItems:"center"}}>
+      <div/><span style={{fontSize:13,fontWeight:700,color:B.white,letterSpacing:"0.04em"}}>{label}</span>
       <span style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.white}}>{fmt$(amount)}</span>
       <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pKey(amount)}/key</span>
       <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pGSF(amount)}/sf</span>
@@ -980,8 +1017,8 @@ function Budget({committed}){
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Sources</div>
           <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-              <div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
             </div>
             <SU label="Construction Debt" total={DEBT} bold/>
             <SU label="LTC (w/ interest reserve)" total={0} bold muted/>{/* label only */}
@@ -1027,63 +1064,60 @@ function Budget({committed}){
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Uses</div>
           <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-              <div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
             </div>
 
-            {/* Acquisition */}
-            <SU label="Acquisition & Due Diligence" total={USE_ACQUISITION} bold/>
-            <SU label="Land" total={225000} indent/>
-            <SU label="Building" total={225000} indent/>
-            <SU label="109 N Barton Parcel" total={470389} indent/>
-            <SU label="Closing Costs & Legal" total={8503} indent/>
-            <SU label="Due Diligence (Survey, PCA, Geo)" total={11386} indent/>
-            <SU label="Other / Pre-Dev" total={USE_ACQUISITION-225000-225000-470389-8503-11386} indent muted/>
+            {[
+              {label:"Acquisition & Land Purchase",total:1196089,pct:"14.2%",children:[
+                {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
+                {label:"Closing Costs",total:9003,pct:"0.1%"},
+                {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
+                {label:"Land Purchase — 109 Barton",total:700000,pct:"8.3%"},
+                {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
+                {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
+              ]},
+              {label:"Soft Costs",total:778700,pct:"9.2%",children:[
+                {label:"Architect — Design Phase",total:170000,pct:"2.0%"},
+                {label:"Zoning",total:5000,pct:"0.1%"},
+                {label:"Taxes",total:18917,pct:"0.2%"},
+                {label:"Insurance",total:40000,pct:"0.5%"},
+                {label:"Design",total:50000,pct:"0.6%"},
+                {label:"Permit",total:30000,pct:"0.4%"},
+                {label:"Signage",total:20000,pct:"0.2%"},
+                {label:"Other",total:25000,pct:"0.3%"},
+                {label:"Development Fee",total:296453,pct:"3.5%"},
+                {label:"Acquisition Fee",total:9329,pct:"0.1%"},
+                {label:"Project Management",total:75000,pct:"0.9%"},
+                {label:"Lender Legal",total:20000,pct:"0.2%"},
+                {label:"Lender Underwriting Fee",total:5000,pct:"0.1%"},
+                {label:"Acquisition Fee (109 Barton)",total:14000,pct:"0.2%"},
+              ]},
+              {label:"Hard Costs",total:5144475,pct:"61.0%",children:[
+                {label:"Construction Hard Costs",total:4815000,pct:"57.1%"},
+                {label:"Demo",total:50000,pct:"0.6%"},
+                {label:"Salto Locks & Install",total:34500,pct:"0.4%"},
+                {label:"Construction Contingency",total:244975,pct:"2.9%"},
+              ]},
+              {label:"FF&E & OS&E",total:542932,pct:"6.4%",children:[
+                {label:"Furniture",total:296118,pct:"3.5%"},
+                {label:"Fixtures",total:30900,pct:"0.4%"},
+                {label:"Operating Supplies",total:85107,pct:"1.0%"},
+                {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
+              ]},
+              {label:"Interest Reserve + Loan Fees",total:353959,pct:"4.2%",children:[]},
+              {label:"Pre-Opening Costs",total:100000,pct:"1.2%",children:[
+                {label:"Operating Shortfall",total:75000,pct:"0.9%"},
+                {label:"General Marketing",total:25000,pct:"0.3%"},
+              ]},
+              {label:"Contingency",total:316057,pct:"3.7%",children:[
+                {label:"5% of Hard Costs",total:244975,pct:"2.9%"},
+                {label:"5% of Soft Costs",total:71082,pct:"0.8%"},
+              ]},
+            ].map(section=>(
+              <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
+            ))}
 
-            {/* Hard Costs */}
-            <SectionToggle label="Hard Costs — OSLO Builders (21-key GMP)" total={USE_HARD} open={osloOpen} onToggle={()=>setOsloOpen(o=>!o)} note="12/4/2025"/>
-            {osloOpen&&(
-              <div style={{borderBottom:`1px solid ${B.steel}`}}>
-                {OSLO_LINES.map((l,i)=>(
-                  <div key={i} style={{display:"grid",gridTemplateColumns:"52px 1fr 90px",gap:8,padding:"6px 14px",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
-                    <span style={{fontSize:10,color:B.muted}}>{l.code}</span>
-                    <span style={{fontSize:12,color:B.navy}}>{l.trade}</span>
-                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(l.amount)}</span>
-                  </div>
-                ))}
-                {[["General Conditions",295720],["Insurance (1%)",47203],["OH&P (2.75%)",131106],["Contingency (5%)",236015]].map(([label,amt],i)=>(
-                  <div key={label} style={{display:"grid",gridTemplateColumns:"52px 1fr 90px",gap:8,padding:"7px 14px",borderBottom:`1px solid ${B.light}`,background:B.offwhite}}>
-                    <span/>
-                    <span style={{fontSize:12,color:B.muted,fontStyle:"italic"}}>{label}</span>
-                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(amt)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Soft Costs */}
-            <SectionToggle label="Soft Costs — Architecture & Design" total={USE_SOFT} open={seekOpen} onToggle={()=>setSeekOpen(o=>!o)} note="SEEK + Consultants"/>
-            {seekOpen&&(
-              <div style={{borderBottom:`1px solid ${B.steel}`}}>
-                {SEEK_LINES.map((l,i)=>(
-                  <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 120px 80px",gap:8,padding:"7px 14px",borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
-                    <span style={{fontSize:12,color:B.navy}}>{l.phase}</span>
-                    <span style={{fontSize:11,color:B.muted}}>{l.note}</span>
-                    <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(l.amount)}</span>
-                  </div>
-                ))}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 120px 80px",gap:8,padding:"8px 14px",background:B.offwhite}}>
-                  <span style={{fontSize:11,color:B.muted,fontStyle:"italic"}}>Remaining soft costs in model</span>
-                  <span/>
-                  <span style={{fontSize:12,color:B.navy,fontWeight:500,textAlign:"right"}}>{fmt$(USE_SOFT-226000)}</span>
-                </div>
-              </div>
-            )}
-
-            <SU label="FF&E / OS&E" total={USE_FFE} bold/>
-            <SU label="Interest Reserve + Loan Fees" total={USE_INTEREST} bold/>
-            <SU label="Pre-Opening Costs" total={USE_PREOPENING} bold/>
-            <SU label="Contingency" total={USE_CONTINGENCY} bold/>
             <TotalBar label="Total Uses" amount={TOTAL_PROJECT}/>
           </div>
         </div>
