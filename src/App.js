@@ -1162,6 +1162,8 @@ const LENDER_DATA = [
     depositReq: "—",
     notes: "Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212.",
   },
+  {
+    name: "Horizon Bank",
     contact: "Bruce Piekarski / Stacey Stephens",
     status: "Term sheet received",
     statusColor: B.gold,
