@@ -1139,7 +1139,29 @@ function Budget({committed}){
 // ── Lender Matrix ──────────────────────────────────────────────────────────
 const LENDER_DATA = [
   {
-    name: "Horizon Bank",
+    name: "Project Budget",
+    contact: "ECG Internal",
+    status: "21-key model v8",
+    statusColor: B.navy,
+    amount: 5059541,
+    ltc: "60%",
+    equityRequired: 3372670,
+    constructionRate: "SOFR + 500bps",
+    constructionRateToday: "~8.35% (est.)",
+    constructionFloor: "3.0%",
+    termRate: "6.50% fixed",
+    termRateToday: "6.50%",
+    termFloor: "—",
+    term: "Construction → 25yr perm",
+    amortization: "25 years",
+    loanFee: "1.00%",
+    prepayment: "—",
+    payments: "IO during construction",
+    dscr: "1.45x min (model)",
+    security: "—",
+    depositReq: "—",
+    notes: "Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212.",
+  },
     contact: "Bruce Piekarski / Stacey Stephens",
     status: "Term sheet received",
     statusColor: B.gold,
@@ -1272,7 +1294,7 @@ function LenderMatrix() {
         {[
           ["Target Loan Amount", fmt$(TARGET), B.navy],
           ["Term Sheets Received", LENDER_DATA.filter(l=>l.status==="Term sheet received").length, B.gold],
-          ["Lenders Active", LENDER_DATA.filter(l=>l.status!=="Passed").length, B.sage],
+          ["Lenders Active", LENDER_DATA.filter(l=>l.name!=="Project Budget"&&l.status!=="Passed").length, B.sage],
           ["Best Rate (Today)", "6.46% (Horizon)", B.blue],
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
@@ -1289,16 +1311,18 @@ function LenderMatrix() {
             <thead>
               <tr style={{background:B.navy}}>
                 <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.6)",letterSpacing:"0.06em",textTransform:"uppercase",width:180,position:"sticky",left:0,background:B.navy}}>Term</th>
-                {LENDER_DATA.map(l=>(
+                {LENDER_DATA.map(l=>{
+                  const isBudget = l.name === "Project Budget";
+                  return(
                   <th key={l.name} onClick={()=>setSelected(selected===l.name?null:l.name)}
-                    style={{padding:"10px 16px",textAlign:"left",cursor:"pointer",minWidth:160,borderLeft:`1px solid rgba(255,255,255,0.1)`}}>
-                    <div style={{fontSize:12,fontWeight:700,color:selected===l.name?B.steel:B.white}}>{l.name}</div>
+                    style={{padding:"10px 16px",textAlign:"left",cursor:"pointer",minWidth:160,borderLeft:`1px solid rgba(255,255,255,0.1)`,background:isBudget?"rgba(255,255,255,0.08)":undefined}}>
+                    <div style={{fontSize:12,fontWeight:700,color:selected===l.name?B.steel:isBudget?B.steel:B.white}}>{l.name}</div>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
                       <span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:l.statusColor,flexShrink:0}}/>
                       <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:400}}>{l.status}</span>
                     </div>
                   </th>
-                ))}
+                )})}
               </tr>
             </thead>
             <tbody>
@@ -1313,9 +1337,10 @@ function LenderMatrix() {
                     {LENDER_DATA.map(l=>{
                       const val = row.fmt(l[row.key]);
                       const isHorizon = l.name === "Horizon Bank";
+                      const isBudget = l.name === "Project Budget";
                       const hasData = val && val !== "—";
                       return(
-                        <td key={l.name} style={{padding:"8px 16px",color:hasData?(isHorizon&&ri<3?"#2a6b3f":B.navy):B.muted,fontWeight:hasData&&isHorizon&&ri<3?700:400,fontSize:isNotes?11:12,borderLeft:`1px solid ${B.light}`,maxWidth:220,wordBreak:"break-word"}}>
+                        <td key={l.name} style={{padding:"8px 16px",color:hasData?(isHorizon&&ri<3?"#2a6b3f":isBudget?B.blue:B.navy):B.muted,fontWeight:hasData&&(isHorizon&&ri<3||isBudget&&ri<3)?700:400,fontSize:isNotes?11:12,borderLeft:`1px solid ${B.light}`,maxWidth:220,wordBreak:"break-word",background:isBudget?(ri%2===0?"#f0f4f8":"#e8eef4"):undefined}}>
                           {val}
                         </td>
                       );
