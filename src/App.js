@@ -1322,8 +1322,8 @@ function LenderMatrix() {
                       <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:400}}>{l.status}</span>
                     </div>
                   </th>
-                )})}
-              </tr>
+                );
+                })}              </tr>
             </thead>
             <tbody>
               {MATRIX_ROWS.map((row,ri)=>{
