@@ -1136,6 +1136,246 @@ function Budget({committed}){
   );
 }
 
+// ── Lender Matrix ──────────────────────────────────────────────────────────
+const LENDER_DATA = [
+  {
+    name: "Horizon Bank",
+    contact: "Bruce Piekarski / Stacey Stephens",
+    status: "Term sheet received",
+    statusColor: B.gold,
+    amount: 5925000,
+    ltc: "60%",
+    equityRequired: 2500000,
+    constructionRate: "SOFR + 2.95%",
+    constructionRateToday: "6.63%",
+    constructionFloor: "4.0%",
+    termRate: "5-yr Treasury + 2.50%",
+    termRateToday: "6.46%",
+    termFloor: "6.0%",
+    term: "24 mo construction → 60 mo permanent",
+    amortization: "25 years",
+    loanFee: "0.25%",
+    prepayment: "3% yr 1, 2%/yr (20% free/yr)",
+    payments: "IO during construction; P&I or seasonal term",
+    dscr: "1.30x at stabilization",
+    security: "1st mortgage — 115 + 109 N Barton + all business assets",
+    depositReq: "Primary depository accounts at Horizon",
+    notes: "Term sheet dated 3/30/26. Seasonal P&I option (Jun–Oct). DSCR covenant 1.30x. Contractor must be bank-approved.",
+  },
+  {
+    name: "Burling Bank",
+    contact: "Kevin Murphy",
+    status: "Outreach sent",
+    statusColor: B.blue,
+    amount: null,
+    ltc: "—",
+    equityRequired: null,
+    constructionRate: "—",
+    constructionRateToday: "—",
+    constructionFloor: "—",
+    termRate: "—",
+    termRateToday: "—",
+    termFloor: "—",
+    term: "—",
+    amortization: "—",
+    loanFee: "—",
+    prepayment: "—",
+    payments: "—",
+    dscr: "—",
+    security: "—",
+    depositReq: "—",
+    notes: "Owner: Jimmy. Follow-up pending.",
+  },
+  {
+    name: "Green State CU",
+    contact: "Jim Lesko",
+    status: "Outreach sent",
+    statusColor: B.blue,
+    amount: null,
+    ltc: "—", equityRequired: null,
+    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
+    termRate: "—", termRateToday: "—", termFloor: "—",
+    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
+    payments: "—", dscr: "—", security: "—", depositReq: "—",
+    notes: "Owner: Jimmy.",
+  },
+  {
+    name: "Heartland Bank",
+    contact: "Mark Ptacek",
+    status: "Outreach sent",
+    statusColor: B.blue,
+    amount: null,
+    ltc: "—", equityRequired: null,
+    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
+    termRate: "—", termRateToday: "—", termFloor: "—",
+    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
+    payments: "—", dscr: "—", security: "—", depositReq: "—",
+    notes: "Co-contact: Jeff Wisenwski.",
+  },
+  {
+    name: "Centier Bank",
+    contact: "Ben Bochnowski",
+    status: "Outreach sent",
+    statusColor: B.blue,
+    amount: null,
+    ltc: "—", equityRequired: null,
+    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
+    termRate: "—", termRateToday: "—", termFloor: "—",
+    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
+    payments: "—", dscr: "—", security: "—", depositReq: "—",
+    notes: "Owner: Jimmy.",
+  },
+  {
+    name: "PanAmerican Bank",
+    contact: "Chris Metcalf",
+    status: "Outreach sent",
+    statusColor: B.blue,
+    amount: null,
+    ltc: "—", equityRequired: null,
+    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
+    termRate: "—", termRateToday: "—", termFloor: "—",
+    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
+    payments: "—", dscr: "—", security: "—", depositReq: "—",
+    notes: "In-person meeting 3/26.",
+  },
+];
+
+const MATRIX_ROWS = [
+  { key: "amount",              label: "Loan Amount",               fmt: v => v ? fmt$(v) : "—" },
+  { key: "ltc",                 label: "LTC",                       fmt: v => v },
+  { key: "equityRequired",      label: "Equity Required",           fmt: v => v ? fmt$(v) : "—" },
+  { key: "constructionRate",    label: "Construction Rate",         fmt: v => v },
+  { key: "constructionRateToday", label: "  Today's Rate",          fmt: v => v },
+  { key: "constructionFloor",   label: "  Floor",                   fmt: v => v },
+  { key: "termRate",            label: "Term Rate",                 fmt: v => v },
+  { key: "termRateToday",       label: "  Today's Rate",            fmt: v => v },
+  { key: "termFloor",           label: "  Floor",                   fmt: v => v },
+  { key: "term",                label: "Term",                      fmt: v => v },
+  { key: "amortization",        label: "Amortization",              fmt: v => v },
+  { key: "loanFee",             label: "Loan Fee",                  fmt: v => v },
+  { key: "prepayment",          label: "Prepayment",                fmt: v => v },
+  { key: "payments",            label: "Payment Structure",         fmt: v => v },
+  { key: "dscr",                label: "DSCR Covenant",             fmt: v => v },
+  { key: "depositReq",          label: "Deposit Requirement",       fmt: v => v },
+  { key: "notes",               label: "Notes",                     fmt: v => v },
+];
+
+function LenderMatrix() {
+  const [selected, setSelected] = useState(null);
+  const TARGET = 5925000;
+
+  return (
+    <div style={{padding:"1.25rem 0"}}>
+
+      {/* KPI row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
+        {[
+          ["Target Loan Amount", fmt$(TARGET), B.navy],
+          ["Term Sheets Received", LENDER_DATA.filter(l=>l.status==="Term sheet received").length, B.gold],
+          ["Lenders Active", LENDER_DATA.filter(l=>l.status!=="Passed").length, B.sage],
+          ["Best Rate (Today)", "6.46% (Horizon)", B.blue],
+        ].map(([l,v,c])=>(
+          <div key={l} style={SC(c)}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+            <div style={{fontSize:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Comparison matrix */}
+      <div style={{...card,padding:0,overflow:"hidden",marginBottom:"1.5rem"}}>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:900}}>
+            <thead>
+              <tr style={{background:B.navy}}>
+                <th style={{padding:"10px 16px",textAlign:"left",fontSize:10,fontWeight:600,color:"rgba(255,255,255,0.6)",letterSpacing:"0.06em",textTransform:"uppercase",width:180,position:"sticky",left:0,background:B.navy}}>Term</th>
+                {LENDER_DATA.map(l=>(
+                  <th key={l.name} onClick={()=>setSelected(selected===l.name?null:l.name)}
+                    style={{padding:"10px 16px",textAlign:"left",cursor:"pointer",minWidth:160,borderLeft:`1px solid rgba(255,255,255,0.1)`}}>
+                    <div style={{fontSize:12,fontWeight:700,color:selected===l.name?B.steel:B.white}}>{l.name}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+                      <span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:l.statusColor,flexShrink:0}}/>
+                      <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:400}}>{l.status}</span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MATRIX_ROWS.map((row,ri)=>{
+                const isIndented = row.label.startsWith("  ");
+                const isNotes = row.key === "notes";
+                return(
+                  <tr key={row.key} style={{background:ri%2===0?B.white:B.offwhite,borderBottom:`1px solid ${B.light}`}}>
+                    <td style={{padding:"8px 16px",color:isIndented?B.muted:B.navy,fontWeight:isIndented?400:600,fontSize:isIndented?11:12,position:"sticky",left:0,background:ri%2===0?B.white:B.offwhite,borderRight:`1px solid ${B.steel}`}}>
+                      {isIndented ? row.label.trim() : row.label}
+                    </td>
+                    {LENDER_DATA.map(l=>{
+                      const val = row.fmt(l[row.key]);
+                      const isHorizon = l.name === "Horizon Bank";
+                      const hasData = val && val !== "—";
+                      return(
+                        <td key={l.name} style={{padding:"8px 16px",color:hasData?(isHorizon&&ri<3?"#2a6b3f":B.navy):B.muted,fontWeight:hasData&&isHorizon&&ri<3?700:400,fontSize:isNotes?11:12,borderLeft:`1px solid ${B.light}`,maxWidth:220,wordBreak:"break-word"}}>
+                          {val}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Horizon term sheet detail card */}
+      <div style={{...card}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:"1rem"}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>Horizon Bank — Term Sheet Detail</div>
+            <div style={{fontSize:11,color:B.muted,marginTop:2}}>Discussion Proposal dated March 30, 2026 · Not a commitment to lend</div>
+          </div>
+          <Badge label="Term sheet received" color={B.gold}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem",paddingTop:"1rem",borderTop:`1px solid ${B.light}`}}>
+          {[
+            ["Borrower","115 N Barton LLC"],
+            ["Guarantor","Jonathan Gordon"],
+            ["Contact","Stacey Stephens / Bruce Piekarski"],
+            ["Phone","(269) 925-0114"],
+            ["Email","sstephens@horizonbank.com"],
+            ["Amount",fmt$(5925000)],
+            ["Construction Rate","SOFR + 2.95% (today 6.63%), Floor 4.0%"],
+            ["Term Rate","5-yr Treasury + 2.50% (today 6.46%), Floor 6.0%"],
+            ["Term","24 mo construction → 60 mo permanent"],
+            ["Amortization","25 years"],
+            ["Loan Fee","0.25%"],
+            ["Equity Required","Min $2,500,000"],
+            ["DSCR Covenant","1.30x at stabilization"],
+            ["Prepayment","3% yr 1, 2%/yr; 20% of original balance free/yr"],
+            ["Payment (Construction)","Interest only on balance drawn"],
+            ["Payment (Term)","P&I or seasonal (Jun–Oct); IO remaining months"],
+            ["Security","1st mortgage — 115 + 109 N Barton + all business assets"],
+            ["Deposit Requirement","Primary depository accounts at Horizon Bank"],
+          ].map(([label,value])=>(
+            <div key={label}>
+              <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:2}}>{label}</div>
+              <div style={{fontSize:13,color:B.navy}}>{value}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{marginTop:"1rem",padding:"10px 14px",background:B.offwhite,borderRadius:6,fontSize:11,color:B.muted,lineHeight:1.7}}>
+          <strong style={{color:B.navy}}>Key conditions:</strong> Construction plans/budgets must be provided and approved. Independent appraisal required (min 70% LTV as complete). ALTA survey + flood zone certification required. Contractor must be approved by bank. Environmental review required. Annual tax returns + quarterly financials required for LLC + Jonathan Gordon personally.
+        </div>
+      </div>
+
+      <div style={{marginTop:"0.75rem",fontSize:11,color:B.muted}}>
+        Click any lender column header to highlight. Additional term sheets will populate the matrix as received.
+      </div>
+    </div>
+  );
+}
+
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App(){
   const [nav,setNav]=useState("Dashboard");
@@ -1227,7 +1467,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Import"];
 
   if(!loaded)return(
     <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
@@ -1253,6 +1493,7 @@ export default function App(){
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
+      {nav==="Lenders"&&<LenderMatrix/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
