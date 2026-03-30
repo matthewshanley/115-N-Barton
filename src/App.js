@@ -61,14 +61,8 @@ function contactToRow(c) {
     what_they_care_about: c.whatTheyCareAbout || "",
     next_step: c.nextStep || "",
     notes: c.notes || "",
-    // extra LP fields stored in notes as JSON suffix — we flatten into notes
-    // lender-specific fields stored in notes
     updated_at: new Date().toISOString(),
-    // We store extra fields as serialized JSON in a spare column via notes augmentation
-    // Actually store full object as JSON in notes_json virtual approach:
-    // Instead, store supplementary fields in a single "notes" blob approach won't work cleanly.
-    // We'll persist full contact as JSON in the notes field prefixed with a sentinel,
-    // and parse it back out. This avoids schema changes while keeping all portal fields.
+    created_at: c.createdAt || new Date().toISOString(),
     _extra: JSON.stringify({
       firm: c.firm || "",
       title: c.title || "",
@@ -76,7 +70,6 @@ function contactToRow(c) {
       howWeKnowThem: c.howWeKnowThem || "",
       whatTheyCareAbout: c.whatTheyCareAbout || "",
       relationship: c.relationship || "",
-      // lender fields
       projectedLoanAmount: c.projectedLoanAmount || "",
       loanType: c.loanType || "",
       dealsDone: c.dealsDone || "",
@@ -118,6 +111,7 @@ function rowToContact(r) {
     maxLoanSize: extra.maxLoanSize || "",
     ltcAppetite: extra.ltcAppetite || "",
     geographies: extra.geographies || "",
+    createdAt: r.created_at || "",
   };
 }
 
@@ -298,14 +292,19 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   const [sf,setSf]=useState("All");
   const [tf,setTf]=useState("All");
   const [q,setQ]=useState("");
+  const [showNew,setShowNew]=useState(false);
   const [view,setView]=useState("list");
   const [sel,setSel]=useState(null);
   const [form,setForm]=useState(ELP);
   const [saving,setSaving]=useState(false);
+  const lastImportTs=localStorage.getItem("ecg-last-import-ts")||"";
+  const isNew=c=>lastImportTs&&c.createdAt&&c.createdAt>=lastImportTs;
   const sts=tab==="LP"?LP_STATUSES:LN_STATUSES;
   const tags=["All",...Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()];
+  const newCount=contacts.filter(c=>c.type===tab&&isNew(c)).length;
   const vis=contacts.filter(c=>{
     if(c.type!==tab)return false;
+    if(showNew&&!isNew(c))return false;
     if(sf!=="All"&&c.status!==sf)return false;
     if(tab==="LP"&&tf!=="All"&&c.tag!==tf)return false;
     if(q&&!`${c.name} ${c.firm} ${c.email} ${c.tag||""}`.toLowerCase().includes(q.toLowerCase()))return false;
@@ -420,13 +419,16 @@ function CRM({contacts,setContacts,onSave,onDelete}){
       <input placeholder="Search..." value={q} onChange={e=>setQ(e.target.value)} style={{...iS,flex:1,minWidth:140}}/>
       <select value={sf} onChange={e=>setSf(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{sts.map(s=><option key={s}>{s}</option>)}</select>
       {tab==="LP"&&<select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>}
+      {lastImportTs&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`,position:"relative"}}>
+        🆕 New{newCount>0&&<span style={{marginLeft:6,background:B.danger,color:B.white,borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>{newCount}</span>}
+      </button>}
     </div>
     {vis.length===0?<div style={{textAlign:"center",padding:"3rem",color:B.muted,fontSize:14}}>{contacts.filter(c=>c.type===tab).length===0?"No contacts yet.":"No contacts match your filters."}</div>:
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {vis.map(c=>(<div key={c.id} onClick={()=>openDetail(c)} style={{...card,cursor:"pointer",display:"flex",alignItems:"center",gap:12,padding:"10px 14px"}}>
           <Avatar name={c.name} color={c.type==="LP"?B.navy:B.sage}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontWeight:600,fontSize:14,color:B.navy}}>{c.name||"Unnamed"}</span>{c.firm&&<span style={{fontSize:12,color:B.muted}}>{c.firm}</span>}{c.tag&&<Badge label={c.tag} color={B.sage}/>}<Badge label={c.priority} color={c.priority==="High"?B.danger:c.priority==="Low"?B.muted:B.blue}/></div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontWeight:600,fontSize:14,color:B.navy}}>{c.name||"Unnamed"}</span>{c.firm&&<span style={{fontSize:12,color:B.muted}}>{c.firm}</span>}{c.tag&&<Badge label={c.tag} color={B.sage}/>}<Badge label={c.priority} color={c.priority==="High"?B.danger:c.priority==="Low"?B.muted:B.blue}/>{isNew(c)&&<span style={{fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:3,background:B.sage,color:B.white,letterSpacing:"0.08em"}}>NEW</span>}</div>
             <div style={{display:"flex",gap:12,marginTop:3,flexWrap:"wrap"}}>
               {c.type==="LP"&&c.expectedAmount&&<span style={{fontSize:12,color:B.muted}}>Expected: {fmt$(c.expectedAmount)}{c.likelihood?` · ${c.likelihood}%`:""}</span>}
               {c.type==="Lender"&&c.projectedLoanAmount&&<span style={{fontSize:12,color:B.muted}}>Loan: {fmt$(c.projectedLoanAmount)}</span>}
@@ -779,20 +781,24 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
 
   async function runImport(){
     setRunning(true);
+    const importTs = new Date().toISOString();
     const log=[];
     try{
       let newContacts=[...contacts];
       if(jsText.trim()){
         const lps=mergeJSProspects(parseCSV(jsText),contacts);
-        newContacts=[...lps,...newContacts.filter(c=>c.type==='Lender')];
-        await onSave("contacts",lps);
+        // Stamp truly new contacts (no createdAt yet) with this import's timestamp
+        const stamped=lps.map(c=>({...c,createdAt:c.createdAt||importTs}));
+        newContacts=[...stamped,...newContacts.filter(c=>c.type==='Lender')];
+        await onSave("contacts",stamped);
         log.push(`✓ ${lps.length} LP prospects merged from Juniper Square`);
       }
       if(lenderText.trim()){
         const lenders=mergeLenders(parseCSV(lenderText),newContacts);
-        newContacts=[...newContacts.filter(c=>c.type==='LP'),...lenders];
-        await onSave("contacts",lenders);
-        log.push(`✓ ${lenders.length} lenders merged`);
+        const stamped=lenders.map(c=>({...c,createdAt:c.createdAt||importTs}));
+        newContacts=[...newContacts.filter(c=>c.type==='LP'),...stamped];
+        await onSave("contacts",stamped);
+        log.push(`✓ ${stamped.length} lenders merged`);
       }
       if(jsText.trim()||lenderText.trim()){
         setContacts(newContacts);
@@ -811,6 +817,8 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
         log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
       }
       if(log.length===0)log.push('Nothing imported — paste at least one export above.');
+      // Save the import timestamp so CRM can flag new contacts
+      localStorage.setItem("ecg-last-import-ts", importTs);
     }catch(e){log.push(`✗ Error: ${e.message}`);}
     setResults(log);
     setRunning(false);
