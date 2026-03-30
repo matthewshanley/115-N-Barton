@@ -301,7 +301,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   const [saving,setSaving]=useState(false);
   const lastImportTs=localStorage.getItem("ecg-last-import-ts")||"";
   const lastImportBatch=localStorage.getItem("ecg-last-import-batch")||"";
-  const isNew=c=>lastImportBatch&&c.importBatch&&c.importBatch===lastImportBatch;
+  const isNew=c=>lastImportTs&&c.createdAt&&c.createdAt>=lastImportTs;
   const sts=tab==="LP"?LP_STATUSES:LN_STATUSES;
   const tags=["All",...Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()];
   const newCount=contacts.filter(c=>c.type===tab&&isNew(c)).length;
@@ -422,7 +422,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
       <input placeholder="Search..." value={q} onChange={e=>setQ(e.target.value)} style={{...iS,flex:1,minWidth:140}}/>
       <select value={sf} onChange={e=>setSf(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{sts.map(s=><option key={s}>{s}</option>)}</select>
       {tab==="LP"&&<select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>}
-      {lastImportBatch&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`,position:"relative"}}>
+      {lastImportTs&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`}}>
         🆕 New{newCount>0&&<span style={{marginLeft:6,background:B.danger,color:B.white,borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>{newCount}</span>}
       </button>}
     </div>
@@ -840,6 +840,12 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
         log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
       }
       if(log.length===0)log.push('Nothing imported — paste at least one export above.');
+      // Save timestamp — use earliest new contact's created_at so they show as NEW
+      const allNew=newContacts.filter(c=>c.importBatch===importBatch);
+      const earliestNew=allNew.length>0
+        ? allNew.reduce((min,c)=>c.createdAt<min?c.createdAt:min, allNew[0].createdAt)
+        : new Date().toISOString();
+      localStorage.setItem("ecg-last-import-ts", earliestNew);
       localStorage.setItem("ecg-last-import-batch", importBatch);
     }catch(e){log.push(`✗ Error: ${e.message}`);}
     setResults(log);
