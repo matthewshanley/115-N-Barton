@@ -1168,7 +1168,7 @@ const LENDER_DATA = [
     status: "Term sheet received",
     statusColor: B.gold,
     amount: 5925000,
-    ltc: "60%",
+    ltc: "70.3% LTC / 60% LTV",
     equityRequired: 2500000,
     constructionRate: "SOFR + 2.95%",
     constructionRateToday: "6.63%",
@@ -1266,7 +1266,7 @@ const LENDER_DATA = [
 
 const MATRIX_ROWS = [
   { key: "amount",              label: "Loan Amount",               fmt: v => v ? fmt$(v) : "—" },
-  { key: "ltc",                 label: "LTC",                       fmt: v => v },
+  { key: "ltc",                 label: "LTC / LTV",                 fmt: v => v },
   { key: "equityRequired",      label: "Equity Required",           fmt: v => v ? fmt$(v) : "—" },
   { key: "constructionRate",    label: "Construction Rate",         fmt: v => v },
   { key: "constructionRateToday", label: "  Today's Rate",          fmt: v => v },
