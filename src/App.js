@@ -77,6 +77,7 @@ function contactToRow(c) {
       maxLoanSize: c.maxLoanSize || "",
       ltcAppetite: c.ltcAppetite || "",
       geographies: c.geographies || "",
+      importBatch: c.importBatch || "",
     }),
   };
 }
@@ -112,6 +113,7 @@ function rowToContact(r) {
     ltcAppetite: extra.ltcAppetite || "",
     geographies: extra.geographies || "",
     createdAt: r.created_at || "",
+    importBatch: extra.importBatch || "",
   };
 }
 
@@ -298,7 +300,8 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   const [form,setForm]=useState(ELP);
   const [saving,setSaving]=useState(false);
   const lastImportTs=localStorage.getItem("ecg-last-import-ts")||"";
-  const isNew=c=>lastImportTs&&c.createdAt&&c.createdAt>=lastImportTs;
+  const lastImportBatch=localStorage.getItem("ecg-last-import-batch")||"";
+  const isNew=c=>lastImportBatch&&c.importBatch&&c.importBatch===lastImportBatch;
   const sts=tab==="LP"?LP_STATUSES:LN_STATUSES;
   const tags=["All",...Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()];
   const newCount=contacts.filter(c=>c.type===tab&&isNew(c)).length;
@@ -419,7 +422,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
       <input placeholder="Search..." value={q} onChange={e=>setQ(e.target.value)} style={{...iS,flex:1,minWidth:140}}/>
       <select value={sf} onChange={e=>setSf(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{sts.map(s=><option key={s}>{s}</option>)}</select>
       {tab==="LP"&&<select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>}
-      {lastImportTs&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`,position:"relative"}}>
+      {lastImportBatch&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`,position:"relative"}}>
         🆕 New{newCount>0&&<span style={{marginLeft:6,background:B.danger,color:B.white,borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>{newCount}</span>}
       </button>}
     </div>
@@ -781,21 +784,28 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
 
   async function runImport(){
     setRunning(true);
-    const importTs = new Date().toISOString();
+    const importBatch = `import-${Date.now()}`;
     const log=[];
     try{
       let newContacts=[...contacts];
       if(jsText.trim()){
         const lps=mergeJSProspects(parseCSV(jsText),contacts);
-        // Stamp truly new contacts (no createdAt yet) with this import's timestamp
-        const stamped=lps.map(c=>({...c,createdAt:c.createdAt||importTs}));
+        // Only stamp truly new contacts (no existing match) with this batch
+        const stamped=lps.map(c=>{
+          const wasExisting=contacts.find(ex=>ex.type==='LP'&&ex.name.toLowerCase()===c.name.toLowerCase());
+          return wasExisting?c:{...c,importBatch};
+        });
         newContacts=[...stamped,...newContacts.filter(c=>c.type==='Lender')];
         await onSave("contacts",stamped);
-        log.push(`✓ ${lps.length} LP prospects merged from Juniper Square`);
+        const newCount=stamped.filter(c=>c.importBatch===importBatch).length;
+        log.push(`✓ ${lps.length} LP prospects merged from Juniper Square${newCount>0?` (${newCount} new)`:''}`);
       }
       if(lenderText.trim()){
         const lenders=mergeLenders(parseCSV(lenderText),newContacts);
-        const stamped=lenders.map(c=>({...c,createdAt:c.createdAt||importTs}));
+        const stamped=lenders.map(c=>{
+          const wasExisting=contacts.find(ex=>ex.type==='Lender'&&ex.name.toLowerCase()===c.name.toLowerCase());
+          return wasExisting?c:{...c,importBatch};
+        });
         newContacts=[...newContacts.filter(c=>c.type==='LP'),...stamped];
         await onSave("contacts",stamped);
         log.push(`✓ ${stamped.length} lenders merged`);
@@ -817,8 +827,7 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
         log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
       }
       if(log.length===0)log.push('Nothing imported — paste at least one export above.');
-      // Save the import timestamp so CRM can flag new contacts
-      localStorage.setItem("ecg-last-import-ts", importTs);
+      localStorage.setItem("ecg-last-import-batch", importBatch);
     }catch(e){log.push(`✗ Error: ${e.message}`);}
     setResults(log);
     setRunning(false);
