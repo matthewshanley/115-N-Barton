@@ -720,9 +720,22 @@ function mergeJSProspects(rows,existing){
     const likelihood=parseInt(r['Likelihood'])||null;
     const expected=parseFloat((r['Expected']||'').replace(/[$,]/g,''))||null;
     const jsStatus=mapJSStatus(r['Prospect Status']||'');
-    const dataRoomAccessed=(r[' Data room access detail']||r['Data room last accessed']||'').toLowerCase().includes('accessed');
-    const status=dataRoomAccessed&&jsStatus==='Deck sent'?'Data room accessed':jsStatus;
-    const positions=r['Positions']||'';const notes=r['Notes']||'';const lastUpdate=r['Latest update']||'';const latestTask=r['Latest task']||'';
+    // Data room accessed = has a date in 'Data room last accessed' column
+    const dataRoomDate=(r['Data room last accessed']||'').trim();
+    const dataRoomAccessed=dataRoomDate.length>0&&!dataRoomDate.toLowerCase().includes('not yet');
+    // In conversation = has a call/meeting note in Latest update
+    const latestUpdateText=(r['Latest update']||r['Latest Update']||'').toLowerCase();
+    const inConversation=latestUpdateText.includes('phone call')||latestUpdateText.includes('meeting')||latestUpdateText.includes('chatted')||latestUpdateText.includes('likely in');
+    let status=jsStatus;
+    if(dataRoomAccessed) status='Data room accessed';
+    if(inConversation&&status==='Deck sent') status='In conversation';
+    // Keep existing portal status if it's more advanced than what JS says
+    const existingContact=existing.find(c=>c.type==='LP'&&names[0]&&c.name.toLowerCase()===names[0].toLowerCase());
+    const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
+    if(existingContact&&(statusRank[existingContact.status]||0)>(statusRank[status]||0)){
+      status=existingContact.status;
+    }
+    const positions=r['Positions']||'';const notes=r['Notes']||'';const lastUpdate=r['Latest update']||r['Latest Update']||'';const latestTask=r['Latest task']||'';
     names.forEach((name,idx)=>{
       if(seen.has(name))return;seen.add(name);
       const emailRaw=emails.split(';').find(e=>e.toLowerCase().includes(name.split(' ')[0].toLowerCase()))||emails.split(';')[0]||'';
