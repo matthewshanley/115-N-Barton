@@ -1430,6 +1430,253 @@ function LenderMatrix() {
     </div>
   );
 }
+// ── Risks ──────────────────────────────────────────────────────────────────
+const RISK_LIKELIHOOD = ["Low", "Medium", "High"];
+const RISK_IMPACT = ["Low", "Medium", "High"];
+const RISK_CATEGORIES = ["Market", "Construction", "Financial", "Regulatory", "Operational", "Environmental"];
+
+const DEFAULT_RISKS = [
+  { id: "r-1", category: "Financial", description: "LP equity raise falls short of $3.33M target, forcing deal restructure or delay", likelihood: "Medium", impact: "High", mitigation: "Maintain warm pipeline of 10+ prospects; GP has capacity to bridge short gaps via bridge equity or mezz", owner: "Jimmy", status: "Open" },
+  { id: "r-2", category: "Financial", description: "Interest rate increases beyond SOFR ceiling, compressing returns below model projections", likelihood: "Low", impact: "Medium", mitigation: "Horizon term sheet includes 10% ceiling; model stress-tested at +150bps. Locking rate at construction close.", owner: "Jonathan", status: "Open" },
+  { id: "r-3", category: "Construction", description: "Hard cost overruns beyond 5% contingency ($244,975) due to material/labor inflation", likelihood: "Medium", impact: "High", mitigation: "OSLO GMP contract caps exposure. 5% contingency + GP co-invest buffer. Monthly draw reviews.", owner: "Jimmy", status: "Open" },
+  { id: "r-4", category: "Construction", description: "Construction timeline delay beyond 24-month window, triggering loan maturity issues", likelihood: "Medium", impact: "High", mitigation: "Horizon allows construction extension provisions. Contractor approval process underway. Buffer in schedule.", owner: "Jimmy", status: "Open" },
+  { id: "r-5", category: "Regulatory", description: "Permitting delays from city of Barton hold up construction start beyond Q3 2026", likelihood: "Medium", impact: "Medium", mitigation: "Architect leading permit process. Zoning confirmed. Budget includes $30k permit allowance. Early submission planned.", owner: "Jackson", status: "Open" },
+  { id: "r-6", category: "Market", description: "Competitive hotel supply increases in market, compressing ADR and occupancy at stabilization", likelihood: "Low", impact: "Medium", mitigation: "Boutique positioning differentiates from chain supply. Market study confirmed underserved niche. 9yr hold reduces short-term exposure.", owner: "Jonathan", status: "Open" },
+  { id: "r-7", category: "Market", description: "Macro recession reduces travel demand before stabilization (May 2027 target)", likelihood: "Low", impact: "High", mitigation: "Pre-opening reserve ($75k) covers 6-month shortfall. 1.30x DSCR covenant provides buffer. Seasonal flexibility built into loan.", owner: "Jonathan", status: "Open" },
+  { id: "r-8", category: "Operational", description: "Key person risk — loss of GP team member disrupts project execution during construction", likelihood: "Low", impact: "Medium", mitigation: "Responsibilities documented and distributed across Jimmy, Jonathan, Jackson. PM contract ($75k) backstops execution.", owner: "Jimmy", status: "Open" },
+  { id: "r-9", category: "Environmental", description: "Environmental review reveals contamination on 109 Barton site, delaying close or requiring remediation", likelihood: "Low", impact: "High", mitigation: "Horizon requires environmental review prior to close. Phase I ordered. Escrow holdback negotiated in purchase.", owner: "Matt", status: "Open" },
+  { id: "r-10", category: "Financial", description: "DSCR falls below 1.30x covenant in first operating year, triggering Horizon default provisions", likelihood: "Low", impact: "High", mitigation: "Model shows 1.45x at stabilization. Seasonal P&I option reduces off-season obligations. $75k operating shortfall reserve.", owner: "Jonathan", status: "Open" },
+];
+
+const RISK_LIKELIHOOD_COLOR = { "Low": "#2a6b3f", "Medium": B.gold, "High": B.danger };
+const RISK_IMPACT_COLOR = { "Low": B.sage, "Medium": B.gold, "High": B.danger };
+const RISK_SCORE = { "Low": 1, "Medium": 2, "High": 3 };
+const scoreColor = score => score >= 6 ? B.danger : score >= 3 ? B.gold : "#2a6b3f";
+const scoreLabel = score => score >= 6 ? "Critical" : score >= 4 ? "High" : score >= 3 ? "Medium" : "Low";
+
+const ER = { id: null, category: "Market", description: "", likelihood: "Medium", impact: "Medium", mitigation: "", owner: "Jimmy", status: "Open" };
+
+function Risks({ risks, setRisks, onSave, onDelete }) {
+  const [form, setForm] = useState(null);
+  const [filterCat, setFilterCat] = useState("All");
+  const [saving, setSaving] = useState(false);
+
+  const enriched = risks.map(r => ({
+    ...r,
+    score: RISK_SCORE[r.likelihood] * RISK_SCORE[r.impact],
+  }));
+
+  const filtered = enriched.filter(r =>
+    (filterCat === "All" || r.category === filterCat) && r.status !== "Closed"
+  );
+  const closed = enriched.filter(r => r.status === "Closed");
+
+  const criticalCount = enriched.filter(r => r.score >= 6 && r.status !== "Closed").length;
+  const highCount = enriched.filter(r => r.score >= 4 && r.score < 6 && r.status !== "Closed").length;
+  const openCount = enriched.filter(r => r.status === "Open").length;
+
+  async function saveRisk(f) {
+    setSaving(true);
+    try {
+      const n = { ...f };
+      const ex = risks.find(r => r.id === n.id);
+      const updated = ex ? risks.map(r => r.id === n.id ? n : r) : [...risks, n];
+      await onSave("risks", [n]);
+      setRisks(updated);
+      setForm(null);
+    } finally { setSaving(false); }
+  }
+
+  async function deleteRisk(id) {
+    setSaving(true);
+    try {
+      await onDelete("risks", id);
+      setRisks(risks.filter(r => r.id !== id));
+      setForm(null);
+    } finally { setSaving(false); }
+  }
+
+  const RiskRow = ({ r }) => {
+    const sc = r.score;
+    return (
+      <div onClick={() => setForm({ ...r })} style={{ ...card, cursor: "pointer", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 80px 80px 72px 100px", gap: 12, alignItems: "center" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Badge label={r.category} color={B.blue} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: B.navy }}>{r.description}</span>
+          </div>
+          <div style={{ fontSize: 11, color: B.muted, lineHeight: 1.5 }}>
+            <span style={{ color: B.sage }}>↳ Mitigation:</span> {r.mitigation}
+          </div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: B.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Likelihood</div>
+          <Badge label={r.likelihood} color={RISK_LIKELIHOOD_COLOR[r.likelihood]} />
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: B.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Impact</div>
+          <Badge label={r.impact} color={RISK_IMPACT_COLOR[r.impact]} />
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: B.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Score</div>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: scoreColor(sc), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: B.white, margin: "0 auto" }}>{sc}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 9, color: B.muted, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Owner</div>
+          <div style={{ fontSize: 12, color: B.navy, fontWeight: 600 }}>{r.owner}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ padding: "1.25rem 0" }}>
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: "1.25rem" }}>
+        {[
+          ["Total Risks", risks.filter(r => r.status !== "Closed").length, B.navy],
+          ["Critical (score ≥ 6)", criticalCount, criticalCount > 0 ? B.danger : "#2a6b3f"],
+          ["High (score 4–5)", highCount, highCount > 0 ? B.gold : "#2a6b3f"],
+          ["Mitigated / Closed", closed.length, B.sage],
+        ].map(([l, v, c]) => (
+          <div key={l} style={SC(c)}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{l}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: B.white }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Heat map */}
+      <div style={{ ...card, marginBottom: "1.25rem" }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.07em", textTransform: "uppercase", color: B.muted, fontWeight: 600, marginBottom: "0.75rem" }}>Risk Heat Map</div>
+        <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 1fr 1fr", gap: 4 }}>
+          <div />
+          {["Low Impact", "Medium Impact", "High Impact"].map(l => (
+            <div key={l} style={{ fontSize: 10, color: B.muted, textAlign: "center", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", paddingBottom: 4 }}>{l}</div>
+          ))}
+          {["High", "Medium", "Low"].map(likelihood => (
+            <>
+              <div key={likelihood + "-label"} style={{ fontSize: 10, color: B.muted, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 8 }}>{likelihood}</div>
+              {["Low", "Medium", "High"].map(impact => {
+                const score = RISK_SCORE[likelihood] * RISK_SCORE[impact];
+                const cellRisks = enriched.filter(r => r.likelihood === likelihood && r.impact === impact && r.status !== "Closed");
+                const bg = score >= 6 ? B.danger + "22" : score >= 4 ? B.gold + "22" : "#2a6b3f22";
+                const border = score >= 6 ? B.danger : score >= 4 ? B.gold : "#2a6b3f";
+                return (
+                  <div key={impact} style={{ background: bg, border: `1px solid ${border}44`, borderRadius: 6, padding: "10px 12px", minHeight: 56 }}>
+                    {cellRisks.length === 0
+                      ? <div style={{ fontSize: 11, color: B.muted + "88", textAlign: "center", paddingTop: 6 }}>—</div>
+                      : cellRisks.map(r => (
+                        <div key={r.id} onClick={() => setForm({ ...r })} style={{ fontSize: 11, color: B.navy, fontWeight: 600, marginBottom: 4, cursor: "pointer", lineHeight: 1.3 }}>
+                          <Pip color={border} />{r.category}
+                        </div>
+                      ))
+                    }
+                  </div>
+                );
+              })}
+            </>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+          {[["Critical (≥6)", B.danger], ["High (4–5)", B.gold], ["Low–Medium (≤3)", "#2a6b3f"]].map(([l, c]) => (
+            <span key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: B.muted }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: c, display: "inline-block" }} />{l}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Filter + Add */}
+      <div style={{ display: "flex", gap: 8, marginBottom: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ ...iS, width: "auto" }}>
+          <option>All</option>
+          {RISK_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setForm({ ...ER, id: `r-${Date.now()}` })} style={btn()}>+ Add risk</button>
+      </div>
+
+      {/* Risk list — sorted by score desc */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[...filtered].sort((a, b) => b.score - a.score).map(r => <RiskRow key={r.id} r={r} />)}
+      </div>
+
+      {/* Closed risks */}
+      {closed.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <div style={{ fontSize: 11, color: B.muted, letterSpacing: "0.07em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Mitigated / Closed ({closed.length})</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {closed.map(r => (
+              <div key={r.id} onClick={() => setForm({ ...r })} style={{ ...card, padding: "10px 16px", cursor: "pointer", opacity: 0.6, display: "flex", alignItems: "center", gap: 12 }}>
+                <Badge label={r.category} color={B.muted} />
+                <span style={{ fontSize: 13, color: B.muted, flex: 1 }}>{r.description}</span>
+                <Badge label="Closed" color="#2a6b3f" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit/New modal */}
+      {form && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(2,29,43,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div style={{ ...card, width: 560, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: B.navy, letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "1rem" }}>
+              {risks.find(r => r.id === form.id) ? "Edit risk" : "New risk"}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px" }}>
+              <div><label style={lS}>Category</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={iS}>
+                  {RISK_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div><label style={lS}>Owner</label>
+                <select value={form.owner} onChange={e => setForm(f => ({ ...f, owner: e.target.value }))} style={iS}>
+                  {OWNERS.map(o => <option key={o}>{o}</option>)}
+                </select>
+              </div>
+              <div><label style={lS}>Likelihood</label>
+                <select value={form.likelihood} onChange={e => setForm(f => ({ ...f, likelihood: e.target.value }))} style={iS}>
+                  {RISK_LIKELIHOOD.map(l => <option key={l}>{l}</option>)}
+                </select>
+              </div>
+              <div><label style={lS}>Impact</label>
+                <select value={form.impact} onChange={e => setForm(f => ({ ...f, impact: e.target.value }))} style={iS}>
+                  {RISK_IMPACT.map(i => <option key={i}>{i}</option>)}
+                </select>
+              </div>
+              <div><label style={lS}>Status</label>
+                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={iS}>
+                  {["Open", "Monitoring", "Closed"].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", paddingTop: 20 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: scoreColor(RISK_SCORE[form.likelihood] * RISK_SCORE[form.impact]), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: B.white, marginRight: 10 }}>
+                  {RISK_SCORE[form.likelihood] * RISK_SCORE[form.impact]}
+                </div>
+                <div><div style={{ fontSize: 12, fontWeight: 700, color: B.navy }}>{scoreLabel(RISK_SCORE[form.likelihood] * RISK_SCORE[form.impact])}</div><div style={{ fontSize: 11, color: B.muted }}>Risk score</div></div>
+              </div>
+              <div style={{ gridColumn: "span 2" }}><label style={lS}>Description</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...iS, resize: "vertical" }} />
+              </div>
+              <div style={{ gridColumn: "span 2" }}><label style={lS}>Mitigation strategy</label>
+                <textarea value={form.mitigation} onChange={e => setForm(f => ({ ...f, mitigation: e.target.value }))} rows={3} style={{ ...iS, resize: "vertical" }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: "1rem", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => saveRisk(form)} style={btn()} disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                <button onClick={() => setForm(null)} style={btn(true)}>Cancel</button>
+              </div>
+              {risks.find(r => r.id === form.id) && <button onClick={() => deleteRisk(form.id)} style={{ ...btn(), background: B.danger }} disabled={saving}>Delete</button>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Root App ───────────────────────────────────────────────────────────────
 export default function App(){
