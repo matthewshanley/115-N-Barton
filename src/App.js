@@ -1684,6 +1684,7 @@ export default function App(){
   const [contacts,setContacts]=useState([]);
   const [tasks,setTasks]=useState([]);
   const [miles,setMiles]=useState([]);
+  const [risks,setRisks]=useState(DEFAULT_RISKS);
   const [loaded,setLoaded]=useState(false);
   const [loadError,setLoadError]=useState(null);
   const [syncing,setSyncing]=useState(false);
