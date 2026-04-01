@@ -168,6 +168,34 @@ function rowToMile(r) {
   };
 }
 
+// ── ADDED: Risk row mappers ────────────────────────────────────────────────
+function riskToRow(r) {
+  return {
+    id: String(r.id),
+    category: r.category || "Market",
+    description: r.description || "",
+    likelihood: r.likelihood || "Medium",
+    impact: r.impact || "Medium",
+    mitigation: r.mitigation || "",
+    owner: r.owner || "Jimmy",
+    status: r.status || "Open",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function rowToRisk(r) {
+  return {
+    id: r.id,
+    category: r.category || "Market",
+    description: r.description || "",
+    likelihood: r.likelihood || "Medium",
+    impact: r.impact || "Medium",
+    mitigation: r.mitigation || "",
+    owner: r.owner || "Jimmy",
+    status: r.status || "Open",
+  };
+}
+
 // ── Brand / style constants (unchanged) ───────────────────────────────────
 const B={navy:"#021d2b",blue:"#033b57",steel:"#ccd5de",sage:"#5e7361",white:"#ffffff",offwhite:"#f4f6f8",muted:"#6b8497",border:"#ccd5de",danger:"#7a1e1e",gold:"#c9a84c",light:"#e8edf1"};
 const FONT="'Gill Sans','Gill Sans MT','Trebuchet MS',sans-serif";
@@ -569,8 +597,6 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
     return sortDir==="asc"?r:-r;
   });
 
-
-
   return(
     <div style={{padding:"1rem 0"}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
@@ -720,16 +746,13 @@ function mergeJSProspects(rows,existing){
     const likelihood=parseInt(r['Likelihood'])||null;
     const expected=parseFloat((r['Expected']||'').replace(/[$,]/g,''))||null;
     const jsStatus=mapJSStatus(r['Prospect Status']||'');
-    // Data room accessed = has a date in 'Data room last accessed' column
     const dataRoomDate=(r['Data room last accessed']||'').trim();
     const dataRoomAccessed=dataRoomDate.length>0&&!dataRoomDate.toLowerCase().includes('not yet');
-    // In conversation = has a call/meeting note in Latest update
     const latestUpdateText=(r['Latest update']||r['Latest Update']||'').toLowerCase();
     const inConversation=latestUpdateText.includes('phone call')||latestUpdateText.includes('meeting')||latestUpdateText.includes('chatted')||latestUpdateText.includes('likely in');
     let status=jsStatus;
     if(dataRoomAccessed) status='Data room accessed';
     if(inConversation&&status==='Deck sent') status='In conversation';
-    // Keep existing portal status if it's more advanced than what JS says
     const existingContact=existing.find(c=>c.type==='LP'&&names[0]&&c.name.toLowerCase()===names[0].toLowerCase());
     const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
     if(existingContact&&(statusRank[existingContact.status]||0)>(statusRank[status]||0)){
@@ -803,7 +826,6 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
       let newContacts=[...contacts];
       if(jsText.trim()){
         const lps=mergeJSProspects(parseCSV(jsText),contacts);
-        // Only stamp truly new contacts (no existing match) with this batch
         const stamped=lps.map(c=>{
           const wasExisting=contacts.find(ex=>ex.type==='LP'&&ex.name.toLowerCase()===c.name.toLowerCase());
           return wasExisting?c:{...c,importBatch};
@@ -840,7 +862,6 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
         log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
       }
       if(log.length===0)log.push('Nothing imported — paste at least one export above.');
-      // Save timestamp — use earliest new contact's created_at so they show as NEW
       const allNew=newContacts.filter(c=>c.importBatch===importBatch);
       const earliestNew=allNew.length>0
         ? allNew.reduce((min,c)=>c.createdAt<min?c.createdAt:min, allNew[0].createdAt)
@@ -941,7 +962,6 @@ const SEEK_LINES=[
   {phase:"Additional Architecture",amount:10000,note:"Consultant"},
 ];
 
-// ── Real model figures (21-key, v8) ──
 const KEYS=21;
 const GSF=14686;
 const TOTAL_PROJECT=8432212;
@@ -1032,7 +1052,6 @@ function Budget({committed}){
 
   return(
     <div style={{padding:"1.25rem 0"}}>
-      {/* KPI row */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
         {[
           ["Total Project Cost",fmt$(TOTAL_PROJECT),B.navy],
@@ -1048,8 +1067,6 @@ function Budget({committed}){
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1.5rem",alignItems:"start"}}>
-
-        {/* SOURCES */}
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Sources</div>
           <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
@@ -1066,7 +1083,6 @@ function Budget({committed}){
             <TotalBar label="Total Sources" amount={TOTAL_PROJECT}/>
           </div>
 
-          {/* Returns */}
           <div style={{marginTop:"1.5rem"}}>
             <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Returns Summary</div>
             <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
@@ -1094,14 +1110,12 @@ function Budget({committed}){
           </div>
         </div>
 
-        {/* USES */}
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Uses</div>
           <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
             <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
               <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
             </div>
-
             {[
               {label:"Acquisition & Land Purchase",total:1196089,pct:"14.2%",children:[
                 {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
@@ -1151,7 +1165,6 @@ function Budget({committed}){
             ].map(section=>(
               <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
             ))}
-
             <TotalBar label="Total Uses" amount={TOTAL_PROJECT}/>
           </div>
         </div>
@@ -1166,130 +1179,13 @@ function Budget({committed}){
 
 // ── Lender Matrix ──────────────────────────────────────────────────────────
 const LENDER_DATA = [
-  {
-    name: "Project Budget",
-    contact: "ECG Internal",
-    status: "21-key model v8",
-    statusColor: B.navy,
-    amount: 5059541,
-    ltc: "60%",
-    equityRequired: 3372670,
-    constructionRate: "SOFR + 500bps",
-    constructionRateToday: "~8.35% (est.)",
-    constructionFloor: "3.0%",
-    termRate: "6.50% fixed",
-    termRateToday: "6.50%",
-    termFloor: "—",
-    term: "Construction → 25yr perm",
-    amortization: "25 years",
-    loanFee: "1.00%",
-    prepayment: "—",
-    payments: "IO during construction",
-    dscr: "1.45x min (model)",
-    security: "—",
-    depositReq: "—",
-    notes: "Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212.",
-  },
-  {
-    name: "Horizon Bank",
-    contact: "Bruce Piekarski / Stacey Stephens",
-    status: "Term sheet received",
-    statusColor: B.gold,
-    amount: 5925000,
-    ltc: "70.3% LTC / 60% LTV",
-    equityRequired: 2500000,
-    constructionRate: "SOFR + 2.95%",
-    constructionRateToday: "6.63%",
-    constructionFloor: "4.0%",
-    termRate: "5-yr Treasury + 2.50%",
-    termRateToday: "6.46%",
-    termFloor: "6.0%",
-    term: "24 mo construction → 60 mo permanent",
-    amortization: "25 years",
-    loanFee: "0.25%",
-    prepayment: "3% yr 1, 2%/yr (20% free/yr)",
-    payments: "IO during construction; P&I or seasonal term",
-    dscr: "1.30x at stabilization",
-    security: "1st mortgage — 115 + 109 N Barton + all business assets",
-    depositReq: "Primary depository accounts at Horizon",
-    notes: "Term sheet dated 3/30/26. Seasonal P&I option (Jun–Oct). DSCR covenant 1.30x. Contractor must be bank-approved.",
-  },
-  {
-    name: "Burling Bank",
-    contact: "Kevin Murphy",
-    status: "Outreach sent",
-    statusColor: B.blue,
-    amount: null,
-    ltc: "—",
-    equityRequired: null,
-    constructionRate: "—",
-    constructionRateToday: "—",
-    constructionFloor: "—",
-    termRate: "—",
-    termRateToday: "—",
-    termFloor: "—",
-    term: "—",
-    amortization: "—",
-    loanFee: "—",
-    prepayment: "—",
-    payments: "—",
-    dscr: "—",
-    security: "—",
-    depositReq: "—",
-    notes: "Owner: Jimmy. Follow-up pending.",
-  },
-  {
-    name: "Green State CU",
-    contact: "Jim Lesko",
-    status: "Outreach sent",
-    statusColor: B.blue,
-    amount: null,
-    ltc: "—", equityRequired: null,
-    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
-    termRate: "—", termRateToday: "—", termFloor: "—",
-    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
-    payments: "—", dscr: "—", security: "—", depositReq: "—",
-    notes: "Owner: Jimmy.",
-  },
-  {
-    name: "Heartland Bank",
-    contact: "Mark Ptacek",
-    status: "Outreach sent",
-    statusColor: B.blue,
-    amount: null,
-    ltc: "—", equityRequired: null,
-    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
-    termRate: "—", termRateToday: "—", termFloor: "—",
-    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
-    payments: "—", dscr: "—", security: "—", depositReq: "—",
-    notes: "Co-contact: Jeff Wisenwski.",
-  },
-  {
-    name: "Centier Bank",
-    contact: "Ben Bochnowski",
-    status: "Outreach sent",
-    statusColor: B.blue,
-    amount: null,
-    ltc: "—", equityRequired: null,
-    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
-    termRate: "—", termRateToday: "—", termFloor: "—",
-    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
-    payments: "—", dscr: "—", security: "—", depositReq: "—",
-    notes: "Owner: Jimmy.",
-  },
-  {
-    name: "PanAmerican Bank",
-    contact: "Chris Metcalf",
-    status: "Outreach sent",
-    statusColor: B.blue,
-    amount: null,
-    ltc: "—", equityRequired: null,
-    constructionRate: "—", constructionRateToday: "—", constructionFloor: "—",
-    termRate: "—", termRateToday: "—", termFloor: "—",
-    term: "—", amortization: "—", loanFee: "—", prepayment: "—",
-    payments: "—", dscr: "—", security: "—", depositReq: "—",
-    notes: "In-person meeting 3/26.",
-  },
+  {name:"Project Budget",contact:"ECG Internal",status:"21-key model v8",statusColor:B.navy,amount:5059541,ltc:"60%",equityRequired:3372670,constructionRate:"SOFR + 500bps",constructionRateToday:"~8.35% (est.)",constructionFloor:"3.0%",termRate:"6.50% fixed",termRateToday:"6.50%",termFloor:"—",term:"Construction → 25yr perm",amortization:"25 years",loanFee:"1.00%",prepayment:"—",payments:"IO during construction",dscr:"1.45x min (model)",security:"—",depositReq:"—",notes:"Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212."},
+  {name:"Horizon Bank",contact:"Bruce Piekarski / Stacey Stephens",status:"Term sheet received",statusColor:B.gold,amount:5925000,ltc:"70.3% LTC / 60% LTV",equityRequired:2500000,constructionRate:"SOFR + 2.95%",constructionRateToday:"6.63%",constructionFloor:"4.0%",termRate:"5-yr Treasury + 2.50%",termRateToday:"6.46%",termFloor:"6.0%",term:"24 mo construction → 60 mo permanent",amortization:"25 years",loanFee:"0.25%",prepayment:"3% yr 1, 2%/yr (20% free/yr)",payments:"IO during construction; P&I or seasonal term",dscr:"1.30x at stabilization",security:"1st mortgage — 115 + 109 N Barton + all business assets",depositReq:"Primary depository accounts at Horizon",notes:"Term sheet dated 3/30/26. Seasonal P&I option (Jun–Oct). DSCR covenant 1.30x. Contractor must be bank-approved."},
+  {name:"Burling Bank",contact:"Kevin Murphy",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy. Follow-up pending."},
+  {name:"Green State CU",contact:"Jim Lesko",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
+  {name:"Heartland Bank",contact:"Mark Ptacek",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Co-contact: Jeff Wisenwski."},
+  {name:"Centier Bank",contact:"Ben Bochnowski",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
+  {name:"PanAmerican Bank",contact:"Chris Metcalf",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"In-person meeting 3/26."},
 ];
 
 const MATRIX_ROWS = [
@@ -1315,11 +1211,8 @@ const MATRIX_ROWS = [
 function LenderMatrix() {
   const [selected, setSelected] = useState(null);
   const TARGET = 5925000;
-
   return (
     <div style={{padding:"1.25rem 0"}}>
-
-      {/* KPI row */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
         {[
           ["Target Loan Amount", fmt$(TARGET), B.navy],
@@ -1333,8 +1226,6 @@ function LenderMatrix() {
           </div>
         ))}
       </div>
-
-      {/* Comparison matrix */}
       <div style={{...card,padding:0,overflow:"hidden",marginBottom:"1.5rem"}}>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:900}}>
@@ -1352,8 +1243,8 @@ function LenderMatrix() {
                       <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:400}}>{l.status}</span>
                     </div>
                   </th>
-                );
-                })}              </tr>
+                );})}
+              </tr>
             </thead>
             <tbody>
               {MATRIX_ROWS.map((row,ri)=>{
@@ -1382,8 +1273,6 @@ function LenderMatrix() {
           </table>
         </div>
       </div>
-
-      {/* Horizon term sheet detail card */}
       <div style={{...card}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:"1rem"}}>
           <div style={{flex:1}}>
@@ -1394,22 +1283,13 @@ function LenderMatrix() {
         </div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem",paddingTop:"1rem",borderTop:`1px solid ${B.light}`}}>
           {[
-            ["Borrower","115 N Barton LLC"],
-            ["Guarantor","Jonathan Gordon"],
-            ["Contact","Stacey Stephens / Bruce Piekarski"],
-            ["Phone","(269) 925-0114"],
-            ["Email","sstephens@horizonbank.com"],
-            ["Amount",fmt$(5925000)],
-            ["Construction Rate","SOFR + 2.95% (today 6.63%), Floor 4.0%"],
-            ["Term Rate","5-yr Treasury + 2.50% (today 6.46%), Floor 6.0%"],
-            ["Term","24 mo construction → 60 mo permanent"],
-            ["Amortization","25 years"],
-            ["Loan Fee","0.25%"],
-            ["Equity Required","Min $2,500,000"],
-            ["DSCR Covenant","1.30x at stabilization"],
+            ["Borrower","115 N Barton LLC"],["Guarantor","Jonathan Gordon"],["Contact","Stacey Stephens / Bruce Piekarski"],
+            ["Phone","(269) 925-0114"],["Email","sstephens@horizonbank.com"],["Amount",fmt$(5925000)],
+            ["Construction Rate","SOFR + 2.95% (today 6.63%), Floor 4.0%"],["Term Rate","5-yr Treasury + 2.50% (today 6.46%), Floor 6.0%"],
+            ["Term","24 mo construction → 60 mo permanent"],["Amortization","25 years"],["Loan Fee","0.25%"],
+            ["Equity Required","Min $2,500,000"],["DSCR Covenant","1.30x at stabilization"],
             ["Prepayment","3% yr 1, 2%/yr; 20% of original balance free/yr"],
-            ["Payment (Construction)","Interest only on balance drawn"],
-            ["Payment (Term)","P&I or seasonal (Jun–Oct); IO remaining months"],
+            ["Payment (Construction)","Interest only on balance drawn"],["Payment (Term)","P&I or seasonal (Jun–Oct); IO remaining months"],
             ["Security","1st mortgage — 115 + 109 N Barton + all business assets"],
             ["Deposit Requirement","Primary depository accounts at Horizon Bank"],
           ].map(([label,value])=>(
@@ -1423,13 +1303,13 @@ function LenderMatrix() {
           <strong style={{color:B.navy}}>Key conditions:</strong> Construction plans/budgets must be provided and approved. Independent appraisal required (min 70% LTV as complete). ALTA survey + flood zone certification required. Contractor must be approved by bank. Environmental review required. Annual tax returns + quarterly financials required for LLC + Jonathan Gordon personally.
         </div>
       </div>
-
       <div style={{marginTop:"0.75rem",fontSize:11,color:B.muted}}>
         Click any lender column header to highlight. Additional term sheets will populate the matrix as received.
       </div>
     </div>
   );
 }
+
 // ── Risks ──────────────────────────────────────────────────────────────────
 const RISK_LIKELIHOOD = ["Low", "Medium", "High"];
 const RISK_IMPACT = ["Low", "Medium", "High"];
@@ -1461,19 +1341,11 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
   const [filterCat, setFilterCat] = useState("All");
   const [saving, setSaving] = useState(false);
 
-  const enriched = risks.map(r => ({
-    ...r,
-    score: RISK_SCORE[r.likelihood] * RISK_SCORE[r.impact],
-  }));
-
-  const filtered = enriched.filter(r =>
-    (filterCat === "All" || r.category === filterCat) && r.status !== "Closed"
-  );
+  const enriched = risks.map(r => ({ ...r, score: RISK_SCORE[r.likelihood] * RISK_SCORE[r.impact] }));
+  const filtered = enriched.filter(r => (filterCat === "All" || r.category === filterCat) && r.status !== "Closed");
   const closed = enriched.filter(r => r.status === "Closed");
-
   const criticalCount = enriched.filter(r => r.score >= 6 && r.status !== "Closed").length;
   const highCount = enriched.filter(r => r.score >= 4 && r.score < 6 && r.status !== "Closed").length;
-  const openCount = enriched.filter(r => r.status === "Open").length;
 
   async function saveRisk(f) {
     setSaving(true);
@@ -1531,7 +1403,6 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
 
   return (
     <div style={{ padding: "1.25rem 0" }}>
-      {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: "1.25rem" }}>
         {[
           ["Total Risks", risks.filter(r => r.status !== "Closed").length, B.navy],
@@ -1545,8 +1416,6 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
           </div>
         ))}
       </div>
-
-      {/* Heat map */}
       <div style={{ ...card, marginBottom: "1.25rem" }}>
         <div style={{ fontSize: 11, letterSpacing: "0.07em", textTransform: "uppercase", color: B.muted, fontWeight: 600, marginBottom: "0.75rem" }}>Risk Heat Map</div>
         <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 1fr 1fr", gap: 4 }}>
@@ -1586,8 +1455,6 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
           ))}
         </div>
       </div>
-
-      {/* Filter + Add */}
       <div style={{ display: "flex", gap: 8, marginBottom: "1rem", flexWrap: "wrap", alignItems: "center" }}>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ ...iS, width: "auto" }}>
           <option>All</option>
@@ -1596,13 +1463,9 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
         <div style={{ flex: 1 }} />
         <button onClick={() => setForm({ ...ER, id: `r-${Date.now()}` })} style={btn()}>+ Add risk</button>
       </div>
-
-      {/* Risk list — sorted by score desc */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {[...filtered].sort((a, b) => b.score - a.score).map(r => <RiskRow key={r.id} r={r} />)}
       </div>
-
-      {/* Closed risks */}
       {closed.length > 0 && (
         <div style={{ marginTop: "1.5rem" }}>
           <div style={{ fontSize: 11, color: B.muted, letterSpacing: "0.07em", textTransform: "uppercase", fontWeight: 600, marginBottom: "0.75rem" }}>Mitigated / Closed ({closed.length})</div>
@@ -1617,8 +1480,6 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
           </div>
         </div>
       )}
-
-      {/* Edit/New modal */}
       {form && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(2,29,43,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div style={{ ...card, width: 560, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }}>
@@ -1684,13 +1545,13 @@ export default function App(){
   const [contacts,setContacts]=useState([]);
   const [tasks,setTasks]=useState([]);
   const [miles,setMiles]=useState([]);
-  const [risks,setRisks]=useState(DEFAULT_RISKS);
+  const [risks,setRisks]=useState([]);  // CHANGED: empty array, loads from Supabase
   const [loaded,setLoaded]=useState(false);
   const [loadError,setLoadError]=useState(null);
   const [syncing,setSyncing]=useState(false);
 
   // ── Seed Supabase if tables are empty ──────────────────────────────────
-  async function seedIfEmpty(contactRows, taskRows, mileRows) {
+  async function seedIfEmpty(contactRows, taskRows, mileRows, riskRows) {  // CHANGED: added riskRows
     const promises = [];
     if (contactRows.length === 0) {
       promises.push(sbUpsert("contacts", DEFAULT_CONTACTS.map(contactToRow)));
@@ -1701,6 +1562,9 @@ export default function App(){
     if (mileRows.length === 0) {
       promises.push(sbUpsert("milestones", DEFAULT_MILES.map(mileToRow)));
     }
+    if (riskRows.length === 0) {  // CHANGED: seed risks if empty
+      promises.push(sbUpsert("risks", DEFAULT_RISKS.map(riskToRow)));
+    }
     await Promise.all(promises);
   }
 
@@ -1708,22 +1572,28 @@ export default function App(){
   useEffect(()=>{
     async function load(){
       try{
-        const [cRows, tRows, mRows] = await Promise.all([
+        // CHANGED: fetch risks alongside other tables
+        const [cRows, tRows, mRows, rRows] = await Promise.all([
           sbFetch("contacts"),
           sbFetch("tasks"),
           sbFetch("milestones"),
+          sbFetch("risks"),
         ]);
         // Seed on first run
-        if(cRows.length===0||tRows.length===0||mRows.length===0){
-          await seedIfEmpty(cRows, tRows, mRows);
-          const [c2, t2, m2] = await Promise.all([sbFetch("contacts"), sbFetch("tasks"), sbFetch("milestones")]);
+        if(cRows.length===0||tRows.length===0||mRows.length===0||rRows.length===0){  // CHANGED
+          await seedIfEmpty(cRows, tRows, mRows, rRows);  // CHANGED
+          const [c2, t2, m2, r2] = await Promise.all([  // CHANGED
+            sbFetch("contacts"), sbFetch("tasks"), sbFetch("milestones"), sbFetch("risks")
+          ]);
           setContacts(c2.map(rowToContact));
           setTasks(t2.map(rowToTask));
           setMiles(m2.map(rowToMile));
+          setRisks(r2.map(rowToRisk));  // CHANGED
         } else {
           setContacts(cRows.map(rowToContact));
           setTasks(tRows.map(rowToTask));
           setMiles(mRows.map(rowToMile));
+          setRisks(rRows.map(rowToRisk));  // CHANGED
         }
         setLoaded(true);
       }catch(e){
@@ -1733,6 +1603,7 @@ export default function App(){
         setContacts(DEFAULT_CONTACTS);
         setTasks(DEFAULT_TASKS);
         setMiles(DEFAULT_MILES);
+        setRisks(DEFAULT_RISKS);  // CHANGED: fall back to defaults
         setLoaded(true);
       }
     }
@@ -1747,6 +1618,7 @@ export default function App(){
       if (table === "contacts") rows = items.map(contactToRow);
       else if (table === "tasks") rows = items.map(taskToRow);
       else if (table === "milestones") rows = items.map(mileToRow);
+      else if (table === "risks") rows = items.map(riskToRow);  // CHANGED: added risks case
       else throw new Error(`Unknown table: ${table}`);
       await sbUpsert(table, rows);
     } catch (e) {
