@@ -1770,7 +1770,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Import"];
 
   if(!loaded)return(
     <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
@@ -1797,6 +1797,7 @@ export default function App(){
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
       {nav==="Lenders"&&<LenderMatrix/>}
+      {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
