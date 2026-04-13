@@ -1180,34 +1180,12 @@ function Budget({committed}){
 // ── Lender Matrix ──────────────────────────────────────────────────────────
 const LENDER_DATA = [
   {name:"Project Budget",contact:"ECG Internal",status:"21-key model v8",statusColor:B.navy,amount:5059541,ltc:"60%",equityRequired:3372670,constructionRate:"SOFR + 500bps",constructionRateToday:"~8.35% (est.)",constructionFloor:"3.0%",termRate:"6.50% fixed",termRateToday:"6.50%",termFloor:"—",term:"Construction → 25yr perm",amortization:"25 years",loanFee:"1.00%",prepayment:"—",payments:"IO during construction",dscr:"1.45x min (model)",security:"—",depositReq:"—",notes:"Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212."},
-  {name: "PanAmerican Bank",
-  contact: "Chris Metcalf",
-  status: "Term sheet received",
-  statusColor: B.gold,
-  amount: 5500000,
-  ltc: "65% of Total Costs / 55% As-Stabilized LTV",
-  equityRequired: 2963287,
-  constructionRate: "WSJ Prime + 1.00% floating",
-  constructionRateToday: "~8.50% (est.)",
-  constructionFloor: "6.75%",
-  termRate: "N/A — construction only",
-  termRateToday: "—",
-  termFloor: "—",
-  term: "36 months construction (2 × 12-month extensions)",
-  amortization: "IO during initial term; 25-yr amort on extension",
-  loanFee: "1.00% ($55,000)",
-  prepayment: "No prepayment during initial term",
-  payments: "Interest-only monthly; interest reserve from proceeds",
-  dscr: "1.00x by 12/31/28; 1.30x by 12/31/29+",
-  security: "1st mortgage + assignment of rents — 109 & 115 Barton St",
-  depositReq: "Operating account w/ $100k balance at Pan American",
-  notes: "Term sheet dated 4/7/26, expires 4/30/26. $10k good faith deposit to proceed. Guarantors: Jonathan Gordon, Jay Weaver, Kevin Werner (unlimited). Replacement reserve $4k/month at opening. Construction must complete within 12 months of closing.",
-},
   {name:"Horizon Bank",contact:"Bruce Piekarski / Stacey Stephens",status:"Term sheet received",statusColor:B.gold,amount:5925000,ltc:"70.3% LTC / 60% LTV",equityRequired:2500000,constructionRate:"SOFR + 2.95%",constructionRateToday:"6.63%",constructionFloor:"4.0%",termRate:"5-yr Treasury + 2.50%",termRateToday:"6.46%",termFloor:"6.0%",term:"24 mo construction → 60 mo permanent",amortization:"25 years",loanFee:"0.25%",prepayment:"3% yr 1, 2%/yr (20% free/yr)",payments:"IO during construction; P&I or seasonal term",dscr:"1.30x at stabilization",security:"1st mortgage — 115 + 109 N Barton + all business assets",depositReq:"Primary depository accounts at Horizon",notes:"Term sheet dated 3/30/26. Seasonal P&I option (Jun–Oct). DSCR covenant 1.30x. Contractor must be bank-approved."},
   {name:"Burling Bank",contact:"Kevin Murphy",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy. Follow-up pending."},
   {name:"Green State CU",contact:"Jim Lesko",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
   {name:"Heartland Bank",contact:"Mark Ptacek",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Co-contact: Jeff Wisenwski."},
   {name:"Centier Bank",contact:"Ben Bochnowski",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
+  {name:"PanAmerican Bank",contact:"Chris Metcalf",status:"Term sheet received",statusColor:B.gold,amount:5500000,ltc:"65% of Total Costs / 55% As-Stabilized LTV",equityRequired:2963287,constructionRate:"WSJ Prime + 1.00% floating",constructionRateToday:"~8.50% (est.)",constructionFloor:"6.75%",termRate:"N/A — construction only",termRateToday:"—",termFloor:"—",term:"36 mo construction (2 × 12-mo extensions)",amortization:"IO during initial term; 25-yr amort on extension",loanFee:"1.00% ($55,000)",prepayment:"No prepayment during initial term",payments:"Interest-only monthly; interest reserve from proceeds",dscr:"1.00x by 12/31/28; 1.30x by 12/31/29+",security:"1st mortgage + assignment of rents — 109 & 115 Barton St",depositReq:"Operating account w/ $100k balance at Pan American",notes:"Term sheet dated 4/7/26, expires 4/30/26. $10k good faith deposit to proceed. Guarantors: Jonathan Gordon, Jay Weaver, Kevin Werner (unlimited). Replacement reserve $4k/month at opening. Construction must complete within 12 months of closing."},
 ];
 
 const MATRIX_ROWS = [
@@ -1295,16 +1273,12 @@ function LenderMatrix() {
           </table>
         </div>
       </div>
-      <div style={{...card}}>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:"1rem"}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>Horizon Bank — Term Sheet Detail</div>
-            <div style={{fontSize:11,color:B.muted,marginTop:2}}>Discussion Proposal dated March 30, 2026 · Not a commitment to lend</div>
-          </div>
-          <Badge label="Term sheet received" color={B.gold}/>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem",paddingTop:"1rem",borderTop:`1px solid ${B.light}`}}>
-          {[
+      {/* Dynamic detail cards for all lenders with term sheets */}
+      {[
+        {
+          name: "Horizon Bank",
+          subtitle: "Discussion Proposal dated March 30, 2026 · Not a commitment to lend",
+          fields: [
             ["Borrower","115 N Barton LLC"],["Guarantor","Jonathan Gordon"],["Contact","Stacey Stephens / Bruce Piekarski"],
             ["Phone","(269) 925-0114"],["Email","sstephens@horizonbank.com"],["Amount",fmt$(5925000)],
             ["Construction Rate","SOFR + 2.95% (today 6.63%), Floor 4.0%"],["Term Rate","5-yr Treasury + 2.50% (today 6.46%), Floor 6.0%"],
@@ -1314,17 +1288,55 @@ function LenderMatrix() {
             ["Payment (Construction)","Interest only on balance drawn"],["Payment (Term)","P&I or seasonal (Jun–Oct); IO remaining months"],
             ["Security","1st mortgage — 115 + 109 N Barton + all business assets"],
             ["Deposit Requirement","Primary depository accounts at Horizon Bank"],
-          ].map(([label,value])=>(
-            <div key={label}>
-              <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:2}}>{label}</div>
-              <div style={{fontSize:13,color:B.navy}}>{value}</div>
+          ],
+          conditions: "Construction plans/budgets must be provided and approved. Independent appraisal required (min 70% LTV as complete). ALTA survey + flood zone certification required. Contractor must be approved by bank. Environmental review required. Annual tax returns + quarterly financials required for LLC + Jonathan Gordon personally.",
+        },
+        {
+          name: "PanAmerican Bank",
+          subtitle: "Term Sheet dated April 7, 2026 · Expires April 30, 2026 · Not a commitment to lend",
+          fields: [
+            ["Borrower","Entity to be determined — Experiential Capital Group"],
+            ["Guarantors","Jonathan Gordon, Jay Weaver, Kevin Werner (unlimited)"],
+            ["Contact","Chris Metcalf — EVP, Managing Director of Lending"],
+            ["Amount",fmt$(5500000)],
+            ["Rate","WSJ Prime + 1.00% floating, Floor 6.75%"],
+            ["Advance Rate","Lesser of $5.5M, 65% of Total Costs, or 55% As-Stabilized LTV"],
+            ["Term","36 months (2 × 12-month extension options)"],
+            ["Amortization","IO during initial term; 25-yr schedule on extension"],
+            ["Loan Fee","1.00% ($55,000)"],
+            ["Equity Required",fmt$(2963287)+" (35%)"],
+            ["DSCR Covenant","1.00x by 12/31/28; 1.30x by 12/31/29+"],
+            ["Prepayment","No prepayment during initial term"],
+            ["Payment","Interest-only monthly; interest reserve from proceeds"],
+            ["Security","1st mortgage + assignment of rents — 109 & 115 Barton St"],
+            ["Replacement Reserve","$4,000/month upon commencement of operations"],
+            ["Deposit Requirement","Operating account w/ $100k balance at Pan American"],
+            ["Good Faith Deposit","$10,000 (applied to closing costs if loan closes)"],
+          ],
+          conditions: "Construction to be complete within 12 months of loan closing. Bank-approved Inspecting Architect required for pre-funding review and all draws. All draws funded through construction escrow. New appraisal, environmental report, and ALTA survey required. Guarantors to maintain minimum combined liquidity of $500,000 at all times. Annual financials and tax returns required for entity and all guarantors.",
+        },
+      ].map(lender => (
+        <div key={lender.name} style={{...card, marginBottom:"1rem"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:"1rem"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:B.navy,letterSpacing:"0.04em",textTransform:"uppercase"}}>{lender.name} — Term Sheet Detail</div>
+              <div style={{fontSize:11,color:B.muted,marginTop:2}}>{lender.subtitle}</div>
             </div>
-          ))}
+            <Badge label="Term sheet received" color={B.gold}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem",paddingTop:"1rem",borderTop:`1px solid ${B.light}`}}>
+            {lender.fields.map(([label,value])=>(
+              <div key={label}>
+                <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:2}}>{label}</div>
+                <div style={{fontSize:13,color:B.navy}}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:"1rem",padding:"10px 14px",background:B.offwhite,borderRadius:6,fontSize:11,color:B.muted,lineHeight:1.7}}>
+            <strong style={{color:B.navy}}>Key conditions:</strong> {lender.conditions}
+          </div>
         </div>
-        <div style={{marginTop:"1rem",padding:"10px 14px",background:B.offwhite,borderRadius:6,fontSize:11,color:B.muted,lineHeight:1.7}}>
-          <strong style={{color:B.navy}}>Key conditions:</strong> Construction plans/budgets must be provided and approved. Independent appraisal required (min 70% LTV as complete). ALTA survey + flood zone certification required. Contractor must be approved by bank. Environmental review required. Annual tax returns + quarterly financials required for LLC + Jonathan Gordon personally.
-        </div>
-      </div>
+      ))}
       <div style={{marginTop:"0.75rem",fontSize:11,color:B.muted}}>
         Click any lender column header to highlight. Additional term sheets will populate the matrix as received.
       </div>
