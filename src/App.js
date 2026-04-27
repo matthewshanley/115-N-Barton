@@ -198,7 +198,53 @@ function rowToRisk(r) {
   };
 }
 
-// ── Brand / style constants (unchanged) ───────────────────────────────────
+// ── Hardcoded LP seed data (from Juniper Square + DocSend exports) ─────────
+const SEED_LPS = [
+  // Committed — Co-GP
+  {id:"lp-js-5066035-0",type:"LP",name:"Michael Hobbs",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"",email:"mikehobbs1919@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5066034-0",type:"LP",name:"Kevin Werner",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"Renovo Financial",email:"kevin@renovofinancial.com",phone:"(312) 543-1379",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 19400 Ravine, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5066033-0",type:"LP",name:"Jay Weaver",tag:"Co-GP",likelihood:"High",expectedAmount:128630,status:"Committed",priority:"Medium",firm:"Quartz Lake Capital",email:"weaver@quartzlakecap.com",phone:"(312) 925-0792",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5065902-0",type:"LP",name:"Jimmy Georgantas",tag:"Co-GP",likelihood:"High",expectedAmount:13126,status:"Committed",priority:"Medium",firm:"NBHD Hotels",email:"jimmy@nbhdhotels.com",phone:"(815) 302-7392",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  // Juniper Square — 18 W Investors
+  {id:"lp-js-6236327-0",type:"LP",name:"Anthony Disano",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236328-0",type:"LP",name:"Jonathan Gordon",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236328-1",type:"LP",name:"Dana Gordon",tag:"18 W Investor",likelihood:"High",expectedAmount:null,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236329-0",type:"LP",name:"Daniel Rosen",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236331-0",type:"LP",name:"Jack Krasaeath",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"jack.krasaeath@diverseyrealestate.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236332-0",type:"LP",name:"Ian Murphy",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"ian.murphy@cbre.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236337-0",type:"LP",name:"Robert Rothschild",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"rob@rothschildagency.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236338-0",type:"LP",name:"Roger Schoenfeld",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236342-0",type:"LP",name:"Thomas Bohac",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236336-0",type:"LP",name:"Allen Samuel",tag:"18 W Investor",likelihood:"Low",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236339-0",type:"LP",name:"Shoshana Vernick",tag:"18 W Investor",likelihood:"Low",expectedAmount:100000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236339-1",type:"LP",name:"Kevin Vernick",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236341-0",type:"LP",name:"Lisa Zhao",tag:"18 W Investor",likelihood:"Low",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236343-0",type:"LP",name:"Eric Augustyn",tag:"18 W Investor",likelihood:"Low",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236330-0",type:"LP",name:"Dean Lurie",tag:"18 W Investor",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236333-0",type:"LP",name:"Jerry J. Jaeger",tag:"18 W Investor",likelihood:"Low",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236333-1",type:"LP",name:"Ann Jaeger",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236333-2",type:"LP",name:"Scott Levenfeld",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236334-0",type:"LP",name:"Joe Sauer",tag:"18 W Investor",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236334-1",type:"LP",name:"Leslie Sauer",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236335-0",type:"LP",name:"Jonathan Metzl",tag:"18 W Investor",likelihood:"Low",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236340-0",type:"LP",name:"Steven B. Nasatir",tag:"18 W Investor",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236340-1",type:"LP",name:"Brandon Nasatir",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  // DocSend — LP Deck viewers
+  {id:"lp-ds-001",type:"LP",name:"Ian Braverman",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Harrison Street",email:"ibraverman@harrisonst.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-002",type:"LP",name:"Ryan Grommes",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"RLE Partners",email:"rgrommes@rlepartners.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-003",type:"LP",name:"Dominic Sergi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"West Shore CG",email:"ds@westshorecg.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-004",type:"LP",name:"Daniel Arnstein",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"djarnstein@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-005",type:"LP",name:"Robert Becker",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"rhbecker7@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-006",type:"LP",name:"Liz Roch",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"lizroch1@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-008",type:"LP",name:"Mason Phelps",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"mason1741@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-009",type:"LP",name:"Dan Drex",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"dandrex@me.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-011",type:"LP",name:"Tony Olson",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Webster CM",email:"tolson@webstercm.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-012",type:"LP",name:"Lauren Mead",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"laurenmead15@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-013",type:"LP",name:"Joydeep Dasmunshi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"joydeepdm@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-014",type:"LP",name:"Michael Glicken",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Morgan Stanley",email:"michael.glicken@ms.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-015",type:"LP",name:"Derrick Watts",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Derrick Watts Advisory",email:"derrick@derrickwattsadvisory.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-016",type:"LP",name:"John Gavin",tag:"DocSend",likelihood:"Low",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"jpgavin23@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+];
 const B={navy:"#021d2b",blue:"#033b57",steel:"#ccd5de",sage:"#5e7361",white:"#ffffff",offwhite:"#f4f6f8",muted:"#6b8497",border:"#ccd5de",danger:"#7a1e1e",gold:"#c9a84c",light:"#e8edf1"};
 const FONT="'Gill Sans','Gill Sans MT','Trebuchet MS',sans-serif";
 const LP_STAT_COL={"Deck sent":B.blue,"Data room accessed":B.sage,"In conversation":B.sage,"Soft commit":B.gold,"Committed":"#2a6b3f","Passed":B.danger};
@@ -1039,7 +1085,22 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
   const [results,setResults]=useState(null);
   const [running,setRunning]=useState(false);
 
-  async function runImport(){
+  async function seedLPsNow(){
+    setRunning(true);
+    const log=[];
+    try {
+      // Delete all existing LPs first
+      const deleted = await sbDeleteAllLPs();
+      log.push(`🗑 Wiped ${deleted} existing LP contacts`);
+      // Insert seed LPs
+      await onSave("contacts", SEED_LPS);
+      setContacts(prev=>[...prev.filter(c=>c.type==='Lender'),...SEED_LPS]);
+      log.push(`✓ ${SEED_LPS.length} LP contacts loaded from built-in seed data`);
+      log.push('  → Edit likelihood, expected amounts, and status directly in CRM');
+    } catch(e){ log.push(`✗ Error: ${e.message}`); }
+    setResults(log);
+    setRunning(false);
+  }
     setRunning(true);
     const log=[];
     try{
@@ -1146,13 +1207,12 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
 
   return(
     <div style={{padding:'1.25rem 0',maxWidth:720}}>
-      <div style={{background:'#e8f0f7',borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
-        <div style={{fontSize:12,color:B.navy,lineHeight:1.9}}>
-          <strong>Juniper Square:</strong> Prospects tab → Export (CSV)<br/>
-          <strong>HubSpot:</strong> Contacts → Export → All properties (CSV)<br/>
-          <strong>DocSend:</strong> Document → Visitors → Export (CSV)<br/>
-          <strong>Merge rules:</strong> Contacts matched by name or email. Bios, notes & next steps preserved.
+      <div style={{background:"#e8f4ee",border:`1px solid #2a6b3f44`,borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem',display:'flex',alignItems:'center',justifyContent:'space-between',gap:16}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:"#2a6b3f"}}>Load contacts from built-in seed data</div>
+          <div style={{fontSize:11,color:B.muted,marginTop:2}}>Wipes existing LPs and loads the 36 contacts from your Juniper Square + DocSend exports. Use this to get started immediately.</div>
         </div>
+        <button onClick={seedLPsNow} disabled={running} style={{...btn(),background:"#2a6b3f",whiteSpace:'nowrap',flexShrink:0}}>{running?"Loading…":"Load seed contacts"}</button>
       </div>
 
       <div style={{background:B.danger+"11",border:`1px solid ${B.danger}33`,borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
@@ -1875,10 +1935,14 @@ export default function App(){
   const [syncing,setSyncing]=useState(false);
 
   // ── Seed Supabase if tables are empty ──────────────────────────────────
-  async function seedIfEmpty(contactRows, taskRows, mileRows, riskRows) {  // CHANGED: added riskRows
+  async function seedIfEmpty(contactRows, taskRows, mileRows, riskRows) {
     const promises = [];
     if (contactRows.length === 0) {
-      promises.push(sbUpsert("contacts", DEFAULT_CONTACTS.map(contactToRow)));
+      const allSeedContacts = [...SEED_LPS, ...DEFAULT_CONTACTS.filter(c=>c.type==="Lender")];
+      promises.push(sbUpsert("contacts", allSeedContacts.map(contactToRow)));
+    } else if (!contactRows.some(r=>r.type==='lp')) {
+      // Contacts exist but no LPs — seed just the LPs
+      promises.push(sbUpsert("contacts", SEED_LPS.map(contactToRow)));
     }
     if (taskRows.length === 0) {
       promises.push(sbUpsert("tasks", DEFAULT_TASKS.map(taskToRow)));
@@ -1886,7 +1950,7 @@ export default function App(){
     if (mileRows.length === 0) {
       promises.push(sbUpsert("milestones", DEFAULT_MILES.map(mileToRow)));
     }
-    if (riskRows.length === 0) {  // CHANGED: seed risks if empty
+    if (riskRows.length === 0) {
       promises.push(sbUpsert("risks", DEFAULT_RISKS.map(riskToRow)));
     }
     await Promise.all(promises);
