@@ -810,18 +810,21 @@ function parseCSV(text){
   });
 }
 
-// CSV parser (comma-separated, handles quoted fields, BOM, Windows line endings)
+// CSV parser (comma-separated, handles quoted fields, BOM, Windows/Mac/Unix line endings)
 function parseCommaSV(text){
-  // Strip BOM and normalize line endings
-  const cleaned = text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  // Strip BOM, normalize ALL line ending variants to \n
+  let cleaned = text;
+  if(cleaned.charCodeAt(0)===0xFEFF) cleaned=cleaned.slice(1); // BOM
+  cleaned = cleaned.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
   const lines = cleaned.split('\n').filter(l=>l.trim());
   if(lines.length<2) return [];
   function splitLine(line){
     const result=[];let cur='';let inQ=false;
     for(let i=0;i<line.length;i++){
-      if(line[i]==='"'){inQ=!inQ;}
-      else if(line[i]===','&&!inQ){result.push(cur.trim());cur='';}
-      else{cur+=line[i];}
+      const ch=line[i];
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){result.push(cur.trim());cur='';}
+      else{cur+=ch;}
     }
     result.push(cur.trim());
     return result;
@@ -915,44 +918,60 @@ function parseHubSpotCSV(text, existing){
 }
 
 // ── DocSend CSV parser ─────────────────────────────────────────────────────
-// Expected columns: Name (or First/Last), Email, Company, Visited At / Last Visited,
-//                   Time Spent (seconds), Pages Viewed, Link Name / Document
+// Actual columns: Created At, Name, Email, Likeliness, Amount, Link Name,
+//                 Duration, % Completion, Link Owner, Content Version, Account
 function parseDocSendCSV(text, existing){
   const rows = parseCommaSV(text).filter(r => r['Email']||r['Name']);
-  // Group by email — take the most recent/highest-engagement visit per person
+  // Parse duration string "H:MM:SS" or "M:SS" → total seconds
+  function parseDuration(d){
+    if(!d) return 0;
+    const parts = d.split(':').map(Number);
+    if(parts.length===3) return parts[0]*3600+parts[1]*60+parts[2];
+    if(parts.length===2) return parts[0]*60+parts[1];
+    return 0;
+  }
+  // Group by email — keep highest engagement per person
   const byEmail = {};
   rows.forEach(r => {
     const email = (r['Email']||'').toLowerCase().trim();
-    const name = r['Name']||[r['First Name'],r['Last Name']].filter(Boolean).join(' ')||email||'Unknown';
+    const name = (r['Name']||'').trim()||email||'Unknown';
     const key = email||name.toLowerCase();
-    const timeSpent = parseInt(r['Time Spent (seconds)']||r['Time Spent']||'0')||0;
-    if(!byEmail[key] || timeSpent > (byEmail[key].timeSpent||0)){
-      byEmail[key] = {...r, _name: name, _email: email, timeSpent};
+    const secs = parseDuration(r['Duration']);
+    const pct = parseFloat(r['% Completion']||'0')||0;
+    const engagement = secs + pct*60; // combined score
+    if(!byEmail[key] || engagement > (byEmail[key]._engagement||0)){
+      byEmail[key] = {...r, _name:name, _email:email, _engagement:engagement, _secs:secs, _pct:pct};
     }
   });
   return Object.values(byEmail).map(r => {
     const name = r._name;
     const email = r._email;
-    const firm = r['Company']||r['Organization']||'';
+    const likelihood = mapLikelihood(r['Likeliness']||r['Likelihood']||'Medium');
+    const expectedAmount = parseFloat((r['Amount']||'').replace(/[$,\s]/g,''))||null;
     const ex = existing.find(c=>c.type==='LP'&&(
       (email && c.email && c.email.toLowerCase()===email.toLowerCase()) ||
       c.name.toLowerCase()===name.toLowerCase()
     ));
-    // If they spent meaningful time, upgrade status
+    // Status: if they spent >30s or >50% completion → data room accessed
     let status = ex?.status||'Deck sent';
-    if(r.timeSpent > 60 && (!ex || status==='Deck sent')) status='Data room accessed';
+    const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
+    const dsStatus = (r._secs>30||r._pct>0.5) ? 'Data room accessed' : 'Deck sent';
+    if(!ex || (statusRank[dsStatus]||0) > (statusRank[status]||0)) status = dsStatus;
+    if(ex && (statusRank[ex.status]||0) > (statusRank[status]||0)) status = ex.status;
     const base = {
       id: ex?.id||`lp-ds-${Date.now()}-${Math.random()}`,
-      type:'LP', name, email, firm,
-      likelihood: ex?.likelihood||'Medium',
+      type:'LP', name, email,
+      likelihood: ex?.likelihood||likelihood,
+      expectedAmount: ex?.expectedAmount||expectedAmount,
       status,
-      priority:'Medium', phone: ex?.phone||'', tag: ex?.tag||'',
+      priority:'Medium',
+      firm: ex?.firm||'', phone: ex?.phone||'', tag: ex?.tag||'',
       title:'', linkedinUrl:'', bio: ex?.bio||'',
       relationship: ex?.relationship||'', whatTheyCareAbout: ex?.whatTheyCareAbout||'',
       howWeKnowThem: ex?.howWeKnowThem||'', nextStep: ex?.nextStep||'',
-      expectedAmount: ex?.expectedAmount||null, notes: ex?.notes||'',
+      notes: ex?.notes||'',
     };
-    return ex ? {...ex,...base,bio:ex.bio||'',relationship:ex.relationship||'',whatTheyCareAbout:ex.whatTheyCareAbout||'',howWeKnowThem:ex.howWeKnowThem||'',nextStep:ex.nextStep||''} : base;
+    return base;
   });
 }
 
