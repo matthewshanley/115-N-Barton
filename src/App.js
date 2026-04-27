@@ -53,7 +53,8 @@ function contactToRow(c) {
     status: c.status || "",
     priority: c.priority || "Medium",
     expected_amount: c.expectedAmount ? Number(c.expectedAmount) : null,
-    likelihood: c.likelihood ? Number(c.likelihood) : null,
+    likelihood: null, // kept for DB compat; string value stored in _extra
+
     tag: c.tag || "",
     bio: c.bio || "",
     prior_deal_history: c.relationship || "",
@@ -78,6 +79,7 @@ function contactToRow(c) {
       ltcAppetite: c.ltcAppetite || "",
       geographies: c.geographies || "",
       importBatch: c.importBatch || "",
+      likelihood: c.likelihood || "",
     }),
   };
 }
@@ -97,7 +99,7 @@ function rowToContact(r) {
     status: r.status || "",
     priority: r.priority || "Medium",
     expectedAmount: r.expected_amount || "",
-    likelihood: r.likelihood || "",
+    likelihood: extra.likelihood || r.likelihood || "",
     tag: r.tag || "",
     bio: r.bio || "",
     relationship: extra.relationship || r.prior_deal_history || "",
@@ -1091,11 +1093,15 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
       }
 
       if(jsText.trim()||hsText.trim()||dsText.trim()){
-        await onSave("contacts", mergedLPs);
-        newContacts=[...lenders,...mergedLPs];
-        setContacts(newContacts);
-        log.push(`  → ${mergedLPs.length} total LP records now in system`);
-        log.push('  → Bios, notes & next steps preserved on existing contacts');
+        try {
+          await onSave("contacts", mergedLPs);
+          newContacts=[...lenders,...mergedLPs];
+          setContacts(newContacts);
+          log.push(`  → ${mergedLPs.length} total LP records now in system`);
+          log.push('  → Bios, notes & next steps preserved on existing contacts');
+        } catch(saveErr) {
+          log.push(`✗ Save failed: ${saveErr.message}`);
+        }
       }
 
       // Lender import (TSV)
