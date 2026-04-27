@@ -846,50 +846,47 @@ function mapPriority(s){const l=(s||'').toLowerCase();if(l==='high')return'High'
 function mapTaskStatus(s){const l=(s||'').toLowerCase();if(l.includes('complete')||l==='done')return'Complete';if(l.includes('progress')||l.includes('active'))return'In Progress';if(l.includes('block'))return'Blocked';if(l.includes('overdue'))return'Overdue';return'Not Started';}
 function mapLikelihood(s){const l=(s||'').toLowerCase().trim();if(l==='high')return'High';if(l==='low')return'Low';return'Medium';}
 
-// ── Juniper Square CSV parser (new format) ─────────────────────────────────
+// ── Juniper Square CSV parser ──────────────────────────────────────────────
 function parseJuniperSquareCSV(text, existing){
-  const rows = parseCommaSV(text);
-  // Find the contacts column key robustly (handles BOM residue on header)
-  const allRows = rows.filter(r => {
-    const contactsKey = Object.keys(r).find(k => k.replace(/^\uFEFF/,'').trim().toLowerCase() === 'contacts');
-    return contactsKey && r[contactsKey] && r[contactsKey].trim();
-  });
+  const rawRows = parseCommaSV(text);
+  if(rawRows.length===0) return [];
+  // Normalize all keys once — strip BOM, trim whitespace
+  const rows = rawRows.map(r => {
+    const clean = {};
+    Object.keys(r).forEach(k => { clean[k.replace(/^\uFEFF/,'').trim()] = r[k]; });
+    return clean;
+  }).filter(r => r['Contacts'] && r['Contacts'].trim());
+
   const seen = new Set();
   const incoming = [];
-  allRows.forEach(r => {
-    // Find keys robustly
-    const getVal = (name) => {
-      const key = Object.keys(r).find(k => k.replace(/^\uFEFF/,'').trim().toLowerCase() === name.toLowerCase());
-      return key ? r[key] : '';
-    };
-    const names = getVal('Contacts').split(';').map(s=>s.trim()).filter(Boolean);
-    const tag = getVal('Tags').trim();
-    const likelihood = mapLikelihood(getVal('Likelihood'));
-    const expected = parseFloat((getVal('Expected')||'').replace(/[$,\s]/g,''))||null;
-    const dataRoom = getVal('Data room').trim();
-    const jsStatus = mapJSStatus(getVal('Prospect Status'));
-    let status = jsStatus;
+  const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
+
+  rows.forEach(r => {
+    const names = r['Contacts'].split(';').map(s=>s.trim()).filter(Boolean);
+    const tag = (r['Tags']||'').trim();
+    const likelihood = mapLikelihood(r['Likelihood']||'');
+    const expected = parseFloat((r['Expected']||'').replace(/[$,\s]/g,''))||null;
+    const dataRoom = (r['Data room']||'').trim();
+    let status = mapJSStatus(r['Prospect Status']||'');
     if(dataRoom.toLowerCase().startsWith('accessed')) status = 'Data room accessed';
-    const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
+
     names.forEach((name, idx) => {
       if(seen.has(name.toLowerCase())) return;
       seen.add(name.toLowerCase());
       const ex = existing.find(c=>c.type==='LP'&&c.name.toLowerCase()===name.toLowerCase());
       let finalStatus = status;
       if(ex && (statusRank[ex.status]||0) > (statusRank[status]||0)) finalStatus = ex.status;
-      const base = {
-        id: ex?.id || `lp-js-${getVal('Prospect ID')||Date.now()}-${idx}`,
-        type: 'LP', name, firm: getVal('Organization'),
-        tag, likelihood,
+      incoming.push({
+        id: ex?.id || `lp-js-${r['Prospect ID']||Date.now()}-${idx}-${Math.random()}`,
+        type:'LP', name, firm: r['Organization']||'', tag, likelihood,
         expectedAmount: idx===0 ? expected : null,
-        status: finalStatus,
-        priority: 'Medium', title:'', email:'', phone:'', linkedinUrl:'',
+        status: finalStatus, priority:'Medium',
+        title:'', email:'', phone:'', linkedinUrl:'',
         bio: ex?.bio||'', relationship: ex?.relationship||'',
         whatTheyCareAbout: ex?.whatTheyCareAbout||'',
         howWeKnowThem: ex?.howWeKnowThem||tag||'',
         nextStep: ex?.nextStep||'', notes: ex?.notes||'',
-      };
-      incoming.push(base);
+      });
     });
   });
   return incoming;
