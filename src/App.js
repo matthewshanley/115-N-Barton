@@ -1101,6 +1101,8 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
     setResults(log);
     setRunning(false);
   }
+
+  async function runImport(){
     setRunning(true);
     const log=[];
     try{
