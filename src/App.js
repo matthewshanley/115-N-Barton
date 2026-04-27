@@ -847,23 +847,29 @@ function mapTaskStatus(s){const l=(s||'').toLowerCase();if(l.includes('complete'
 function mapLikelihood(s){const l=(s||'').toLowerCase().trim();if(l==='high')return'High';if(l==='low')return'Low';return'Medium';}
 
 // ── Juniper Square CSV parser (new format) ─────────────────────────────────
-// Columns: Prospect ID, Organization, Contacts, Tags, Prospect Status,
-//          Subscription Status, Subscription Amount, Likelihood, Expected, Data room, Tasks
 function parseJuniperSquareCSV(text, existing){
-  const rows = parseCommaSV(text).filter(r => r['Contacts'] && r['Contacts'].trim());
+  const rows = parseCommaSV(text);
+  // Find the contacts column key robustly (handles BOM residue on header)
+  const allRows = rows.filter(r => {
+    const contactsKey = Object.keys(r).find(k => k.replace(/^\uFEFF/,'').trim().toLowerCase() === 'contacts');
+    return contactsKey && r[contactsKey] && r[contactsKey].trim();
+  });
   const seen = new Set();
   const incoming = [];
-  rows.forEach(r => {
-    const names = (r['Contacts']||'').split(';').map(s=>s.trim()).filter(Boolean);
-    const tag = (r['Tags']||'').trim();
-    const likelihood = mapLikelihood(r['Likelihood']||'');
-    const expected = parseFloat((r['Expected']||'').replace(/[$,\s]/g,''))||null;
-    const dataRoom = (r['Data room']||'').trim();
-    const jsStatus = mapJSStatus(r['Prospect Status']||'');
-    // "Accessed ..." = data room accessed; "Granted ..." = just granted (deck sent)
+  allRows.forEach(r => {
+    // Find keys robustly
+    const getVal = (name) => {
+      const key = Object.keys(r).find(k => k.replace(/^\uFEFF/,'').trim().toLowerCase() === name.toLowerCase());
+      return key ? r[key] : '';
+    };
+    const names = getVal('Contacts').split(';').map(s=>s.trim()).filter(Boolean);
+    const tag = getVal('Tags').trim();
+    const likelihood = mapLikelihood(getVal('Likelihood'));
+    const expected = parseFloat((getVal('Expected')||'').replace(/[$,\s]/g,''))||null;
+    const dataRoom = getVal('Data room').trim();
+    const jsStatus = mapJSStatus(getVal('Prospect Status'));
     let status = jsStatus;
     if(dataRoom.toLowerCase().startsWith('accessed')) status = 'Data room accessed';
-    // Preserve more advanced existing status
     const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
     names.forEach((name, idx) => {
       if(seen.has(name.toLowerCase())) return;
@@ -872,17 +878,18 @@ function parseJuniperSquareCSV(text, existing){
       let finalStatus = status;
       if(ex && (statusRank[ex.status]||0) > (statusRank[status]||0)) finalStatus = ex.status;
       const base = {
-        id: ex?.id || `lp-js-${r['Prospect ID']||Date.now()}-${idx}`,
-        type: 'LP', name, firm: r['Organization']||'',
+        id: ex?.id || `lp-js-${getVal('Prospect ID')||Date.now()}-${idx}`,
+        type: 'LP', name, firm: getVal('Organization'),
         tag, likelihood,
         expectedAmount: idx===0 ? expected : null,
         status: finalStatus,
         priority: 'Medium', title:'', email:'', phone:'', linkedinUrl:'',
-        bio:'', relationship:'', whatTheyCareAbout:'', howWeKnowThem: tag||'',
-        nextStep:'', notes:'',
+        bio: ex?.bio||'', relationship: ex?.relationship||'',
+        whatTheyCareAbout: ex?.whatTheyCareAbout||'',
+        howWeKnowThem: ex?.howWeKnowThem||tag||'',
+        nextStep: ex?.nextStep||'', notes: ex?.notes||'',
       };
-      if(ex){ incoming.push({...ex,...base,bio:ex.bio||'',relationship:ex.relationship||'',whatTheyCareAbout:ex.whatTheyCareAbout||'',howWeKnowThem:ex.howWeKnowThem||tag||'',nextStep:ex.nextStep||'',notes:ex.notes||'',linkedinUrl:ex.linkedinUrl||''}); }
-      else { incoming.push(base); }
+      incoming.push(base);
     });
   });
   return incoming;
@@ -1054,14 +1061,14 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
 
       // Juniper Square CSV
       if(jsText.trim()){
-        const parsed = parseJuniperSquareCSV(jsText, mergedLPs);
         const rawRows = parseCommaSV(jsText);
-        // Merge parsed into mergedLPs by name
+        const parsed = parseJuniperSquareCSV(jsText, mergedLPs);
+        const firstKeys = rawRows.length > 0 ? Object.keys(rawRows[0]).join(' | ') : 'none';
         parsed.forEach(p=>{
           const idx=mergedLPs.findIndex(c=>c.name.toLowerCase()===p.name.toLowerCase());
           if(idx>=0) mergedLPs[idx]=p; else mergedLPs.push(p);
         });
-        log.push(`✓ ${parsed.length} LP prospects parsed from Juniper Square (${rawRows.length} raw rows detected)`);
+        log.push(`✓ ${parsed.length} LP prospects parsed from Juniper Square (${rawRows.length} raw rows, keys: ${firstKeys})`);
       }
 
       // HubSpot CSV
