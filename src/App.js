@@ -810,10 +810,12 @@ function parseCSV(text){
   });
 }
 
-// CSV parser (comma-separated, handles quoted fields)
+// CSV parser (comma-separated, handles quoted fields, BOM, Windows line endings)
 function parseCommaSV(text){
-  const lines=text.trim().replace(/\r/g,'').split('\n').filter(l=>l.trim());
-  if(lines.length<2)return[];
+  // Strip BOM and normalize line endings
+  const cleaned = text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const lines = cleaned.split('\n').filter(l=>l.trim());
+  if(lines.length<2) return [];
   function splitLine(line){
     const result=[];let cur='';let inQ=false;
     for(let i=0;i<line.length;i++){
@@ -830,7 +832,7 @@ function parseCommaSV(text){
     const obj={};
     headers.forEach((h,i)=>{obj[h]=(vals[i]||'').replace(/^"|"$/g,'').trim();});
     return obj;
-  });
+  }).filter(r=>Object.values(r).some(v=>v));
 }
 
 function mapJSStatus(s){const l=s.toLowerCase();if(l==='closed')return'Committed';if(l==='contacted')return'Deck sent';if(l==='new')return'Deck sent';if(l.includes('commit'))return'Soft commit';if(l==='passed')return'Passed';return'Deck sent';}
@@ -1032,12 +1034,13 @@ function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
       // Juniper Square CSV
       if(jsText.trim()){
         const parsed = parseJuniperSquareCSV(jsText, mergedLPs);
+        const rawRows = parseCommaSV(jsText);
         // Merge parsed into mergedLPs by name
         parsed.forEach(p=>{
           const idx=mergedLPs.findIndex(c=>c.name.toLowerCase()===p.name.toLowerCase());
           if(idx>=0) mergedLPs[idx]=p; else mergedLPs.push(p);
         });
-        log.push(`✓ ${parsed.length} LP prospects parsed from Juniper Square`);
+        log.push(`✓ ${parsed.length} LP prospects parsed from Juniper Square (${rawRows.length} raw rows detected)`);
       }
 
       // HubSpot CSV
