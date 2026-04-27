@@ -245,12 +245,12 @@ function normalizeDate(d){
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
+const LP_EQUITY_TARGET = 2500000;
+
 function Dashboard({contacts,tasks,miles,setNav}){
   const lps=contacts.filter(c=>c.type==="LP");
   const lenders=contacts.filter(c=>c.type==="Lender");
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
-  const weighted=lps.filter(c=>c.expectedAmount&&c.likelihood).reduce((s,c)=>s+(Number(c.expectedAmount)||0)*(Number(c.likelihood)||0)/100,0);
-  const warm=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).length;
   const activeLenders=lenders.filter(c=>!["Not contacted","Passed"].includes(c.status)).length;
   const highTasks=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").length;
   const pC={"Initiation":B.navy,"Planning":B.sage,"Execution":B.blue,"Go Live":B.gold};
@@ -258,11 +258,12 @@ function Dashboard({contacts,tasks,miles,setNav}){
   const tP=d=>((new Date(d)-GS)/GT)*100;
   const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
   const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
-  const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status));
+  const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit","Committed"].includes(c.status)).slice(0,6);
+  const remaining=Math.max(0,LP_EQUITY_TARGET-committed);
   return(
     <div style={{padding:"1.25rem 0"}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
-        {[["Total equity target",fmt$(3332212),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Remaining to raise",fmt$(Math.max(0,3332212-committed)),committed>=3332212?"#2a6b3f":B.danger],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
+        {[["LP equity target",fmt$(LP_EQUITY_TARGET),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Remaining to raise",fmt$(remaining),committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
           <div key={l} style={SC(c)}><div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div><div style={{fontSize:24,fontWeight:700,color:B.white}}>{v}</div></div>
         ))}
       </div>
@@ -314,37 +315,93 @@ function Dashboard({contacts,tasks,miles,setNav}){
 }
 
 // ── CRM ────────────────────────────────────────────────────────────────────
-const ELP={id:null,type:"LP",name:"",firm:"",title:"",email:"",phone:"",linkedinUrl:"",status:"Deck sent",priority:"Medium",likelihood:"",expectedAmount:"",tag:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""};
+const ELP={id:null,type:"LP",name:"",firm:"",title:"",email:"",phone:"",linkedinUrl:"",status:"Deck sent",priority:"Medium",likelihood:"Medium",expectedAmount:"",tag:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""};
 const ELN={id:null,type:"Lender",name:"",firm:"",title:"",email:"",phone:"",linkedinUrl:"",status:"Not contacted",priority:"Medium",projectedLoanAmount:"",loanType:"Construction-to-perm",dealsDone:"",minLoanSize:"",maxLoanSize:"",ltcAppetite:"",geographies:"",bio:"",nextStep:"",notes:""};
+const LP_LIKELIHOOD=["High","Medium","Low"];
+const likelihoodColor={"High":"#2a6b3f","Medium":B.gold,"Low":B.danger};
+const likelihoodPct={"High":80,"Medium":40,"Low":10};
+
+function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
+  const target=LP_EQUITY_TARGET;
+  const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
+  const remaining=Math.max(0,target-committed);
+  const pct=Math.min(100,Math.round(committed/target*100));
+
+  const tiers=["High","Medium","Low"].map(tier=>{
+    const members=lps.filter(c=>c.likelihood===tier&&c.status!=="Committed"&&c.status!=="Passed");
+    const total=members.reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
+    return{tier,members,total,count:members.length};
+  });
+  const highTotal=tiers.find(t=>t.tier==="High")?.total||0;
+  const ifHighCommit=committed+highTotal;
+  const afterHigh=Math.max(0,target-ifHighCommit);
+
+  return(
+    <div style={{marginBottom:"1.25rem"}}>
+      {/* Progress bar */}
+      <div style={{...card,marginBottom:10,padding:"14px 18px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
+          <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase"}}>Equity raise progress</div>
+          <div style={{display:"flex",gap:20}}>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Committed</div><div style={{fontSize:16,fontWeight:700,color:"#2a6b3f"}}>{fmt$(committed)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Target</div><div style={{fontSize:16,fontWeight:700,color:B.navy}}>{fmt$(target)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Remaining</div><div style={{fontSize:16,fontWeight:700,color:remaining===0?"#2a6b3f":B.danger}}>{fmt$(remaining)}</div></div>
+          </div>
+        </div>
+        <div style={{height:10,background:B.light,borderRadius:5,overflow:"hidden",marginBottom:6}}>
+          <div style={{height:"100%",width:`${pct}%`,background:"#2a6b3f",borderRadius:5,transition:"width 0.4s ease"}}/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted}}>
+          <span>{pct}% raised</span>
+          {afterHigh<target&&<span style={{color:"#2a6b3f"}}>If all High-likelihood commit → {fmt$(ifHighCommit)} raised ({fmt$(afterHigh)} still needed)</span>}
+          {afterHigh>=target&&<span style={{color:"#2a6b3f"}}>✓ High-likelihood pipeline covers full target</span>}
+        </div>
+      </div>
+
+      {/* Tier cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+        {tiers.map(({tier,members,total,count})=>{
+          const col=likelihoodColor[tier];
+          const active=likelihoodFilter===tier;
+          return(
+            <div key={tier} onClick={()=>onSelectLikelihood(active?"All":tier)}
+              style={{background:active?col:B.white,border:`2px solid ${active?col:B.steel}`,borderRadius:8,padding:"12px 16px",cursor:"pointer",transition:"all 0.15s"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:active?B.white:col}}>{tier} likelihood</span>
+                <span style={{fontSize:11,fontWeight:600,color:active?"rgba(255,255,255,0.7)":B.muted}}>{count} prospects</span>
+              </div>
+              <div style={{fontSize:22,fontWeight:700,color:active?B.white:B.navy,marginBottom:2}}>{fmt$(total)}</div>
+              <div style={{fontSize:11,color:active?"rgba(255,255,255,0.65)":B.muted}}>If all commit → {fmt$(committed+total)} total · {fmt$(Math.max(0,target-committed-total))} left</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function CRM({contacts,setContacts,onSave,onDelete}){
   const [tab,setTab]=useState("LP");
   const [sf,setSf]=useState("All");
+  const [lf,setLf]=useState("All"); // likelihood filter
   const [tf,setTf]=useState("All");
   const [q,setQ]=useState("");
-  const [showNew,setShowNew]=useState(false);
   const [view,setView]=useState("list");
   const [sel,setSel]=useState(null);
   const [form,setForm]=useState(ELP);
   const [saving,setSaving]=useState(false);
-  const lastImportTs=localStorage.getItem("ecg-last-import-ts")||"";
-  const lastImportBatch=localStorage.getItem("ecg-last-import-batch")||"";
-  const isNew=c=>lastImportTs&&c.createdAt&&c.createdAt>=lastImportTs;
   const sts=tab==="LP"?LP_STATUSES:LN_STATUSES;
   const tags=["All",...Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()];
-  const newCount=contacts.filter(c=>c.type===tab&&isNew(c)).length;
+  const lps=contacts.filter(c=>c.type==="LP");
+  const lnds=contacts.filter(c=>c.type==="Lender");
   const vis=contacts.filter(c=>{
     if(c.type!==tab)return false;
-    if(showNew&&!isNew(c))return false;
     if(sf!=="All"&&c.status!==sf)return false;
+    if(tab==="LP"&&lf!=="All"&&c.likelihood!==lf)return false;
     if(tab==="LP"&&tf!=="All"&&c.tag!==tf)return false;
     if(q&&!`${c.name} ${c.firm} ${c.email} ${c.tag||""}`.toLowerCase().includes(q.toLowerCase()))return false;
     return true;
   });
-  const lps=contacts.filter(c=>c.type==="LP"),lnds=contacts.filter(c=>c.type==="Lender");
-  const lpE=lps.filter(c=>c.expectedAmount).reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
-  const lpW=lps.filter(c=>c.expectedAmount&&c.likelihood).reduce((s,c)=>s+(Number(c.expectedAmount)||0)*(Number(c.likelihood)||0)/100,0);
-  const lpWm=lps.filter(c=>["Data room accessed","In conversation","Soft commit"].includes(c.status)).length;
   const lnT=lnds.reduce((s,c)=>s+(Number(c.projectedLoanAmount)||0),0);
   function openNew(){setForm(tab==="LP"?{...ELP,id:`lp-${Date.now()}`}:{...ELN,id:`ln-${Date.now()}`});setView("form");}
   function openEdit(c){setForm({...c});setView("form");}
@@ -415,7 +472,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
           <div><label style={lS}>Priority</label>{fs("priority",PRIORITIES)}</div>
           {form.type==="LP"&&<>
             <div><label style={lS}>Expected ($)</label>{fi("expectedAmount","number")}</div>
-            <div><label style={lS}>Likelihood (%)</label>{fi("likelihood","number")}</div>
+            <div><label style={lS}>Likelihood</label><select value={form.likelihood||"Medium"} onChange={e=>setForm(f=>({...f,likelihood:e.target.value}))} style={iS}>{LP_LIKELIHOOD.map(l=><option key={l}>{l}</option>)}</select></div>
             <div><label style={lS}>Tag</label>{fi("tag")}</div>
             <div><label style={lS}>How we know them</label>{fi("howWeKnowThem")}</div>
             <div style={{gridColumn:"span 2"}}><label style={lS}>What they care about</label>{fi("whatTheyCareAbout")}</div>
@@ -438,30 +495,49 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 
   return(<div style={{padding:"1rem 0"}}>
     <div style={{display:"flex",gap:0,marginBottom:"1rem",borderBottom:`1px solid ${B.steel}`}}>
-      {["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf("All");setTf("All");}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
+      {["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf("All");setLf("All");setTf("All");}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
       <div style={{flex:1}}/><button onClick={openNew} style={{...btn(),fontSize:11,margin:"4px 0"}}>+ Add {tab}</button>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1rem"}}>
-      {(tab==="LP"?[["Prospects",lps.length],["Expected (gross)",fmt$(lpE)],["Weighted pipeline",fmt$(Math.round(lpW))],["Warm / active",lpWm]]:[["Lenders",lnds.length],["Projected loan",fmt$(lnT)],["Target",fmt$(5925000)],["Active",lnds.filter(c=>!["Not contacted","Passed"].includes(c.status)).length]]).map(([l,v])=>(
-        <div key={l} style={SC()}><div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:B.white}}>{v}</div></div>
-      ))}
-    </div>
+
+    {tab==="LP"&&<LPPipeline lps={lps} onSelectLikelihood={setLf} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
+
+    {tab==="Lender"&&(
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1rem"}}>
+        {[["Lenders",lnds.length],["Projected loan",fmt$(lnT)],["Target",fmt$(5500000)],["Active",lnds.filter(c=>!["Not contacted","Passed"].includes(c.status)).length]].map(([l,v])=>(
+          <div key={l} style={SC()}><div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:B.white}}>{v}</div></div>
+        ))}
+      </div>
+    )}
+
     <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap"}}>
       <input placeholder="Search..." value={q} onChange={e=>setQ(e.target.value)} style={{...iS,flex:1,minWidth:140}}/>
       <select value={sf} onChange={e=>setSf(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{sts.map(s=><option key={s}>{s}</option>)}</select>
-      {tab==="LP"&&<select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>}
-      {lastImportTs&&<button onClick={()=>setShowNew(n=>!n)} style={{...btn(true),background:showNew?B.sage:"transparent",color:showNew?B.white:B.navy,border:`1px solid ${showNew?B.sage:B.navy}`}}>
-        🆕 New{newCount>0&&<span style={{marginLeft:6,background:B.danger,color:B.white,borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:700}}>{newCount}</span>}
-      </button>}
+      {tab==="LP"&&<>
+        <select value={lf} onChange={e=>setLf(e.target.value)} style={{...iS,width:"auto"}}>
+          <option value="All">All likelihood</option>
+          {LP_LIKELIHOOD.map(l=><option key={l}>{l}</option>)}
+        </select>
+        <select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>
+      </>}
     </div>
+
     {vis.length===0?<div style={{textAlign:"center",padding:"3rem",color:B.muted,fontSize:14}}>{contacts.filter(c=>c.type===tab).length===0?"No contacts yet.":"No contacts match your filters."}</div>:
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        {vis.map(c=>(<div key={c.id} onClick={()=>openDetail(c)} style={{...card,cursor:"pointer",display:"flex",alignItems:"center",gap:12,padding:"10px 14px"}}>
+        {[...vis].sort((a,b)=>{
+          const lOrder={"High":0,"Medium":1,"Low":2};
+          if(tab==="LP"){const lo=(lOrder[a.likelihood]??3)-(lOrder[b.likelihood]??3);if(lo!==0)return lo;}
+          return(Number(b.expectedAmount)||0)-(Number(a.expectedAmount)||0);
+        }).map(c=>(<div key={c.id} onClick={()=>openDetail(c)} style={{...card,cursor:"pointer",display:"flex",alignItems:"center",gap:12,padding:"10px 14px"}}>
           <Avatar name={c.name} color={c.type==="LP"?B.navy:B.sage}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontWeight:600,fontSize:14,color:B.navy}}>{c.name||"Unnamed"}</span>{c.firm&&<span style={{fontSize:12,color:B.muted}}>{c.firm}</span>}{c.tag&&<Badge label={c.tag} color={B.sage}/>}<Badge label={c.priority} color={c.priority==="High"?B.danger:c.priority==="Low"?B.muted:B.blue}/>{isNew(c)&&<span style={{fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:3,background:B.sage,color:B.white,letterSpacing:"0.08em"}}>NEW</span>}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontWeight:600,fontSize:14,color:B.navy}}>{c.name||"Unnamed"}</span>
+              {c.firm&&<span style={{fontSize:12,color:B.muted}}>{c.firm}</span>}
+              {c.tag&&<Badge label={c.tag} color={B.sage}/>}
+              {c.type==="LP"&&c.likelihood&&<Badge label={c.likelihood} color={likelihoodColor[c.likelihood]||B.muted}/>}
+            </div>
             <div style={{display:"flex",gap:12,marginTop:3,flexWrap:"wrap"}}>
-              {c.type==="LP"&&c.expectedAmount&&<span style={{fontSize:12,color:B.muted}}>Expected: {fmt$(c.expectedAmount)}{c.likelihood?` · ${c.likelihood}%`:""}</span>}
+              {c.type==="LP"&&c.expectedAmount&&<span style={{fontSize:12,color:B.muted}}>Expected: {fmt$(c.expectedAmount)}</span>}
               {c.type==="Lender"&&c.projectedLoanAmount&&<span style={{fontSize:12,color:B.muted}}>Loan: {fmt$(c.projectedLoanAmount)}</span>}
               {c.nextStep&&<span style={{fontSize:12,color:B.sage}}>↳ {c.nextStep}</span>}
             </div>
@@ -717,10 +793,11 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
   );
 }
 
-// ── Import helpers (unchanged logic) ──────────────────────────────────────
+// ── Import helpers ─────────────────────────────────────────────────────────
 const LP_PORTAL_FIELDS=["bio","relationship","whatTheyCareAbout","howWeKnowThem","nextStep","linkedinUrl"];
 const LN_PORTAL_FIELDS=["bio","dealsDone","minLoanSize","maxLoanSize","ltcAppetite","geographies","nextStep","linkedinUrl"];
 
+// Generic TSV parser (existing)
 function parseCSV(text){
   const lines=text.trim().split('\n').filter(l=>l.trim());
   if(lines.length<2)return[];
@@ -732,47 +809,151 @@ function parseCSV(text){
     return obj;
   });
 }
+
+// CSV parser (comma-separated, handles quoted fields)
+function parseCommaSV(text){
+  const lines=text.trim().replace(/\r/g,'').split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  function splitLine(line){
+    const result=[];let cur='';let inQ=false;
+    for(let i=0;i<line.length;i++){
+      if(line[i]==='"'){inQ=!inQ;}
+      else if(line[i]===','&&!inQ){result.push(cur.trim());cur='';}
+      else{cur+=line[i];}
+    }
+    result.push(cur.trim());
+    return result;
+  }
+  const headers=splitLine(lines[0]).map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).map(line=>{
+    const vals=splitLine(line);
+    const obj={};
+    headers.forEach((h,i)=>{obj[h]=(vals[i]||'').replace(/^"|"$/g,'').trim();});
+    return obj;
+  });
+}
+
 function mapJSStatus(s){const l=s.toLowerCase();if(l==='closed')return'Committed';if(l==='contacted')return'Deck sent';if(l==='new')return'Deck sent';if(l.includes('commit'))return'Soft commit';if(l==='passed')return'Passed';return'Deck sent';}
 function mapLenderStatus(s){const l=s.toLowerCase();if(l.includes('term sheet received'))return'Term sheet received';if(l.includes('term sheet'))return'Term sheet requested';if(l.includes('diligence'))return'In diligence';if(l.includes('commit'))return'Committed';if(l.includes('passed'))return'Passed';if(l.includes('target')||l.includes('outreach'))return'Outreach sent';return'Not contacted';}
 function mapPriority(s){const l=(s||'').toLowerCase();if(l==='high')return'High';if(l==='low')return'Low';return'Medium';}
 function mapTaskStatus(s){const l=(s||'').toLowerCase();if(l.includes('complete')||l==='done')return'Complete';if(l.includes('progress')||l.includes('active'))return'In Progress';if(l.includes('block'))return'Blocked';if(l.includes('overdue'))return'Overdue';return'Not Started';}
+function mapLikelihood(s){const l=(s||'').toLowerCase().trim();if(l==='high')return'High';if(l==='low')return'Low';return'Medium';}
 
-function mergeJSProspects(rows,existing){
-  const seen=new Set();const incoming=[];
-  rows.forEach(r=>{
-    const names=(r['Contacts']||'').split(';').map(s=>s.trim()).filter(Boolean);
-    const emails=r['Email addresses']||'';const phones=r['Phone numbers']||'';
-    const tag=(r['Prospect tags']||'').split(';')[0].trim();
-    const likelihood=parseInt(r['Likelihood'])||null;
-    const expected=parseFloat((r['Expected']||'').replace(/[$,]/g,''))||null;
-    const jsStatus=mapJSStatus(r['Prospect Status']||'');
-    const dataRoomDate=(r['Data room last accessed']||'').trim();
-    const dataRoomAccessed=dataRoomDate.length>0&&!dataRoomDate.toLowerCase().includes('not yet');
-    const latestUpdateText=(r['Latest update']||r['Latest Update']||'').toLowerCase();
-    const inConversation=latestUpdateText.includes('phone call')||latestUpdateText.includes('meeting')||latestUpdateText.includes('chatted')||latestUpdateText.includes('likely in');
-    let status=jsStatus;
-    if(dataRoomAccessed) status='Data room accessed';
-    if(inConversation&&status==='Deck sent') status='In conversation';
-    const existingContact=existing.find(c=>c.type==='LP'&&names[0]&&c.name.toLowerCase()===names[0].toLowerCase());
+// ── Juniper Square CSV parser (new format) ─────────────────────────────────
+// Columns: Prospect ID, Organization, Contacts, Tags, Prospect Status,
+//          Subscription Status, Subscription Amount, Likelihood, Expected, Data room, Tasks
+function parseJuniperSquareCSV(text, existing){
+  const rows = parseCommaSV(text).filter(r => r['Contacts'] && r['Contacts'].trim());
+  const seen = new Set();
+  const incoming = [];
+  rows.forEach(r => {
+    const names = (r['Contacts']||'').split(';').map(s=>s.trim()).filter(Boolean);
+    const tag = (r['Tags']||'').trim();
+    const likelihood = mapLikelihood(r['Likelihood']||'');
+    const expected = parseFloat((r['Expected']||'').replace(/[$,\s]/g,''))||null;
+    const dataRoom = (r['Data room']||'').trim();
+    const jsStatus = mapJSStatus(r['Prospect Status']||'');
+    // "Accessed ..." = data room accessed; "Granted ..." = just granted (deck sent)
+    let status = jsStatus;
+    if(dataRoom.toLowerCase().startsWith('accessed')) status = 'Data room accessed';
+    // Preserve more advanced existing status
     const statusRank={'Deck sent':1,'Data room accessed':2,'In conversation':3,'Soft commit':4,'Committed':5,'Passed':0};
-    if(existingContact&&(statusRank[existingContact.status]||0)>(statusRank[status]||0)){
-      status=existingContact.status;
-    }
-    const positions=r['Positions']||'';const notes=r['Notes']||'';const lastUpdate=r['Latest update']||r['Latest Update']||'';const latestTask=r['Latest task']||'';
-    names.forEach((name,idx)=>{
-      if(seen.has(name))return;seen.add(name);
-      const emailRaw=emails.split(';').find(e=>e.toLowerCase().includes(name.split(' ')[0].toLowerCase()))||emails.split(';')[0]||'';
-      const email=(emailRaw.includes(':')?emailRaw.split(':')[1]:emailRaw).trim().split(',')[0].trim();
-      const phoneRaw=phones.split(';')[0]||'';const phone=(phoneRaw.includes(':')?phoneRaw.split(':')[1]:phoneRaw).trim().split(',')[0].trim();
-      const sheetData={status,likelihood,expectedAmount:idx===0?expected:null,tag,email,phone,firm:r['Organization']||'',notes:[notes,lastUpdate].filter(Boolean).join('\n').trim()};
-      const ex=existing.find(c=>c.type==='LP'&&c.name.toLowerCase()===name.toLowerCase());
-      if(ex){const merged={...ex,...sheetData};LP_PORTAL_FIELDS.forEach(f=>{merged[f]=ex[f]||'';});if(!ex.nextStep&&latestTask)merged.nextStep=latestTask;incoming.push(merged);}
-      else{incoming.push({id:`lp-${Date.now()}-${Math.random()}`,type:'LP',name,title:'',linkedinUrl:'',bio:'',relationship:positions.split(';')[0]?.trim()||'',whatTheyCareAbout:'',howWeKnowThem:tag||'',nextStep:latestTask,priority:'Medium',...sheetData});}
+    names.forEach((name, idx) => {
+      if(seen.has(name.toLowerCase())) return;
+      seen.add(name.toLowerCase());
+      const ex = existing.find(c=>c.type==='LP'&&c.name.toLowerCase()===name.toLowerCase());
+      let finalStatus = status;
+      if(ex && (statusRank[ex.status]||0) > (statusRank[status]||0)) finalStatus = ex.status;
+      const base = {
+        id: ex?.id || `lp-js-${r['Prospect ID']||Date.now()}-${idx}`,
+        type: 'LP', name, firm: r['Organization']||'',
+        tag, likelihood,
+        expectedAmount: idx===0 ? expected : null,
+        status: finalStatus,
+        priority: 'Medium', title:'', email:'', phone:'', linkedinUrl:'',
+        bio:'', relationship:'', whatTheyCareAbout:'', howWeKnowThem: tag||'',
+        nextStep:'', notes:'',
+      };
+      if(ex){ incoming.push({...ex,...base,bio:ex.bio||'',relationship:ex.relationship||'',whatTheyCareAbout:ex.whatTheyCareAbout||'',howWeKnowThem:ex.howWeKnowThem||tag||'',nextStep:ex.nextStep||'',notes:ex.notes||'',linkedinUrl:ex.linkedinUrl||''}); }
+      else { incoming.push(base); }
     });
   });
-  const importedNames=new Set(incoming.map(c=>c.name.toLowerCase()));
-  return[...incoming,...existing.filter(c=>c.type==='LP'&&!importedNames.has(c.name.toLowerCase()))];
+  return incoming;
 }
+
+// ── HubSpot CSV parser ─────────────────────────────────────────────────────
+// Expected columns: First Name, Last Name, Email, Phone Number,
+//                   Lifecycle Stage, Lead Status, Company Name, Notes, etc.
+function parseHubSpotCSV(text, existing){
+  const rows = parseCommaSV(text).filter(r => r['First Name']||r['Last Name']||r['Email']);
+  return rows.map(r => {
+    const name = [r['First Name'],r['Last Name']].filter(Boolean).join(' ').trim() || r['Full Name']||r['Contact Name']||r['Email']||'Unknown';
+    const email = r['Email']||r['Email Address']||'';
+    const phone = r['Phone Number']||r['Phone']||'';
+    const firm = r['Company Name']||r['Company']||r['Associated Company']||'';
+    const notes = [r['Notes'],r['Latest Note'],r['Note']].filter(Boolean).join('\n').trim();
+    const ex = existing.find(c=>c.type==='LP'&&(
+      (email && c.email && c.email.toLowerCase()===email.toLowerCase()) ||
+      c.name.toLowerCase()===name.toLowerCase()
+    ));
+    const base = {
+      id: ex?.id || `lp-hs-${Date.now()}-${Math.random()}`,
+      type:'LP', name, email, phone, firm,
+      likelihood: ex?.likelihood||'Medium',
+      status: ex?.status||'Deck sent',
+      priority:'Medium', tag: ex?.tag||'',
+      title:'', linkedinUrl:'', bio: ex?.bio||'',
+      relationship: ex?.relationship||'', whatTheyCareAbout: ex?.whatTheyCareAbout||'',
+      howWeKnowThem: ex?.howWeKnowThem||'', nextStep: ex?.nextStep||'',
+      expectedAmount: ex?.expectedAmount||null,
+      notes: notes || ex?.notes||'',
+    };
+    return ex ? {...ex,...base,bio:ex.bio||'',relationship:ex.relationship||'',whatTheyCareAbout:ex.whatTheyCareAbout||'',howWeKnowThem:ex.howWeKnowThem||'',nextStep:ex.nextStep||''} : base;
+  });
+}
+
+// ── DocSend CSV parser ─────────────────────────────────────────────────────
+// Expected columns: Name (or First/Last), Email, Company, Visited At / Last Visited,
+//                   Time Spent (seconds), Pages Viewed, Link Name / Document
+function parseDocSendCSV(text, existing){
+  const rows = parseCommaSV(text).filter(r => r['Email']||r['Name']);
+  // Group by email — take the most recent/highest-engagement visit per person
+  const byEmail = {};
+  rows.forEach(r => {
+    const email = (r['Email']||'').toLowerCase().trim();
+    const name = r['Name']||[r['First Name'],r['Last Name']].filter(Boolean).join(' ')||email||'Unknown';
+    const key = email||name.toLowerCase();
+    const timeSpent = parseInt(r['Time Spent (seconds)']||r['Time Spent']||'0')||0;
+    if(!byEmail[key] || timeSpent > (byEmail[key].timeSpent||0)){
+      byEmail[key] = {...r, _name: name, _email: email, timeSpent};
+    }
+  });
+  return Object.values(byEmail).map(r => {
+    const name = r._name;
+    const email = r._email;
+    const firm = r['Company']||r['Organization']||'';
+    const ex = existing.find(c=>c.type==='LP'&&(
+      (email && c.email && c.email.toLowerCase()===email.toLowerCase()) ||
+      c.name.toLowerCase()===name.toLowerCase()
+    ));
+    // If they spent meaningful time, upgrade status
+    let status = ex?.status||'Deck sent';
+    if(r.timeSpent > 60 && (!ex || status==='Deck sent')) status='Data room accessed';
+    const base = {
+      id: ex?.id||`lp-ds-${Date.now()}-${Math.random()}`,
+      type:'LP', name, email, firm,
+      likelihood: ex?.likelihood||'Medium',
+      status,
+      priority:'Medium', phone: ex?.phone||'', tag: ex?.tag||'',
+      title:'', linkedinUrl:'', bio: ex?.bio||'',
+      relationship: ex?.relationship||'', whatTheyCareAbout: ex?.whatTheyCareAbout||'',
+      howWeKnowThem: ex?.howWeKnowThem||'', nextStep: ex?.nextStep||'',
+      expectedAmount: ex?.expectedAmount||null, notes: ex?.notes||'',
+    };
+    return ex ? {...ex,...base,bio:ex.bio||'',relationship:ex.relationship||'',whatTheyCareAbout:ex.whatTheyCareAbout||'',howWeKnowThem:ex.howWeKnowThem||'',nextStep:ex.nextStep||''} : base;
+  });
+}
+
 function mergeLenders(rows,existing){
   const incoming=rows.filter(r=>r['Contact']||r['Firm']).map(r=>{
     const name=r['Contact']||'';const ex=existing.find(c=>c.type==='Lender'&&c.name.toLowerCase()===name.toLowerCase());
@@ -808,92 +989,169 @@ function mergeMilestones(rows,existing,override){
   });
 }
 
+// ── Supabase: delete all LP contacts ──────────────────────────────────────
+async function sbDeleteAllLPs(){
+  // Fetch all LP contact IDs then delete each
+  const res = await SB('contacts?type=eq.lp&select=id');
+  if(!res.ok) throw new Error('Failed to fetch LP contacts for deletion');
+  const rows = await res.json();
+  await Promise.all(rows.map(r => sbDelete('contacts', r.id)));
+  return rows.length;
+}
+
 // ── Import UI ──────────────────────────────────────────────────────────────
 function Import({contacts,setContacts,tasks,setTasks,miles,setMiles,onSave}){
   const [jsText,setJsText]=useState('');
+  const [hsText,setHsText]=useState('');
+  const [dsText,setDsText]=useState('');
   const [lenderText,setLenderText]=useState('');
   const [taskText,setTaskText]=useState('');
   const [mileText,setMileText]=useState('');
   const [overrideMiles,setOverrideMiles]=useState(false);
+  const [wipeLPs,setWipeLPs]=useState(false);
   const [results,setResults]=useState(null);
   const [running,setRunning]=useState(false);
 
   async function runImport(){
     setRunning(true);
-    const importBatch = `import-${Date.now()}`;
     const log=[];
     try{
       let newContacts=[...contacts];
+      const lenders=contacts.filter(c=>c.type==='Lender');
+      const existingLPs=contacts.filter(c=>c.type==='LP');
+
+      // Wipe all LPs from Supabase if requested
+      if(wipeLPs&&(jsText.trim()||hsText.trim()||dsText.trim())){
+        const deleted = await sbDeleteAllLPs();
+        log.push(`🗑 Wiped ${deleted} existing LP contacts from database`);
+        newContacts=[...lenders]; // keep only lenders in memory
+      }
+
+      let mergedLPs = wipeLPs ? [] : existingLPs;
+
+      // Juniper Square CSV
       if(jsText.trim()){
-        const lps=mergeJSProspects(parseCSV(jsText),contacts);
-        const stamped=lps.map(c=>{
-          const wasExisting=contacts.find(ex=>ex.type==='LP'&&ex.name.toLowerCase()===c.name.toLowerCase());
-          return wasExisting?c:{...c,importBatch};
+        const parsed = parseJuniperSquareCSV(jsText, mergedLPs);
+        // Merge parsed into mergedLPs by name
+        parsed.forEach(p=>{
+          const idx=mergedLPs.findIndex(c=>c.name.toLowerCase()===p.name.toLowerCase());
+          if(idx>=0) mergedLPs[idx]=p; else mergedLPs.push(p);
         });
-        newContacts=[...stamped,...newContacts.filter(c=>c.type==='Lender')];
-        await onSave("contacts",stamped);
-        const newCount=stamped.filter(c=>c.importBatch===importBatch).length;
-        log.push(`✓ ${lps.length} LP prospects merged from Juniper Square${newCount>0?` (${newCount} new)`:''}`);
+        log.push(`✓ ${parsed.length} LP prospects parsed from Juniper Square`);
       }
-      if(lenderText.trim()){
-        const lenders=mergeLenders(parseCSV(lenderText),newContacts);
-        const stamped=lenders.map(c=>{
-          const wasExisting=contacts.find(ex=>ex.type==='Lender'&&ex.name.toLowerCase()===c.name.toLowerCase());
-          return wasExisting?c:{...c,importBatch};
+
+      // HubSpot CSV
+      if(hsText.trim()){
+        const parsed = parseHubSpotCSV(hsText, mergedLPs);
+        parsed.forEach(p=>{
+          const idx=mergedLPs.findIndex(c=>
+            (p.email&&c.email&&c.email.toLowerCase()===p.email.toLowerCase())||
+            c.name.toLowerCase()===p.name.toLowerCase()
+          );
+          if(idx>=0) mergedLPs[idx]={...mergedLPs[idx],...p,bio:mergedLPs[idx].bio||p.bio,nextStep:mergedLPs[idx].nextStep||p.nextStep};
+          else mergedLPs.push(p);
         });
-        newContacts=[...newContacts.filter(c=>c.type==='LP'),...stamped];
-        await onSave("contacts",stamped);
-        log.push(`✓ ${stamped.length} lenders merged`);
+        log.push(`✓ ${parsed.length} contacts parsed from HubSpot`);
       }
-      if(jsText.trim()||lenderText.trim()){
+
+      // DocSend CSV
+      if(dsText.trim()){
+        const parsed = parseDocSendCSV(dsText, mergedLPs);
+        parsed.forEach(p=>{
+          const idx=mergedLPs.findIndex(c=>
+            (p.email&&c.email&&c.email.toLowerCase()===p.email.toLowerCase())||
+            c.name.toLowerCase()===p.name.toLowerCase()
+          );
+          if(idx>=0) mergedLPs[idx]={...mergedLPs[idx],...p,bio:mergedLPs[idx].bio||'',nextStep:mergedLPs[idx].nextStep||''};
+          else mergedLPs.push(p);
+        });
+        log.push(`✓ ${parsed.length} viewers parsed from DocSend`);
+      }
+
+      if(jsText.trim()||hsText.trim()||dsText.trim()){
+        await onSave("contacts", mergedLPs);
+        newContacts=[...lenders,...mergedLPs];
         setContacts(newContacts);
-        log.push('  → Bios, notes & next steps you added manually were preserved');
+        log.push(`  → ${mergedLPs.length} total LP records now in system`);
+        log.push('  → Bios, notes & next steps preserved on existing contacts');
       }
+
+      // Lender import (TSV)
+      if(lenderText.trim()){
+        const merged=mergeLenders(parseCSV(lenderText),newContacts);
+        await onSave("contacts",merged.filter(c=>c.type==='Lender'));
+        newContacts=[...newContacts.filter(c=>c.type==='LP'),...merged.filter(c=>c.type==='Lender')];
+        setContacts(newContacts);
+        log.push(`✓ ${merged.filter(c=>c.type==='Lender').length} lenders merged`);
+      }
+
       if(taskText.trim()){
         const merged=mergeTasks(parseCSV(taskText),tasks);
         await onSave("tasks",merged);
         setTasks(merged);
-        log.push(`✓ ${merged.length} tasks merged — your status updates preserved`);
+        log.push(`✓ ${merged.length} tasks merged`);
       }
       if(mileText.trim()){
         const merged=mergeMilestones(parseCSV(mileText),miles,overrideMiles);
         await onSave("milestones",merged);
         setMiles(merged);
-        log.push(overrideMiles?`✓ ${merged.length} milestones updated from sheet`:`✓ Milestones refreshed — your manual date edits preserved`);
+        log.push(overrideMiles?`✓ ${merged.length} milestones updated`:`✓ Milestones refreshed — manual date edits preserved`);
       }
-      if(log.length===0)log.push('Nothing imported — paste at least one export above.');
-      const allNew=newContacts.filter(c=>c.importBatch===importBatch);
-      const earliestNew=allNew.length>0
-        ? allNew.reduce((min,c)=>c.createdAt<min?c.createdAt:min, allNew[0].createdAt)
-        : new Date().toISOString();
-      localStorage.setItem("ecg-last-import-ts", earliestNew);
-      localStorage.setItem("ecg-last-import-batch", importBatch);
+      if(log.length===0) log.push('Nothing imported — paste at least one export above.');
     }catch(e){log.push(`✗ Error: ${e.message}`);}
     setResults(log);
     setRunning(false);
   }
 
-  const box={width:'100%',minHeight:90,fontSize:12,fontFamily:'monospace',border:`1px solid ${B.steel}`,borderRadius:4,padding:'8px 10px',color:B.navy,resize:'vertical',boxSizing:'border-box'};
+  const box={width:'100%',minHeight:80,fontSize:12,fontFamily:'monospace',border:`1px solid ${B.steel}`,borderRadius:4,padding:'8px 10px',color:B.navy,resize:'vertical',boxSizing:'border-box'};
+  const section=(label,val,setter,hint)=>(
+    <div style={{marginBottom:'1.25rem'}}>
+      <label style={{fontSize:11,color:B.muted,display:'block',marginBottom:4,letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>{label}</label>
+      {hint&&<div style={{fontSize:11,color:B.muted,marginBottom:6}}>{hint}</div>}
+      <textarea value={val} onChange={e=>setter(e.target.value)} placeholder="Paste exported data here — include the header row" style={box}/>
+    </div>
+  );
+
   return(
-    <div style={{padding:'1.25rem 0',maxWidth:700}}>
+    <div style={{padding:'1.25rem 0',maxWidth:720}}>
       <div style={{background:'#e8f0f7',borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
-        <div style={{fontSize:12,color:B.navy,lineHeight:1.8}}>
-          <strong>How to export:</strong> Juniper Square → Prospects tab → Export. Google Sheets → File → Download → Tab-separated values (.tsv).<br/>
-          <strong>Merge rules:</strong> Sheet updates status, amounts & contact info. Portal keeps your bios, notes & next steps.
+        <div style={{fontSize:12,color:B.navy,lineHeight:1.9}}>
+          <strong>Juniper Square:</strong> Prospects tab → Export (CSV)<br/>
+          <strong>HubSpot:</strong> Contacts → Export → All properties (CSV)<br/>
+          <strong>DocSend:</strong> Document → Visitors → Export (CSV)<br/>
+          <strong>Merge rules:</strong> Contacts matched by name or email. Bios, notes & next steps preserved.
         </div>
       </div>
-      {[['Juniper Square — LP Prospects',jsText,setJsText],['Lender tracker — Google Sheet',lenderText,setLenderText],['Tasks — Google Sheet',taskText,setTaskText],['Milestones — Google Sheet',mileText,setMileText]].map(([label,val,setter])=>(
-        <div key={label} style={{marginBottom:'1.25rem'}}>
-          <label style={{fontSize:11,color:B.muted,display:'block',marginBottom:6,letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>{label}</label>
-          <textarea value={val} onChange={e=>setter(e.target.value)} placeholder="Paste exported data here — include the header row" style={box}/>
-          {label.includes('Milestone')&&val.trim()&&(
-            <label style={{display:'flex',alignItems:'center',gap:8,marginTop:6,fontSize:12,color:B.muted,cursor:'pointer'}}>
-              <input type="checkbox" checked={overrideMiles} onChange={e=>setOverrideMiles(e.target.checked)}/>
-              Also update milestone dates from sheet (overrides manual edits in Timeline tab)
-            </label>
-          )}
-        </div>
-      ))}
+
+      <div style={{background:B.danger+"11",border:`1px solid ${B.danger}33`,borderRadius:8,padding:'12px 16px',marginBottom:'1.5rem'}}>
+        <label style={{display:'flex',alignItems:'flex-start',gap:10,cursor:'pointer'}}>
+          <input type="checkbox" checked={wipeLPs} onChange={e=>setWipeLPs(e.target.checked)} style={{marginTop:2,flexShrink:0}}/>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:B.danger}}>Wipe & replace all LP contacts</div>
+            <div style={{fontSize:11,color:B.muted,marginTop:2}}>Deletes all existing LP contacts from the database before importing. Lender contacts are untouched. Use this to start fresh from your exports.</div>
+          </div>
+        </label>
+      </div>
+
+      <div style={{fontSize:11,fontWeight:700,color:B.navy,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:"0.75rem"}}>LP Sources</div>
+      {section('Juniper Square — LP Prospects (CSV)',jsText,setJsText,'Export from Juniper Square Prospects tab as CSV')}
+      {section('HubSpot — Contacts (CSV)',hsText,setHsText,'Export from HubSpot Contacts → Actions → Export')}
+      {section('DocSend — Visitors (CSV)',dsText,setDsText,'Export from DocSend document visitor list')}
+
+      <div style={{fontSize:11,fontWeight:700,color:B.navy,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:"0.75rem",marginTop:"0.5rem"}}>Other</div>
+      {section('Lender tracker — Google Sheet (TSV)',lenderText,setLenderText)}
+      {section('Tasks — Google Sheet (TSV)',taskText,setTaskText)}
+      <div style={{marginBottom:'1.25rem'}}>
+        <label style={{fontSize:11,color:B.muted,display:'block',marginBottom:4,letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>Milestones — Google Sheet (TSV)</label>
+        <textarea value={mileText} onChange={e=>setMileText(e.target.value)} placeholder="Paste exported data here — include the header row" style={box}/>
+        {mileText.trim()&&(
+          <label style={{display:'flex',alignItems:'center',gap:8,marginTop:6,fontSize:12,color:B.muted,cursor:'pointer'}}>
+            <input type="checkbox" checked={overrideMiles} onChange={e=>setOverrideMiles(e.target.checked)}/>
+            Also update milestone dates from sheet
+          </label>
+        )}
+      </div>
+
       <button onClick={runImport} style={{...btn(),fontSize:13,padding:'10px 24px'}} disabled={running}>{running?"Importing…":"Run import"}</button>
       {results&&(
         <div style={{marginTop:'1rem',background:B.navy,borderRadius:8,padding:'1rem 1.25rem'}}>
@@ -1057,7 +1315,7 @@ function Budget({committed}){
           ["Total Project Cost",fmt$(TOTAL_PROJECT),B.navy],
           ["Total Debt",fmt$(DEBT),B.blue],
           ["Total Equity",fmt$(EQUITY),B.sage],
-          ["LP Equity Committed",fmt$(committed)+` / ${fmt$(LP_TARGET)}`,committed>=LP_TARGET?"#2a6b3f":B.danger],
+          ["LP Equity Committed",fmt$(committed)+` / ${fmt$(LP_EQUITY_TARGET)}`,committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
@@ -1181,11 +1439,11 @@ function Budget({committed}){
 const LENDER_DATA = [
   {name:"Project Budget",contact:"ECG Internal",status:"21-key model v8",statusColor:B.navy,amount:5059541,ltc:"60%",equityRequired:3372670,constructionRate:"SOFR + 500bps",constructionRateToday:"~8.35% (est.)",constructionFloor:"3.0%",termRate:"6.50% fixed",termRateToday:"6.50%",termFloor:"—",term:"Construction → 25yr perm",amortization:"25 years",loanFee:"1.00%",prepayment:"—",payments:"IO during construction",dscr:"1.45x min (model)",security:"—",depositReq:"—",notes:"Model figures from v8 summary. Total project cost $8,432,212. LP equity target $3,332,212."},
   {name:"Horizon Bank",contact:"Bruce Piekarski / Stacey Stephens",status:"Term sheet received",statusColor:B.gold,amount:5925000,ltc:"70.3% LTC / 60% LTV",equityRequired:2500000,constructionRate:"SOFR + 2.95%",constructionRateToday:"6.63%",constructionFloor:"4.0%",termRate:"5-yr Treasury + 2.50%",termRateToday:"6.46%",termFloor:"6.0%",term:"24 mo construction → 60 mo permanent",amortization:"25 years",loanFee:"0.25%",prepayment:"3% yr 1, 2%/yr (20% free/yr)",payments:"IO during construction; P&I or seasonal term",dscr:"1.30x at stabilization",security:"1st mortgage — 115 + 109 N Barton + all business assets",depositReq:"Primary depository accounts at Horizon",notes:"Term sheet dated 3/30/26. Seasonal P&I option (Jun–Oct). DSCR covenant 1.30x. Contractor must be bank-approved."},
-  {name:"PanAmerican Bank",contact:"Chris Metcalf",status:"Term sheet received",statusColor:B.gold,amount:5500000,ltc:"65% of Total Costs / 55% As-Stabilized LTV",equityRequired:2963287,constructionRate:"WSJ Prime + 1.00% floating",constructionRateToday:"~8.50% (est.)",constructionFloor:"6.75%",termRate:"N/A — construction only",termRateToday:"—",termFloor:"—",term:"36 mo construction (2 × 12-mo extensions)",amortization:"IO during initial term; 25-yr amort on extension",loanFee:"1.00% ($55,000)",prepayment:"No prepayment during initial term",payments:"Interest-only monthly; interest reserve from proceeds",dscr:"1.00x by 12/31/28; 1.30x by 12/31/29+",security:"1st mortgage + assignment of rents — 109 & 115 Barton St",depositReq:"Operating account w/ $100k balance at Pan American",notes:"Term sheet dated 4/7/26, expires 4/30/26. $10k good faith deposit to proceed. Guarantors: Jonathan Gordon, Jay Weaver, Kevin Werner (unlimited). Replacement reserve $4k/month at opening. Construction must complete within 12 months of closing."},
   {name:"Burling Bank",contact:"Kevin Murphy",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy. Follow-up pending."},
   {name:"Green State CU",contact:"Jim Lesko",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
   {name:"Heartland Bank",contact:"Mark Ptacek",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Co-contact: Jeff Wisenwski."},
   {name:"Centier Bank",contact:"Ben Bochnowski",status:"Outreach sent",statusColor:B.blue,amount:null,ltc:"—",equityRequired:null,constructionRate:"—",constructionRateToday:"—",constructionFloor:"—",termRate:"—",termRateToday:"—",termFloor:"—",term:"—",amortization:"—",loanFee:"—",prepayment:"—",payments:"—",dscr:"—",security:"—",depositReq:"—",notes:"Owner: Jimmy."},
+  {name:"PanAmerican Bank",contact:"Chris Metcalf",status:"Term sheet received",statusColor:B.gold,amount:5500000,ltc:"65% of Total Costs / 55% As-Stabilized LTV",equityRequired:2963287,constructionRate:"WSJ Prime + 1.00% floating",constructionRateToday:"~8.50% (est.)",constructionFloor:"6.75%",termRate:"N/A — construction only",termRateToday:"—",termFloor:"—",term:"36 mo construction (2 × 12-mo extensions)",amortization:"IO during initial term; 25-yr amort on extension",loanFee:"1.00% ($55,000)",prepayment:"No prepayment during initial term",payments:"Interest-only monthly; interest reserve from proceeds",dscr:"1.00x by 12/31/28; 1.30x by 12/31/29+",security:"1st mortgage + assignment of rents — 109 & 115 Barton St",depositReq:"Operating account w/ $100k balance at Pan American",notes:"Term sheet dated 4/7/26, expires 4/30/26. $10k good faith deposit to proceed. Guarantors: Jonathan Gordon, Jay Weaver, Kevin Werner (unlimited). Replacement reserve $4k/month at opening. Construction must complete within 12 months of closing."},
 ];
 
 const MATRIX_ROWS = [
