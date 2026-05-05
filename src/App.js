@@ -1927,9 +1927,6 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
 
 // ── Capital Timing ─────────────────────────────────────────────────────────
 const CASH_FLOWS = [
-  // week, label, inflow, outflow, category, notes
-  // category: "equity" | "land" | "soft" | "loan" | "construction"
-  { week:"Now",       date:"May 5",    label:"Current cash balance",         inflow:50000,    outflow:0,       category:"equity",   notes:"Estimated operating account balance after 115 Barton purchase + consultant fees"},
   { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,        outflow:0,       category:"",         notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
   { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:714000,   outflow:714000,  category:"land",     notes:"$700k purchase + ~$14k closing costs. Requires Co-GP bridge or early Horizon draw. City requires ownership before permit submission."},
   { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,        outflow:0,       category:"",         notes:"Final site plan approval expected. Clears path to permit submission."},
@@ -1984,27 +1981,42 @@ const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft 
 function CapitalTiming(){
   const [activeScenario,setActiveScenario]=useState("a");
   const [showAll,setShowAll]=useState(false);
+  const [startingBalance,setStartingBalance]=useState(50000);
+  const [balInput,setBalInput]=useState("50000");
 
-  // Running balance — simplified: starts at $50k, adds inflows, subtracts outflows
-  let running=50000;
+  const gap=714000-startingBalance;
+
+  // Running balance starts from editable starting balance
+  let running=startingBalance;
   const rows=CASH_FLOWS.map(r=>{
-    const prev=running;
     running=running+r.inflow-r.outflow;
-    return{...r,runningBefore:prev,runningAfter:running};
+    return{...r,runningAfter:running};
   });
-
-  const sc=SCENARIOS.find(s=>s.id===activeScenario);
-  const gap=714000-50000;
 
   return(
     <div style={{padding:"1.25rem 0"}}>
 
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
+        <div style={{...SC(gap>0?B.danger:"#2a6b3f"),gridColumn:"span 1"}}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Starting cash balance</div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:16,fontWeight:700,color:B.white}}>$</span>
+            <input
+              value={balInput}
+              onChange={e=>{
+                setBalInput(e.target.value);
+                const n=parseInt(e.target.value.replace(/[^0-9]/g,""))||0;
+                setStartingBalance(n);
+              }}
+              style={{fontSize:20,fontWeight:700,color:B.white,background:"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.4)",outline:"none",width:"100%",fontFamily:FONT}}
+            />
+          </div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:4}}>Edit to update all projections</div>
+        </div>
         {[
-          ["Cash in bank",fmt$(50000),B.danger],
           ["109 Barton needed",fmt$(714000),B.navy],
-          ["Funding gap",fmt$(gap),B.danger],
+          ["Funding gap",fmt$(Math.max(0,gap)),gap<=0?"#2a6b3f":B.danger],
           ["Permit deadline","June 1",B.sage],
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
@@ -2016,7 +2028,7 @@ function CapitalTiming(){
 
       {/* Critical path alert */}
       <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
-        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Current cash (~$50k) covers only closing costs, not the $700k purchase price. A bridge solution is required.
+        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Current cash ({fmt$(startingBalance)}) covers only closing costs, not the $700k purchase price.{gap>0&&<> A bridge of <strong>{fmt$(gap)}</strong> is required.</>}{gap<=0&&<> <strong>Current balance covers the full purchase.</strong></>}
       </div>
 
       {/* Two column layout */}
