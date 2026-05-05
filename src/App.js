@@ -1925,7 +1925,222 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
   );
 }
 
-// ── Root App ───────────────────────────────────────────────────────────────
+// ── Capital Timing ─────────────────────────────────────────────────────────
+const CASH_FLOWS = [
+  // week, label, inflow, outflow, category, notes
+  // category: "equity" | "land" | "soft" | "loan" | "construction"
+  { week:"Now",       date:"May 5",    label:"Current cash balance",         inflow:50000,    outflow:0,       category:"equity",   notes:"Estimated operating account balance after 115 Barton purchase + consultant fees"},
+  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,        outflow:0,       category:"",         notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
+  { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:714000,   outflow:714000,  category:"land",     notes:"$700k purchase + ~$14k closing costs. Requires Co-GP bridge or early Horizon draw. City requires ownership before permit submission."},
+  { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,        outflow:0,       category:"",         notes:"Final site plan approval expected. Clears path to permit submission."},
+  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,        outflow:30000,   category:"soft",     notes:"Building permit submission. 6–8 week review clock starts. City requires ownership of both parcels."},
+  { week:"June",      date:"Jun 15",   label:"LP equity wires (tranche 1)",  inflow:800000,   outflow:0,       category:"equity",   notes:"Target: first major tranche of remaining $1.84M LP raise. Needed to demonstrate equity stack to Horizon."},
+  { week:"June",      date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,        outflow:25000,   category:"soft",     notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
+  { week:"Late June", date:"Jun 28",   label:"LP equity wires (tranche 2)",  inflow:800000,   outflow:0,       category:"equity",   notes:"Second tranche. Horizon requires $2.5M equity in total before funding."},
+  { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,  outflow:0,       category:"loan",     notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition ($714k). Remaining equity ($2.5M) confirmed in."},
+  { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,        outflow:714000,  category:"land",     notes:"Horizon day-one draw repays Co-GP bridge or equity used for 109 Barton close."},
+  { week:"Early July",date:"Jul 7",    label:"Remaining LP equity wires",    inflow:244000,   outflow:0,       category:"equity",   notes:"Final LP wires to complete $2.5M equity stack at or before construction close."},
+  { week:"July",      date:"Jul 21",   label:"Permit approved",              inflow:0,        outflow:0,       category:"",         notes:"6–8 weeks after June 1 submission. Tight but achievable."},
+  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,        outflow:150000,  category:"construction", notes:"First construction draw. OSLO mobilization. 24-month build window begins."},
+];
+
+const SCENARIOS = [
+  {
+    id:"a", label:"Path A — Co-GP bridge", color:"#2a6b3f",
+    description:"Werner, Weaver & Hobbs personally fund $714k to close 109 Barton in late May. Horizon reimburses at construction loan close as day-one land draw. Co-GPs out of pocket ~6–8 weeks.",
+    feasibility:"Most likely path", badge:"green",
+    requirements:["Co-GPs confirm liquidity for $714k bridge","Horizon confirms day-one land draw at close","109 Barton PSA allows assignment to LLC"],
+  },
+  {
+    id:"b", label:"Path B — Early LP wires", color:B.gold,
+    description:"Ask committed high-likelihood LPs to wire early — before full construction loan close. Need ~$664k wired by late May. Works if your top prospects are ready to move quickly.",
+    feasibility:"Possible but uncertain", badge:"amber",
+    requirements:["Identify which LPs can wire by May 25","Execute subscription agreements immediately","Risk: LP hesitation delays the permit"],
+  },
+  {
+    id:"c", label:"Path C — Horizon early land draw", color:B.blue,
+    description:"Ask Horizon to release just the $714k land acquisition draw once appraisal and environmental are clear — before full construction loan close. Uncommon but worth asking on May 11.",
+    feasibility:"Ask on May 11", badge:"blue",
+    requirements:["Appraisal and environmental complete by late May","Horizon internal approval for partial early draw","May accelerate overall loan close timeline"],
+  },
+  {
+    id:"d", label:"Path D — Third-party bridge", color:B.danger,
+    description:"Separate bridge lender funds 109 Barton. Horizon pays it off at construction close. Adds 1–2% fee, 2–4 weeks to arrange, and requires Horizon sign-off. Only if A–C fail.",
+    feasibility:"Last resort", badge:"red",
+    requirements:["Horizon approves subordinate lien on collateral","Bridge lender identified and approved (~2–4 weeks)","Additional cost ~$7–14k in fees and interest"],
+  },
+];
+
+const ASKS = [
+  {n:"1", text:"Will you do a simultaneous close or early land draw? We need to close 109 Barton by late May to submit for permit June 1. Can you fund just the land acquisition once appraisal and environmental are clear?"},
+  {n:"2", text:"What is your realistic closing timeline? Given where appraisal and environmental stand today, when can you actually close? We need to know if July still works."},
+  {n:"3", text:"Will you allow a Co-GP personal bridge? If you can't fund early, can our Co-GPs personally close 109 Barton with your construction loan reimbursing them at close as a day-one land draw?"},
+  {n:"4", text:"What does 'permits prior to funding' mean exactly? Do you need a full building permit in hand, or just site plan approval and permit submission?"},
+];
+
+const catColor = c => ({equity:"#2a6b3f",land:B.danger,soft:B.gold,loan:B.blue,construction:B.sage,"":B.muted}[c]||B.muted);
+const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft costs",loan:"Construction loan",construction:"Construction draw","":"Milestone"}[c]||c);
+
+function CapitalTiming(){
+  const [activeScenario,setActiveScenario]=useState("a");
+  const [showAll,setShowAll]=useState(false);
+
+  // Running balance — simplified: starts at $50k, adds inflows, subtracts outflows
+  let running=50000;
+  const rows=CASH_FLOWS.map(r=>{
+    const prev=running;
+    running=running+r.inflow-r.outflow;
+    return{...r,runningBefore:prev,runningAfter:running};
+  });
+
+  const sc=SCENARIOS.find(s=>s.id===activeScenario);
+  const gap=714000-50000;
+
+  return(
+    <div style={{padding:"1.25rem 0"}}>
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
+        {[
+          ["Cash in bank",fmt$(50000),B.danger],
+          ["109 Barton needed",fmt$(714000),B.navy],
+          ["Funding gap",fmt$(gap),B.danger],
+          ["Permit deadline","June 1",B.sage],
+        ].map(([l,v,c])=>(
+          <div key={l} style={SC(c)}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+            <div style={{fontSize:22,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Critical path alert */}
+      <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
+        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Current cash (~$50k) covers only closing costs, not the $700k purchase price. A bridge solution is required.
+      </div>
+
+      {/* Two column layout */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1.25rem",marginBottom:"1.25rem"}}>
+
+        {/* Critical path timeline */}
+        <div style={card}>
+          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"1rem"}}>Critical path</div>
+          {[
+            {date:"May 11",label:"Horizon site visit",sub:"Present the sequencing problem. Get answer on simultaneous close.",color:B.blue,icon:"●"},
+            {date:"May 26",label:"109 Barton must close",sub:"City requires ownership of both parcels before permit submission.",color:B.danger,icon:"●",critical:true},
+            {date:"Jun 1",label:"Permit submitted",sub:"6–8 week review clock starts. Must hit this to break ground in July.",color:B.danger,icon:"●",critical:true},
+            {date:"Jun–Jul",label:"Construction loan closes",sub:"Horizon funds $5.925M. 109 Barton bridge reimbursed day-one.",color:B.gold,icon:"●"},
+            {date:"~Jul 21",label:"Permit approved",sub:"6–8 weeks after June 1 submission.",color:B.sage,icon:"●"},
+            {date:"Jul 28",label:"Break ground",sub:"OSLO mobilizes. 24-month construction window begins.",color:"#2a6b3f",icon:"●"},
+          ].map((item,i,arr)=>(
+            <div key={i} style={{display:"flex",gap:12,marginBottom:i<arr.length-1?0:0}}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:12,flexShrink:0}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:item.color,flexShrink:0,marginTop:3}}/>
+                {i<arr.length-1&&<div style={{width:2,flex:1,minHeight:24,background:B.light,margin:"3px 0"}}/>}
+              </div>
+              <div style={{paddingBottom:i<arr.length-1?16:0,flex:1}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase",flexShrink:0}}>{item.date}</span>
+                  <span style={{fontSize:13,fontWeight:600,color:item.critical?B.danger:B.navy}}>{item.label}</span>
+                  {item.critical&&<span style={{fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:3,background:B.danger+"20",color:B.danger,letterSpacing:"0.06em",textTransform:"uppercase"}}>critical</span>}
+                </div>
+                <div style={{fontSize:12,color:B.muted,marginTop:2,lineHeight:1.5}}>{item.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Scenarios */}
+        <div>
+          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>How to fund the $664k gap</div>
+          {SCENARIOS.map(s=>(
+            <div key={s.id} onClick={()=>setActiveScenario(s.id)}
+              style={{...card,cursor:"pointer",padding:"10px 14px",marginBottom:8,
+                border:`1px solid ${activeScenario===s.id?s.color:B.steel}`,
+                background:activeScenario===s.id?s.color+"0d":B.white}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:activeScenario===s.id?6:0}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                <span style={{fontSize:13,fontWeight:600,color:B.navy,flex:1}}>{s.label}</span>
+                <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:3,
+                  background:s.badge==="green"?"#2a6b3f20":s.badge==="amber"?B.gold+"20":s.badge==="blue"?B.blue+"20":B.danger+"20",
+                  color:s.badge==="green"?"#2a6b3f":s.badge==="amber"?B.gold:s.badge==="blue"?B.blue:B.danger,
+                  letterSpacing:"0.05em",textTransform:"uppercase"}}>{s.feasibility}</span>
+              </div>
+              {activeScenario===s.id&&<>
+                <div style={{fontSize:12,color:B.navy,lineHeight:1.6,marginBottom:8,paddingLeft:16}}>{s.description}</div>
+                <div style={{paddingLeft:16}}>
+                  {s.requirements.map((r,i)=>(
+                    <div key={i} style={{display:"flex",gap:6,fontSize:11,color:B.muted,marginBottom:3}}>
+                      <span style={{color:s.color,flexShrink:0}}>→</span>{r}
+                    </div>
+                  ))}
+                </div>
+              </>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cash flow table */}
+      <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Cash flow schedule</div>
+      <div style={{...card,padding:0,overflow:"hidden",marginBottom:"1rem"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:B.navy}}>
+              {[["Date","80px"],["Event",""],["Category","100px"],["Inflow","90px"],["Outflow","90px"],["Running balance","110px"]].map(([h,w])=>(
+                <th key={h} style={{padding:"9px 12px",color:"rgba(255,255,255,0.65)",fontSize:10,fontWeight:600,textAlign:h==="Date"||h==="Category"?"left":"right",letterSpacing:"0.05em",textTransform:"uppercase",width:w||"auto",whiteSpace:"nowrap"}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.filter((_,i)=>showAll||i<8).map((r,i)=>{
+              const bal=r.runningAfter;
+              const balColor=bal<0?B.danger:bal<100000?B.gold:"#2a6b3f";
+              const isGap=r.runningAfter<0;
+              return(
+                <tr key={i} style={{borderBottom:`1px solid ${B.light}`,background:isGap?B.danger+"08":i%2===0?B.white:B.offwhite}}>
+                  <td style={{padding:"8px 12px",color:B.muted,whiteSpace:"nowrap"}}>{r.date}</td>
+                  <td style={{padding:"8px 12px",color:B.navy,fontWeight:r.category===""?400:500}}>
+                    {r.label}
+                    {r.category===""&&<span style={{fontSize:10,color:B.muted,fontWeight:400}}> — milestone</span>}
+                    {r.notes&&<div style={{fontSize:11,color:B.muted,fontWeight:400,marginTop:2,lineHeight:1.4}}>{r.notes}</div>}
+                  </td>
+                  <td style={{padding:"8px 12px"}}>
+                    {r.category&&<span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,
+                      background:catColor(r.category)+"20",color:catColor(r.category),
+                      border:`1px solid ${catColor(r.category)}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
+                      {catLabel(r.category)}
+                    </span>}
+                  </td>
+                  <td style={{padding:"8px 12px",textAlign:"right",color:"#2a6b3f",fontWeight:r.inflow>0?600:400}}>{r.inflow>0?fmt$(r.inflow):"—"}</td>
+                  <td style={{padding:"8px 12px",textAlign:"right",color:r.outflow>0?B.danger:B.muted,fontWeight:r.outflow>0?600:400}}>{r.outflow>0?`(${fmt$(r.outflow)})`:"—"}</td>
+                  <td style={{padding:"8px 12px",textAlign:"right",fontWeight:700,color:balColor,whiteSpace:"nowrap"}}>{fmt$(bal)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {!showAll&&rows.length>8&&(
+          <div onClick={()=>setShowAll(true)} style={{padding:"10px 16px",textAlign:"center",fontSize:12,color:B.blue,cursor:"pointer",borderTop:`1px solid ${B.light}`,background:B.offwhite}}>
+            Show all {rows.length} line items ↓
+          </div>
+        )}
+      </div>
+
+      {/* Horizon asks */}
+      <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Your 4 asks for Horizon — May 11</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {ASKS.map(a=>(
+          <div key={a.n} style={{...card,padding:"10px 16px",display:"flex",gap:14,alignItems:"flex-start"}}>
+            <div style={{width:24,height:24,borderRadius:"50%",background:B.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:B.white,flexShrink:0}}>{a.n}</div>
+            <div style={{fontSize:13,color:B.navy,lineHeight:1.6}}>{a.text}</div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}
 export default function App(){
   const [nav,setNav]=useState("Dashboard");
   const [contacts,setContacts]=useState([]);
@@ -2032,7 +2247,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Capital Timing","Import"];
 
   if(!loaded)return(
     <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
@@ -2060,6 +2275,7 @@ export default function App(){
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
       {nav==="Lenders"&&<LenderMatrix/>}
       {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
+      {nav==="Capital Timing"&&<CapitalTiming/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
