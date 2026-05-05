@@ -1316,17 +1316,17 @@ const SEEK_LINES=[
 
 const KEYS=21;
 const GSF=14686;
-const TOTAL_PROJECT=8432212;
-const DEBT=5059541;
-const EQUITY=3372670;
-const LP_TARGET=3332212;
+const TOTAL_PROJECT=8433945;
+const DEBT=5903654;
+const EQUITY=2530290;
+const LP_TARGET=2500000;
 const USE_ACQUISITION=1196089;
 const USE_SOFT=778700;
 const USE_HARD=5144475;
 const USE_FFE=542932;
-const USE_INTEREST=353959;
-const USE_PREOPENING=100000;
-const USE_CONTINGENCY=316057;
+const USE_INTEREST=303192;
+const USE_PREOPENING=150000;
+const USE_CONTINGENCY=318557;
 
 function BudgetSection({section,pKey,pGSF}){
   const [open,setOpen]=useState(false);
@@ -1425,11 +1425,11 @@ function Budget({committed}){
             <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
               <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
             </div>
-            <SU label="Construction Debt" total={DEBT} bold pct="60%"/>
+            <SU label="Construction Debt" total={DEBT} bold pct="70%"/>
             <div style={{padding:"6px 14px 8px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
-              <div style={{fontSize:11,color:B.muted,paddingLeft:8}}>SOFR +500bps · Floor 3% / Ceiling 10% · Loan fee 0.99% · Dial-in closing costs $25,322</div>
+              <div style={{fontSize:11,color:B.muted,paddingLeft:8}}>SOFR +2.95% · Floor 4.0% / Ceiling 10% · Loan fee 0.25% · 24 mo construction → 60 mo perm at 5-yr Treasury +2.50%</div>
             </div>
-            <SU label="LP Equity (target)" total={LP_TARGET} bold pct="40%"/>
+            <SU label="LP Equity (target)" total={LP_TARGET} bold pct="30%"/>
             <SU label="Committed to date" total={committed} pct={`${Math.round(committed/LP_TARGET*100)}%`} muted/>
             <SU label="Remaining to raise" total={Math.max(0,LP_TARGET-committed)} pct="" muted/>
             <TotalBar label="Total Sources" amount={TOTAL_PROJECT}/>
@@ -1442,10 +1442,10 @@ function Budget({committed}){
                 <div/><ColHead label="Cash Out"/><ColHead label="Profit"/><ColHead label="IRR"/><ColHead label="MOIC"/>
               </div>
               {[
-                ["Unlevered","(8,432,212)","13,392,850","14.63%","2.67x"],
-                ["Levered","(3,372,670)","9,178,867","22.46%","3.06x"],
-                ["Limited Partner","(4,001,170)","6,732,755","20.66%","2.68x"],
-                ["Sponsor","(444,574)","2,446,112","32.26%","6.50x"],
+                ["Unlevered","(8,433,945)","13,340,350","14.52%","2.65x"],
+                ["Levered","(2,530,290)","9,601,910","24.51%","3.78x"],
+                ["Limited Partner","(3,108,666)","7,081,353","22.63%","3.28x"],
+                ["Sponsor","(345,407)","2,520,557","34.73%","8.30x"],
               ].map(([label,out,profit,irr,moic])=>(
                 <div key={label} style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
                   <span style={{fontSize:13,fontWeight:600,color:B.navy}}>{label}</span>
@@ -1505,14 +1505,14 @@ function Budget({committed}){
                 {label:"Operating Supplies",total:85107,pct:"1.0%"},
                 {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
               ]},
-              {label:"Interest Reserve + Loan Fees",total:353959,pct:"4.2%",children:[]},
-              {label:"Pre-Opening Costs",total:100000,pct:"1.2%",children:[
-                {label:"Operating Shortfall",total:75000,pct:"0.9%"},
+              {label:"Interest Reserve + Loan Fees",total:303192,pct:"3.6%",children:[]},
+              {label:"Pre-Opening Costs",total:150000,pct:"1.8%",children:[
+                {label:"Operating Shortfall",total:125000,pct:"1.5%"},
                 {label:"General Marketing",total:25000,pct:"0.3%"},
               ]},
-              {label:"Contingency",total:316057,pct:"3.7%",children:[
+              {label:"Contingency",total:318557,pct:"3.8%",children:[
                 {label:"5% of Hard Costs",total:244975,pct:"2.9%"},
-                {label:"5% of Soft Costs",total:71082,pct:"0.8%"},
+                {label:"5% of Soft Costs",total:73582,pct:"0.9%"},
               ]},
             ].map(section=>(
               <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
@@ -1523,7 +1523,7 @@ function Budget({committed}){
       </div>
 
       <div style={{marginTop:"1rem",fontSize:11,color:B.muted}}>
-        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders GMP (21-key) dated 12/4/2025.
+        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders GMP (21-key) dated 12/4/2025. Model v8 — Horizon Loan Terms.
       </div>
     </div>
   );
@@ -2064,7 +2064,7 @@ function CapitalTiming(){
 
         {/* Scenarios */}
         <div>
-          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>How to fund the $664k gap</div>
+          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>How to fund the gap</div>
           {SCENARIOS.map(s=>(
             <div key={s.id} onClick={()=>setActiveScenario(s.id)}
               style={{...card,cursor:"pointer",padding:"10px 14px",marginBottom:8,
