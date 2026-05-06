@@ -1940,8 +1940,6 @@ const TRANCHE_1 = BARTON_109_DUE;   // First LP tranche sized to cover bridge re
 const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // remainder
 
 const CASH_FLOWS = [
-  { week:"Now",       date:"May–Jun",  label:"SEEK — Construction Documents",inflow:0,               outflow:32000,           category:"soft",       notes:"SEEK CD phase — $32k due as construction drawings are completed. Per invoice #25110-04. $29k Additional Services 01 already paid."},
-  { week:"June",      date:"Jun 1",    label:"SEEK — Permitting",            inflow:0,               outflow:7000,            category:"soft",       notes:"SEEK Permitting phase — $7k due at permit submission (May-26 per SEEK schedule). CA ($3k/month × 10 months) begins at construction close — covered by loan draws."},
   { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
   { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:BARTON_109_DUE,  outflow:BARTON_109_DUE,  category:"land",       notes:`$680k purchase price less $25k hard deposit already in escrow + ~$14k closing costs = $${(BARTON_109_DUE/1000).toFixed(0)}k due at close. $25k deposit already wired Jan 30, 2026 — non-refundable.`},
   { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,               outflow:0,               category:"",           notes:"Final site plan approval expected. Clears path to permit submission."},
