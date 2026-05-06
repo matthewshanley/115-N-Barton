@@ -1932,39 +1932,43 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
 const COMMITTED_EQUITY = LP_EQUITY_COMMITTED;
 const EQUITY_TARGET = LP_EQUITY_TARGET;
 const REMAINING_RAISE = LP_EQUITY_REMAINING; // $1,843,724
-const TRANCHE_1 = 714000;
-const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,129,724
+const BARTON_109_PRICE = 680000;
+const BARTON_109_DEPOSIT = 25000;    // Hard — wired Jan 30 2026 to Meridian Title, non-refundable
+const BARTON_109_CLOSING = 14000;    // Est. closing costs
+const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSING; // $669,000
+const TRANCHE_1 = BARTON_109_DUE;   // First LP tranche sized to cover bridge reimbursement
+const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // remainder
 
 const CASH_FLOWS = [
-  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,         outflow:0,       category:"",         notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
-  { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:714000,    outflow:714000,  category:"land",     notes:"$700k purchase + ~$14k closing costs. Requires Co-GP bridge or early Horizon draw. City requires ownership before permit submission."},
-  { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,         outflow:0,       category:"",         notes:"Final site plan approval expected. Clears path to permit submission."},
-  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,         outflow:30000,   category:"soft",     notes:"Building permit submission. 6–8 week review clock starts. City requires ownership of both parcels."},
-  { week:"June",      date:"Jun 15",   label:"LP equity wires (tranche 1)",  inflow:TRANCHE_1, outflow:0,       category:"equity",   notes:`$714k first tranche of remaining $${(REMAINING_RAISE/1000).toFixed(0)}k LP raise. Co-GPs wired for 109 Barton reimburse here.`},
-  { week:"June",      date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,         outflow:25000,   category:"soft",     notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
-  { week:"Late June", date:"Jun 28",   label:"LP equity wires (tranche 2)",  inflow:TRANCHE_2, outflow:0,       category:"equity",   notes:`Remaining $${(TRANCHE_2/1000).toFixed(0)}k to complete $2.5M equity raise. Total committed at close: $2,500,000.`},
-  { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,   outflow:0,       category:"loan",     notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition ($714k). Full $2.5M equity stack confirmed in."},
-  { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,         outflow:714000,  category:"land",     notes:"Horizon day-one draw repays Co-GP bridge used for 109 Barton close."},
-  { week:"July",      date:"Jul 21",   label:"Permit approved",              inflow:0,         outflow:0,       category:"",         notes:"6–8 weeks after June 1 submission. Tight but achievable."},
-  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,         outflow:150000,  category:"construction", notes:"First construction draw. OSLO mobilization. 24-month build window begins."},
+  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
+  { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:BARTON_109_DUE,  outflow:BARTON_109_DUE,  category:"land",       notes:`$680k purchase price less $25k hard deposit already in escrow + ~$14k closing costs = $${(BARTON_109_DUE/1000).toFixed(0)}k due at close. $25k deposit already wired Jan 30, 2026 — non-refundable.`},
+  { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,               outflow:0,               category:"",           notes:"Final site plan approval expected. Clears path to permit submission."},
+  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submission. 6–8 week review clock starts. City requires ownership of both parcels."},
+  { week:"June",      date:"Jun 15",   label:"LP equity wires (tranche 1)",  inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k — sized to reimburse Co-GP bridge for 109 Barton close. Part of remaining $${(REMAINING_RAISE/1000).toFixed(0)}k LP raise.`},
+  { week:"June",      date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
+  { week:"Late June", date:"Jun 28",   label:"LP equity wires (tranche 2)",  inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`Remaining $${(TRANCHE_2/1000).toFixed(0)}k to complete $2.5M equity raise. Total committed at close: $2,500,000.`},
+  { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition. Full $2.5M equity stack confirmed in."},
+  { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:`Horizon day-one draw repays Co-GP bridge ($${(BARTON_109_DUE/1000).toFixed(0)}k). $25k deposit applied at close.`},
+  { week:"July",      date:"Jul 21",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"6–8 weeks after June 1 submission. Tight but achievable."},
+  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"First construction draw. OSLO mobilization. 24-month build window begins."},
 ];
 
 const SCENARIOS = [
   {
     id:"a", label:"Path A — Co-GP bridge", color:"#2a6b3f",
-    description:"Werner, Weaver & Hobbs personally fund $714k to close 109 Barton in late May. Horizon reimburses at construction loan close as day-one land draw. Co-GPs out of pocket ~6–8 weeks.",
+    description:`Werner, Weaver & Hobbs personally fund $${(BARTON_109_DUE/1000).toFixed(0)}k to close 109 Barton in late May ($680k purchase less $25k hard deposit already in escrow + ~$14k closing costs). Horizon reimburses at construction loan close as day-one land draw. Co-GPs out of pocket ~6–8 weeks.`,
     feasibility:"Most likely path", badge:"green",
-    requirements:["Co-GPs confirm liquidity for $714k bridge","Horizon confirms day-one land draw at close","109 Barton PSA allows assignment to LLC"],
+    requirements:[`Co-GPs confirm liquidity for $${(BARTON_109_DUE/1000).toFixed(0)}k bridge`,"Horizon confirms day-one land draw at close","PSA buyer entity (ECG Acquisitions LLC) confirmed for close"],
   },
   {
     id:"b", label:"Path B — Early LP wires", color:B.gold,
-    description:"Ask committed high-likelihood LPs to wire early — before full construction loan close. Need ~$664k wired by late May. Works if your top prospects are ready to move quickly.",
+    description:`Ask committed high-likelihood LPs to wire early. Need ~$${(Math.max(0,BARTON_109_DUE-50000)/1000).toFixed(0)}k wired by late May ($${(BARTON_109_DUE/1000).toFixed(0)}k needed less ~$50k in bank). Works if top prospects are ready to move quickly.`,
     feasibility:"Possible but uncertain", badge:"amber",
     requirements:["Identify which LPs can wire by May 25","Execute subscription agreements immediately","Risk: LP hesitation delays the permit"],
   },
   {
     id:"c", label:"Path C — Horizon early land draw", color:B.blue,
-    description:"Ask Horizon to release just the $714k land acquisition draw once appraisal and environmental are clear — before full construction loan close. Uncommon but worth asking on May 11.",
+    description:`Ask Horizon to release just the $${(BARTON_109_DUE/1000).toFixed(0)}k land acquisition draw once appraisal and environmental are clear — before full construction loan close. Uncommon but worth asking on May 11.`,
     feasibility:"Ask on May 11", badge:"blue",
     requirements:["Appraisal and environmental complete by late May","Horizon internal approval for partial early draw","May accelerate overall loan close timeline"],
   },
@@ -1992,7 +1996,7 @@ function CapitalTiming(){
   const [startingBalance,setStartingBalance]=useState(50000);
   const [balInput,setBalInput]=useState("50000");
 
-  const gap=714000-startingBalance;
+  const gap=BARTON_109_DUE-startingBalance;
 
   // Running balance starts from editable starting balance
   let running=startingBalance;
@@ -2023,7 +2027,7 @@ function CapitalTiming(){
           <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:4}}>Edit to update all projections</div>
         </div>
         {[
-          ["109 Barton needed",fmt$(714000),B.navy],
+          ["109 Barton needed",fmt$(BARTON_109_DUE),B.navy],
           ["Funding gap",fmt$(Math.max(0,gap)),gap<=0?"#2a6b3f":B.danger],
           ["Permit deadline","June 1",B.sage],
         ].map(([l,v,c])=>(
@@ -2036,7 +2040,7 @@ function CapitalTiming(){
 
       {/* Critical path alert */}
       <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
-        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Current cash ({fmt$(startingBalance)}) covers only closing costs, not the $700k purchase price.{gap>0&&<> A bridge of <strong>{fmt$(gap)}</strong> is required.</>}{gap<=0&&<> <strong>Current balance covers the full purchase.</strong></>}
+        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Purchase price is $680,000 with $25,000 already hard in escrow. <strong>{fmt$(BARTON_109_DUE)}</strong> still due at close. Current cash ({fmt$(startingBalance)}) covers a fraction of that.{gap>0&&<> A bridge of <strong>{fmt$(gap)}</strong> is required.</>}{gap<=0&&<> <strong>Current balance covers the full amount due at close.</strong></>}
       </div>
 
       {/* Two column layout */}
