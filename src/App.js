@@ -1476,7 +1476,7 @@ function Budget({committed}){
                 {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
                 {label:"Closing Costs",total:9003,pct:"0.1%"},
                 {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
-                {label:"Land Purchase — 109 Barton",total:700000,pct:"8.3%"},
+                {label:"Land Purchase — 109 Barton",total:680000,pct:"8.1%"},
                 {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
                 {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
               ]},
@@ -1940,17 +1940,19 @@ const TRANCHE_1 = BARTON_109_DUE;   // First LP tranche sized to cover bridge re
 const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // remainder
 
 const CASH_FLOWS = [
+  { week:"Now",       date:"May–Jun",  label:"SEEK — Construction Documents",inflow:0,               outflow:32000,           category:"soft",       notes:"SEEK CD phase — $32k due as construction drawings are completed. Per invoice #25110-04. $29k Additional Services 01 already paid."},
+  { week:"June",      date:"Jun 1",    label:"SEEK — Permitting",            inflow:0,               outflow:7000,            category:"soft",       notes:"SEEK Permitting phase — $7k due at permit submission (May-26 per SEEK schedule). CA ($3k/month × 10 months) begins at construction close — covered by loan draws."},
   { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
   { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:BARTON_109_DUE,  outflow:BARTON_109_DUE,  category:"land",       notes:`$680k purchase price less $25k hard deposit already in escrow + ~$14k closing costs = $${(BARTON_109_DUE/1000).toFixed(0)}k due at close. $25k deposit already wired Jan 30, 2026 — non-refundable.`},
   { week:"Late May",  date:"May 30",   label:"Entitlements complete",        inflow:0,               outflow:0,               category:"",           notes:"Final site plan approval expected. Clears path to permit submission."},
-  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submission. 6–8 week review clock starts. City requires ownership of both parcels."},
+  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submission fees. 6–8 week review clock starts. City requires ownership of both parcels."},
   { week:"June",      date:"Jun 15",   label:"LP equity wires (tranche 1)",  inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k — sized to reimburse Co-GP bridge for 109 Barton close. Part of remaining $${(REMAINING_RAISE/1000).toFixed(0)}k LP raise.`},
   { week:"June",      date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
   { week:"Late June", date:"Jun 28",   label:"LP equity wires (tranche 2)",  inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`Remaining $${(TRANCHE_2/1000).toFixed(0)}k to complete $2.5M equity raise. Total committed at close: $2,500,000.`},
   { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition. Full $2.5M equity stack confirmed in."},
   { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:`Horizon day-one draw repays Co-GP bridge ($${(BARTON_109_DUE/1000).toFixed(0)}k). $25k deposit applied at close.`},
   { week:"July",      date:"Jul 21",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"6–8 weeks after June 1 submission. Tight but achievable."},
-  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"First construction draw. OSLO mobilization. 24-month build window begins."},
+  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"First construction draw. OSLO mobilization. 24-month build window begins. SEEK CA ($3k/month × 10 months = $30k total) draws monthly from loan — no pre-close cash needed."},
 ];
 
 const SCENARIOS = [
