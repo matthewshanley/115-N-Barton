@@ -1936,8 +1936,8 @@ const BARTON_109_PRICE = 680000;
 const BARTON_109_DEPOSIT = 25000;    // Hard — wired Jan 30 2026 to Meridian Title, non-refundable
 const BARTON_109_CLOSING = 14000;    // Est. closing costs
 const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSING; // $669,000
-const TRANCHE_1 = BARTON_109_DUE;   // First LP tranche sized to cover bridge reimbursement
-const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // remainder
+const TRANCHE_1 = 700000;            // Capital call 1 — covers 109 Barton bridge + buffer
+const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,143,724 — completes the raise
 
 const CASH_FLOWS = [
   { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
