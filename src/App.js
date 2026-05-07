@@ -1940,26 +1940,27 @@ const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSIN
 // Tranche 1 must cover all outflows before Tranche 2 wires (Jun 28)
 // Outflows: $669k close + $32k SEEK CD1 + $30k permit + $25k appraisal = $756k
 // Starting cash ~$50k, so minimum T1 = $706k → round to $750k for buffer
-const TRANCHE_1 = 750000;
-const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,093,724 — completes the raise
+const TRANCHE_1 = 800000;
+const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,043,724 — completes the raise
 
 const CASH_FLOWS = [
-  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm loan close timing, permit requirements, and day-one land draw mechanics."},
+  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing. Confirm loan close timing, permit requirements, and day-one land draw mechanics."},
   { week:"May 12",    date:"May 12",   label:"Entitlements hearing",         inflow:0,               outflow:0,               category:"",           notes:"Plan commission vote. 99% approval rate. Clears path to City Council ratification and CD work."},
   { week:"May 13",    date:"May 13",   label:"SEEK starts CDs",              inflow:0,               outflow:0,               category:"",           notes:"8-week construction documents period begins. Target completion: June 26."},
-  { week:"Mid May",   date:"May 20",   label:"Capital call — tranche 1",     inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k wired by May 20 — sized to cover all pre-Tranche 2 outflows ($669k close + $32k SEEK + $30k permit + $25k appraisal = $756k) with buffer. Starting cash ~$50k.`},
-  { week:"Early June",date:"Jun 5",    label:"City Council ratification",    inflow:0,               outflow:0,               category:"",           notes:"City Council formally ratifies Planning Commission approval. Typically next scheduled meeting after PC vote."},
+  { week:"Early June",date:"Jun 5",    label:"City Council ratification",    inflow:0,               outflow:0,               category:"",           notes:"City Council formally ratifies Planning Commission approval. Typically next meeting after PC vote."},
+  { week:"Jun 12",    date:"Jun 12",   label:"Capital call — tranche 1",     inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k wired June 12 — Co-GPs and/or LPs. Covers 109 Barton close ($669k) + SEEK CD first half ($32k) + appraisal ($25k) + permit fees ($30k) with buffer.`},
+  { week:"Jun 12",    date:"Jun 12",   label:"SEEK — CD first half",         inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents first half — $32k. Paid once Tranche 1 funds."},
   { week:"Mid June",  date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
-  { week:"Late June", date:"Jun 24",   label:"109 Barton close",             inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:"$680k purchase price less $25k hard deposit in escrow + ~$14k closing costs = $669k due at close. Funded by Tranche 1 capital call."},
+  { week:"Late June", date:"Jun 24",   label:"109 Barton close",             inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:"$680k purchase price less $25k hard deposit in escrow + ~$14k closing costs = $669k due at close. Funded by Tranche 1."},
   { week:"Late June", date:"Jun 25",   label:"Lot combination filed",        inflow:0,               outflow:0,               category:"",           notes:"Application to combine 109 + 115 N Barton into single parcel. 7–10 day process. Required before permit submission."},
-  { week:"Late June", date:"Jun 26",   label:"SEEK CDs complete",            inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents complete — 8 weeks from May 13. CD first half payment $32k due."},
+  { week:"Late June", date:"Jun 26",   label:"SEEK CDs complete",            inflow:0,               outflow:0,               category:"",           notes:"Construction Documents complete — 8 weeks from May 13. Permit set ready to submit."},
   { week:"Late June", date:"Jun 28",   label:"Capital call — tranche 2",     inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_2/1000).toFixed(0)}k — completes $2.5M equity raise. Total LP committed at close: $2,500,000.`},
-  { week:"Early July",date:"Jul 1",    label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k due July 1."},
   { week:"Early July",date:"Jul 4",    label:"Lot combination recorded",     inflow:0,               outflow:0,               category:"",           notes:"~7–10 days after filing. Combined parcel required before permit submission."},
   { week:"Early July",date:"Jul 6",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submitted. Requires: CDs complete + owned parcel + combined lot. 6–8 week review clock starts."},
   { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition. Full $2.5M equity stack confirmed in."},
   { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:TRANCHE_1,       category:"land",       notes:`Horizon day-one draw repays $${(TRANCHE_1/1000).toFixed(0)}k Tranche 1 bridge. Net cost to Co-GPs: zero.`},
   { week:"July",      date:"Jul 15",   label:"SEEK — Permitting",            inflow:0,               outflow:7000,            category:"soft",       notes:"SEEK Permitting phase — $7k."},
+  { week:"July",      date:"Jul 17",   label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k due July 17."},
   { week:"Late Aug",  date:"Aug 24",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"~7–8 weeks after July 6 submission. Subject to City review speed."},
   { week:"Early Sept",date:"Sep 1",    label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"OSLO mobilizes. 24-month construction window begins. SEEK CA ($3k/month × 10 months) draws from loan."},
 ];
@@ -2004,8 +2005,9 @@ const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft 
 function CapitalTiming(){
   const [activeScenario,setActiveScenario]=useState("a");
   const [showAll,setShowAll]=useState(false);
-  const [startingBalance,setStartingBalance]=useState(50000);
-  const [balInput,setBalInput]=useState("50000");
+  const savedBal = parseInt(localStorage.getItem("ecg-starting-balance")||"50000")||50000;
+  const [startingBalance,setStartingBalance]=useState(savedBal);
+  const [balInput,setBalInput]=useState(String(savedBal));
 
   const gap=BARTON_109_DUE-startingBalance;
 
@@ -2031,6 +2033,7 @@ function CapitalTiming(){
                 setBalInput(e.target.value);
                 const n=parseInt(e.target.value.replace(/[^0-9]/g,""))||0;
                 setStartingBalance(n);
+                localStorage.setItem("ecg-starting-balance", String(n));
               }}
               style={{fontSize:20,fontWeight:700,color:B.white,background:"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.4)",outline:"none",width:"100%",fontFamily:FONT}}
             />
