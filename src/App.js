@@ -1933,27 +1933,35 @@ const COMMITTED_EQUITY = LP_EQUITY_COMMITTED;
 const EQUITY_TARGET = LP_EQUITY_TARGET;
 const REMAINING_RAISE = LP_EQUITY_REMAINING; // $1,843,724
 const BARTON_109_PRICE = 680000;
-const BARTON_109_DEPOSIT = 25000;    // Hard — wired Jan 30 2026 to Meridian Title, non-refundable
-const BARTON_109_CLOSING = 14000;    // Est. closing costs
+const BARTON_109_DEPOSIT = 25000;
+const BARTON_109_CLOSING = 14000;
 const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSING; // $669,000
-const TRANCHE_1 = 700000;            // Capital call 1 — covers 109 Barton bridge + buffer
-const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,143,724 — completes the raise
+
+// Tranche 1 must cover all outflows before Tranche 2 wires (Jun 28)
+// Outflows: $669k close + $32k SEEK CD1 + $30k permit + $25k appraisal = $756k
+// Starting cash ~$50k, so minimum T1 = $706k → round to $750k for buffer
+const TRANCHE_1 = 750000;
+const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,093,724 — completes the raise
 
 const CASH_FLOWS = [
-  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm simultaneous close or Co-GP bridge path."},
-  { week:"May 12",    date:"May 12",   label:"Entitlements hearing",         inflow:0,               outflow:0,               category:"",           notes:"Plan commission hearing. Approval clears path to permit drawings and 109 Barton close."},
-  { week:"Mid May",   date:"May 20",   label:"LP / Co-GP capital call",      inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$700k capital call wired by May 20 — Co-GPs and/or LPs. Funds 109 Barton close with ~$31k buffer.`},
-  { week:"Late May",  date:"May 26",   label:"109 Barton close",             inflow:0,               outflow:TRANCHE_1,       category:"land",       notes:"$680k purchase price less $25k hard deposit in escrow + ~$14k closing costs = $669k due at close. Funded by capital call."},
-  { week:"Late May",  date:"May 26",   label:"SEEK — CD first half",         inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents first half — $32k. Jason moving into permit drawings week of May 12 per updated schedule dated 5/7/26."},
-  { week:"June 1",    date:"Jun 1",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submission fees. 6–8 week review clock starts. City requires ownership of both parcels."},
-  { week:"June",      date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
-  { week:"Late June", date:"Jun 28",   label:"LP equity wires (tranche 2)",  inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_2/1000).toFixed(0)}k — completes $2.5M equity raise. Total LP committed at close: $2,500,000.`},
-  { week:"Early July",date:"Jul 1",    label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k. Permit set targeted mid-June, payment due July 1."},
-  { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton capital call. Full $2.5M equity stack confirmed in."},
-  { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:TRANCHE_1,       category:"land",       notes:"Horizon day-one draw repays $700k Co-GP bridge. Net cost to Co-GPs: zero."},
+  { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing problem. Confirm loan close timing, permit requirements, and day-one land draw mechanics."},
+  { week:"May 12",    date:"May 12",   label:"Entitlements hearing",         inflow:0,               outflow:0,               category:"",           notes:"Plan commission vote. 99% approval rate. Clears path to City Council ratification and CD work."},
+  { week:"May 13",    date:"May 13",   label:"SEEK starts CDs",              inflow:0,               outflow:0,               category:"",           notes:"8-week construction documents period begins. Target completion: June 26."},
+  { week:"Mid May",   date:"May 20",   label:"Capital call — tranche 1",     inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k wired by May 20 — sized to cover all pre-Tranche 2 outflows ($669k close + $32k SEEK + $30k permit + $25k appraisal = $756k) with buffer. Starting cash ~$50k.`},
+  { week:"Early June",date:"Jun 5",    label:"City Council ratification",    inflow:0,               outflow:0,               category:"",           notes:"City Council formally ratifies Planning Commission approval. Typically next scheduled meeting after PC vote."},
+  { week:"Mid June",  date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
+  { week:"Late June", date:"Jun 24",   label:"109 Barton close",             inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:"$680k purchase price less $25k hard deposit in escrow + ~$14k closing costs = $669k due at close. Funded by Tranche 1 capital call."},
+  { week:"Late June", date:"Jun 25",   label:"Lot combination filed",        inflow:0,               outflow:0,               category:"",           notes:"Application to combine 109 + 115 N Barton into single parcel. 7–10 day process. Required before permit submission."},
+  { week:"Late June", date:"Jun 26",   label:"SEEK CDs complete",            inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents complete — 8 weeks from May 13. CD first half payment $32k due."},
+  { week:"Late June", date:"Jun 28",   label:"Capital call — tranche 2",     inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_2/1000).toFixed(0)}k — completes $2.5M equity raise. Total LP committed at close: $2,500,000.`},
+  { week:"Early July",date:"Jul 1",    label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k due July 1."},
+  { week:"Early July",date:"Jul 4",    label:"Lot combination recorded",     inflow:0,               outflow:0,               category:"",           notes:"~7–10 days after filing. Combined parcel required before permit submission."},
+  { week:"Early July",date:"Jul 6",    label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submitted. Requires: CDs complete + owned parcel + combined lot. 6–8 week review clock starts."},
+  { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition. Full $2.5M equity stack confirmed in."},
+  { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:TRANCHE_1,       category:"land",       notes:`Horizon day-one draw repays $${(TRANCHE_1/1000).toFixed(0)}k Tranche 1 bridge. Net cost to Co-GPs: zero.`},
   { week:"July",      date:"Jul 15",   label:"SEEK — Permitting",            inflow:0,               outflow:7000,            category:"soft",       notes:"SEEK Permitting phase — $7k."},
-  { week:"July",      date:"Jul 21",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"6–8 weeks after June 1 submission. Tight but achievable."},
-  { week:"July",      date:"Jul 28",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"First construction draw. OSLO mobilization. 24-month build window begins. SEEK CA ($3k/month × 10 months) draws from loan — no pre-close cash needed."},
+  { week:"Late Aug",  date:"Aug 24",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"~7–8 weeks after July 6 submission. Subject to City review speed."},
+  { week:"Early Sept",date:"Sep 1",    label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"OSLO mobilizes. 24-month construction window begins. SEEK CA ($3k/month × 10 months) draws from loan."},
 ];
 
 const SCENARIOS = [
@@ -1984,10 +1992,10 @@ const SCENARIOS = [
 ];
 
 const ASKS = [
-  {n:"1", text:"Will you do a simultaneous close or early land draw? We need to close 109 Barton by late May to submit for permit June 1. Can you fund just the land acquisition once appraisal and environmental are clear?"},
-  {n:"2", text:"What is your realistic closing timeline? Given where appraisal and environmental stand today, when can you actually close? We need to know if July still works."},
-  {n:"3", text:"Will you allow a Co-GP personal bridge? If you can't fund early, can our Co-GPs personally close 109 Barton with your construction loan reimbursing them at close as a day-one land draw?"},
-  {n:"4", text:"What does 'permits prior to funding' mean exactly? Do you need a full building permit in hand, or just site plan approval and permit submission?"},
+  {n:"1", text:"What is your realistic closing timeline? Our permit submission is targeting July 6 — can you close by early July? We need to know if your appraisal, environmental, and internal approvals can be completed by then."},
+  {n:"2", text:"Do you need a building permit in hand before you'll fund, or is permit submission sufficient? This determines whether we can close the loan in early July while the permit is in review, or whether we need to wait until late August."},
+  {n:"3", text:"We need to close 109 Barton on June 24 using a Co-GP bridge (~$750k), then have your construction loan reimburse that as a day-one land draw at close. Can you confirm that mechanic works for you?"},
+  {n:"4", text:"Have you approved OSLO Builders as the contractor? Horizon requires contractor approval before funding — we want to make sure that's not a bottleneck on your end."},
 ];
 
 const catColor = c => ({equity:"#2a6b3f",land:B.danger,soft:B.gold,loan:B.blue,construction:B.sage,"":B.muted}[c]||B.muted);
@@ -2032,7 +2040,7 @@ function CapitalTiming(){
         {[
           ["109 Barton needed",fmt$(BARTON_109_DUE),B.navy],
           ["Funding gap",fmt$(Math.max(0,gap)),gap<=0?"#2a6b3f":B.danger],
-          ["Permit deadline","June 1",B.sage],
+          ["Permit deadline","~Jul 6",B.sage],
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
@@ -2043,7 +2051,7 @@ function CapitalTiming(){
 
       {/* Critical path alert */}
       <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
-        <strong>Critical path:</strong> Permit must submit by <strong>June 1</strong> to break ground in July (6–8 week city review). City requires ownership of both parcels before submission. 109 Barton must close by <strong>late May</strong> — roughly 3 weeks away. Purchase price is $680,000 with $25,000 already hard in escrow. <strong>{fmt$(BARTON_109_DUE)}</strong> still due at close. Current cash ({fmt$(startingBalance)}) covers a fraction of that.{gap>0&&<> A bridge of <strong>{fmt$(gap)}</strong> is required.</>}{gap<=0&&<> <strong>Current balance covers the full amount due at close.</strong></>}
+        <strong>Critical path:</strong> SEEK CDs complete ~June 26. Close 109 Barton June 24, file lot combination same day (~7–10 days to record). Permit submitted ~July 6 once lot combo is recorded. Permit review 7–8 weeks → approval ~August 24. <strong>Break ground early September.</strong> Tranche 1 sized at {fmt$(TRANCHE_1)} to ensure no negative balance before Tranche 2 wires June 28.{gap>0&&<> Current cash ({fmt$(startingBalance)}) requires a bridge of <strong>{fmt$(gap)}</strong> before capital call.</>}
       </div>
 
       {/* Two column layout */}
@@ -2053,12 +2061,15 @@ function CapitalTiming(){
         <div style={card}>
           <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"1rem"}}>Critical path</div>
           {[
-            {date:"May 11",label:"Horizon site visit",sub:"Present the sequencing problem. Get answer on simultaneous close.",color:B.blue,icon:"●"},
-            {date:"May 26",label:"109 Barton must close",sub:"City requires ownership of both parcels before permit submission.",color:B.danger,icon:"●",critical:true},
-            {date:"Jun 1",label:"Permit submitted",sub:"6–8 week review clock starts. Must hit this to break ground in July.",color:B.danger,icon:"●",critical:true},
-            {date:"Jun–Jul",label:"Construction loan closes",sub:"Horizon funds $5.925M. 109 Barton bridge reimbursed day-one.",color:B.gold,icon:"●"},
-            {date:"~Jul 21",label:"Permit approved",sub:"6–8 weeks after June 1 submission.",color:B.sage,icon:"●"},
-            {date:"Jul 28",label:"Break ground",sub:"OSLO mobilizes. 24-month construction window begins.",color:"#2a6b3f",icon:"●"},
+            {date:"May 11",label:"Horizon site visit",sub:"Present sequencing. Get answer on loan close timing.",color:B.blue,icon:"●"},
+            {date:"May 12",label:"Entitlements hearing",sub:"Plan commission vote. City Council ratification follows.",color:B.blue,icon:"●"},
+            {date:"May 20",label:"Capital call — $750k",sub:"Tranche 1 wired. Covers all pre-Tranche 2 outflows.",color:"#2a6b3f",icon:"●"},
+            {date:"Jun 24",label:"Close 109 Barton",sub:"Own both parcels. File lot combination same day.",color:B.danger,icon:"●",critical:true},
+            {date:"~Jul 4",label:"Lot combination recorded",sub:"7–10 days. Required before permit submission.",color:B.gold,icon:"●"},
+            {date:"~Jul 6",label:"Permit submitted",sub:"CDs complete + combined parcel. Review clock starts.",color:B.danger,icon:"●",critical:true},
+            {date:"Jul 7",label:"Construction loan closes",sub:"Horizon funds. Bridge reimbursed day-one.",color:B.gold,icon:"●"},
+            {date:"~Aug 24",label:"Permit approved",sub:"7–8 weeks after July 6 submission.",color:B.sage,icon:"●"},
+            {date:"~Sep 1",label:"Break ground",sub:"OSLO mobilizes. 24-month build begins.",color:"#2a6b3f",icon:"●"},
           ].map((item,i,arr)=>(
             <div key={i} style={{display:"flex",gap:12,marginBottom:i<arr.length-1?0:0}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:12,flexShrink:0}}>
