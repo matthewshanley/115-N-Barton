@@ -1940,23 +1940,24 @@ const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSIN
 // Tranche 1 must cover all outflows before Tranche 2 wires (Jun 28)
 // Outflows: $669k close + $32k SEEK CD1 + $30k permit + $25k appraisal = $756k
 // Starting cash ~$50k, so minimum T1 = $706k → round to $750k for buffer
-const TRANCHE_1 = 800000;
-const TRANCHE_2 = REMAINING_RAISE - TRANCHE_1; // $1,043,724 — completes the raise
+const TRANCHE_1 = REMAINING_RAISE; // $1,843,724 — full remaining raise, single capital call
+const TRANCHE_2 = 0;
 
 const CASH_FLOWS = [
   { week:"May 11",    date:"May 11",   label:"Horizon site visit",           inflow:0,               outflow:0,               category:"",           notes:"Present sequencing. Confirm loan close timing, permit requirements, and day-one land draw mechanics."},
   { week:"May 12",    date:"May 12",   label:"Entitlements hearing",         inflow:0,               outflow:0,               category:"",           notes:"Plan commission vote. 99% approval rate. Clears path to City Council ratification and CD work."},
   { week:"May 13",    date:"May 13",   label:"SEEK starts CDs",              inflow:0,               outflow:0,               category:"",           notes:"6–8 week construction documents period begins. Best case completion: June 24. Latest: July 7."},
   { week:"May 18",    date:"May 18",   label:"City Council ratification",    inflow:0,               outflow:0,               category:"",           notes:"City Council ratifies Planning Commission approval. Meeting May 18 — just 6 days after PC vote."},
-  { week:"Jun 12",    date:"Jun 12",   label:"Capital call — tranche 1",     inflow:TRANCHE_1,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k wired June 12 — Co-GPs and/or LPs. Covers 109 Barton close ($669k) + SEEK CD first half ($32k) + appraisal ($25k) + permit fees ($30k) with buffer.`},
-  { week:"Jun 12",    date:"Jun 12",   label:"SEEK — CD first half",         inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents first half — $32k. Paid once Tranche 1 funds."},
+  { week:"May 20",    date:"May 20",   label:"Subscription docs + OA distributed", inflow:0,            outflow:0,               category:"",           notes:"LPs and Co-GPs receive subscription documents and updated Operating Agreement."},
+  { week:"May 22",    date:"May 22",   label:"Confirm capital commitments",        inflow:0,            outflow:0,               category:"",           notes:"All LP and Co-GP commitments confirmed. Sets stage for subscription signing June 5."},
+  { week:"Jun 5",     date:"Jun 5",    label:"Subscription docs signed + capital wired", inflow:TRANCHE_1, outflow:0,            category:"equity",     notes:`$${(TRANCHE_1/1000).toFixed(0)}k — full remaining LP raise wired June 5. Completes $2.5M equity stack. Funds 109 Barton close and all pre-construction costs.`},
+  { week:"Jun 12",    date:"Jun 12",   label:"SEEK — CD first half",         inflow:0,               outflow:32000,           category:"soft",       notes:"Construction Documents first half — $32k. Paid from capital wired June 5."},
   { week:"Mid June",  date:"Jun 15",   label:"109 Barton close",             inflow:0,               outflow:BARTON_109_DUE,  category:"land",       notes:"$680k purchase price less $25k hard deposit in escrow + ~$14k closing costs = $669k due at close. Timed so lot combo records by ~June 24–26, aligning with CD completion."},
   { week:"Mid June",  date:"Jun 16",   label:"Lot combination filed",        inflow:0,               outflow:0,               category:"",           notes:"Filed day after 109 Barton close. 7–10 days to record — targets June 23–26, aligning with SEEK CD completion."},
   { week:"Mid June",  date:"Jun 20",   label:"Appraisal + environmental",    inflow:0,               outflow:25000,           category:"soft",       notes:"Independent appraisal (min 70% LTV as-complete) + Phase I environmental. Required by Horizon before close."},
   { week:"Late June", date:"Jun 26",   label:"SEEK CDs complete",            inflow:0,               outflow:0,               category:"",           notes:"Construction Documents complete (best case, 6 weeks). Latest July 7 if 8 weeks. Permit set ready to submit."},
   { week:"Late June", date:"Jun 26",   label:"Lot combination recorded",     inflow:0,               outflow:0,               category:"",           notes:"~7–10 days after June 16 filing. Aligns with CD completion. Permit can now be submitted."},
   { week:"Late June", date:"Jun 27",   label:"Permit submitted",             inflow:0,               outflow:30000,           category:"soft",       notes:"Building permit submitted. Requires: CDs complete + owned parcel + combined lot. 6–8 week review clock starts."},
-  { week:"Late June", date:"Jun 28",   label:"Capital call — tranche 2",     inflow:TRANCHE_2,       outflow:0,               category:"equity",     notes:`$${(TRANCHE_2/1000).toFixed(0)}k — completes $2.5M equity raise. Total LP committed at close: $2,500,000.`},
   { week:"Early July",date:"Jul 7",    label:"Construction loan closes",     inflow:5925000,         outflow:0,               category:"loan",       notes:"Horizon funds $5.925M. Day-one draw reimburses 109 Barton acquisition. Full $2.5M equity stack confirmed in."},
   { week:"Early July",date:"Jul 7",    label:"109 Barton bridge reimbursed", inflow:0,               outflow:TRANCHE_1,       category:"land",       notes:`Horizon day-one draw repays $${(TRANCHE_1/1000).toFixed(0)}k Tranche 1 bridge. Net cost to Co-GPs: zero.`},
   { week:"July",      date:"Jul 17",   label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k due July 17."},
@@ -2048,7 +2049,7 @@ function CapitalTiming(){
 
       {/* Critical path alert */}
       <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
-        <strong>Critical path:</strong> Close 109 Barton June 15, file lot combo June 16 (~7–10 days to record). SEEK CDs complete June 24–26 (6–8 weeks from May 13). Permit submitted June 27 once lot combo recorded and CDs done. Permit review 6–8 weeks → approval mid-August to early September. <strong>Break ground late August / early September.</strong> Tranche 1 sized at {fmt$(TRANCHE_1)} to cover all pre-Tranche 2 outflows with buffer.{gap>0&&<> Current cash ({fmt$(startingBalance)}) requires a bridge of <strong>{fmt$(gap)}</strong> before capital call.</>}
+        <strong>Critical path:</strong> Full remaining LP raise of {fmt$(TRANCHE_1)} wired June 5. Close 109 Barton June 15, file lot combo June 16 (~7–10 days to record). SEEK CDs complete June 24–26. Permit submitted June 27. Construction loan closes July 7. Permit approved ~August 15. <strong>Break ground ~August 24.</strong>{gap>0&&<> Current cash ({fmt$(startingBalance)}) is {fmt$(gap)} short of 109 Barton close — covered by June 5 capital wire.</>}
       </div>
 
       {/* Two column layout */}
@@ -2061,7 +2062,9 @@ function CapitalTiming(){
             {date:"May 11",label:"Horizon site visit",sub:"Present sequencing. Get answer on loan close timing.",color:B.blue,icon:"●"},
             {date:"May 12",label:"Entitlements hearing",sub:"Plan commission vote. Approval recommended to City Council.",color:B.blue,icon:"●"},
             {date:"May 18",label:"City Council ratification",sub:"Ratifies PC approval — fully entitled.",color:B.blue,icon:"●"},
-            {date:"May 20",label:"Capital call — $750k",sub:"Tranche 1 wired. Covers all pre-Tranche 2 outflows.",color:"#2a6b3f",icon:"●"},
+            {date:"May 20",label:"Subscription docs + Operating Agreement",sub:"LPs receive subscription documents and updated Operating Agreement.",color:B.blue,icon:"●"},
+            {date:"May 22",label:"Confirm capital commitments",sub:"All LP and Co-GP commitments confirmed ahead of subscription signing.",color:"#2a6b3f",icon:"●"},
+            {date:"Jun 5", label:"Subscription docs signed + capital wired",sub:`Full remaining raise — $${(TRANCHE_1/1000).toFixed(0)}k wired. Equity raise complete.`,color:"#2a6b3f",icon:"●"},
             {date:"Jun 15",label:"Close 109 Barton",sub:"Own both parcels. File lot combination next day.",color:B.danger,icon:"●",critical:true},
             {date:"Jun 16",label:"Lot combination filed",sub:"7–10 days to record. Targets June 23–26.",color:B.gold,icon:"●"},
             {date:"Jun 24–26",label:"CDs complete + lot combo recorded",sub:"Both must be done before permit submission.",color:B.gold,icon:"●"},
