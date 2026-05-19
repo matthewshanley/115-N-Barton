@@ -2049,7 +2049,7 @@ function CapitalTiming(){
       {/* Critical path timeline — centered */}
       <div style={{...card,marginBottom:"1.25rem"}}>
         <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"1rem"}}>Critical path</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 2rem"}}>
+        <div style={{columns:2,columnGap:"2rem"}}>
           {[
             {date:"May 11",label:"Horizon site visit",sub:"Present sequencing. Get answer on loan close timing.",color:B.blue},
             {date:"May 12",label:"Entitlements hearing",sub:"Plan commission vote. Approval recommended to City Council.",color:B.blue},
@@ -2065,7 +2065,7 @@ function CapitalTiming(){
             {date:"~Aug 15",label:"Permit approved",sub:"~7 weeks after June 27. Latest early September.",color:B.sage},
             {date:"~Aug 24",label:"Break ground",sub:"OSLO mobilizes. 10–12 month build begins.",color:"#2a6b3f"},
           ].map((item,i,arr)=>(
-            <div key={i} style={{display:"flex",gap:12,marginBottom:0}}>
+            <div key={i} style={{display:"flex",gap:12,marginBottom:0,breakInside:"avoid"}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:12,flexShrink:0}}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:item.color,flexShrink:0,marginTop:3}}/>
                 {i<arr.length-1&&<div style={{width:2,flex:1,minHeight:24,background:B.light,margin:"3px 0"}}/>}
