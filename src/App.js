@@ -292,7 +292,45 @@ function normalizeDate(d){
   return s;
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────────────
+// ── Multi-select checkbox filter component ────────────────────────────────
+function MultiFilter({label, options, selected, onChange, colorMap}){
+  const [open, setOpen] = useState(false);
+  const allSelected = selected.length === 0 || selected.length === options.length;
+  const displayLabel = allSelected ? label : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+  return(
+    <div style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{...iS, width:"auto", display:"flex", alignItems:"center", gap:6, cursor:"pointer", userSelect:"none", whiteSpace:"nowrap"}}>
+        <span style={{fontSize:13}}>{displayLabel}</span>
+        <span style={{fontSize:10, color:B.muted}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&<div style={{position:"absolute",top:"calc(100% + 4px)",left:0,zIndex:200,background:B.white,border:`1px solid ${B.steel}`,borderRadius:6,boxShadow:"0 4px 16px rgba(0,0,0,0.12)",minWidth:180,padding:"6px 0"}}>
+        <div onClick={()=>{onChange([]);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 14px",cursor:"pointer",fontSize:13,color:B.muted,borderBottom:`1px solid ${B.light}`}}>
+          <span style={{width:14,height:14,borderRadius:3,border:`1.5px solid ${B.steel}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,background:allSelected?B.navy:"transparent"}}>
+            {allSelected&&<span style={{color:B.white,fontSize:9,lineHeight:1}}>✓</span>}
+          </span>
+          All
+        </div>
+        {options.map(opt=>{
+          const checked = selected.includes(opt);
+          const col = colorMap?.[opt];
+          return(
+            <div key={opt} onClick={()=>{
+              const next = checked ? selected.filter(s=>s!==opt) : [...selected, opt];
+              onChange(next.length===options.length?[]:next);
+            }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 14px",cursor:"pointer",fontSize:13,color:B.navy}}>
+              <span style={{width:14,height:14,borderRadius:3,border:`1.5px solid ${checked?(col||B.navy):B.steel}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,background:checked?(col||B.navy):"transparent"}}>
+                {checked&&<span style={{color:B.white,fontSize:9,lineHeight:1}}>✓</span>}
+              </span>
+              {col&&<span style={{width:7,height:7,borderRadius:"50%",background:col,flexShrink:0}}/>}
+              {opt}
+            </div>
+          );
+        })}
+      </div>}
+      {open&&<div style={{position:"fixed",inset:0,zIndex:199}} onClick={()=>setOpen(false)}/>}
+    </div>
+  );
+}
 // ── Equity raise constants — single source of truth ──────────────────────
 const LP_EQUITY_TARGET = 2500000;   // Total LP equity target
 const LP_EQUITY_COMMITTED = 656276; // Committed to date (matches CRM "Committed" contacts)
@@ -413,7 +451,7 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
         {tiers.map(({tier,members,total,count})=>{
           const col=likelihoodColor[tier];
-          const active=likelihoodFilter===tier;
+          const active=Array.isArray(likelihoodFilter)?likelihoodFilter.includes(tier):likelihoodFilter===tier;
           return(
             <div key={tier} onClick={()=>onSelectLikelihood(active?"All":tier)}
               style={{background:active?col:B.white,border:`2px solid ${active?col:B.steel}`,borderRadius:8,padding:"12px 16px",cursor:"pointer",transition:"all 0.15s"}}>
@@ -433,9 +471,9 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
 
 function CRM({contacts,setContacts,onSave,onDelete}){
   const [tab,setTab]=useState("LP");
-  const [sf,setSf]=useState("All");
-  const [lf,setLf]=useState("All"); // likelihood filter
-  const [tf,setTf]=useState("All");
+  const [sf,setSf]=useState([]); // status filter — empty = all
+  const [lf,setLf]=useState([]); // likelihood filter
+  const [tf,setTf]=useState([]); // tag filter
   const [q,setQ]=useState("");
   const [view,setView]=useState("list");
   const [sel,setSel]=useState(null);
@@ -447,9 +485,9 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   const lnds=contacts.filter(c=>c.type==="Lender");
   const vis=contacts.filter(c=>{
     if(c.type!==tab)return false;
-    if(sf!=="All"&&c.status!==sf)return false;
-    if(tab==="LP"&&lf!=="All"&&c.likelihood!==lf)return false;
-    if(tab==="LP"&&tf!=="All"&&c.tag!==tf)return false;
+    if(sf.length>0&&!sf.includes(c.status))return false;
+    if(tab==="LP"&&lf.length>0&&!lf.includes(c.likelihood))return false;
+    if(tab==="LP"&&tf.length>0&&!tf.includes(c.tag))return false;
     if(q&&!`${c.name} ${c.firm} ${c.email} ${c.tag||""}`.toLowerCase().includes(q.toLowerCase()))return false;
     return true;
   });
@@ -546,11 +584,11 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 
   return(<div style={{padding:"1rem 0"}}>
     <div style={{display:"flex",gap:0,marginBottom:"1rem",borderBottom:`1px solid ${B.steel}`}}>
-      {["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf("All");setLf("All");setTf("All");}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
+      {["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf([]);setLf([]);setTf([]);}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
       <div style={{flex:1}}/><button onClick={openNew} style={{...btn(),fontSize:11,margin:"4px 0"}}>+ Add {tab}</button>
     </div>
 
-    {tab==="LP"&&<LPPipeline lps={lps} onSelectLikelihood={setLf} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
+    {tab==="LP"&&<LPPipeline lps={lps} onSelectLikelihood={v=>setLf(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v])} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
 
     {tab==="Lender"&&(
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1rem"}}>
@@ -562,13 +600,10 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 
     <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap"}}>
       <input placeholder="Search..." value={q} onChange={e=>setQ(e.target.value)} style={{...iS,flex:1,minWidth:140}}/>
-      <select value={sf} onChange={e=>setSf(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{sts.map(s=><option key={s}>{s}</option>)}</select>
+      <MultiFilter label="Status" options={sts} selected={sf} onChange={setSf} colorMap={tab==="LP"?LP_STAT_COL:LN_STAT_COL}/>
       {tab==="LP"&&<>
-        <select value={lf} onChange={e=>setLf(e.target.value)} style={{...iS,width:"auto"}}>
-          <option value="All">All likelihood</option>
-          {LP_LIKELIHOOD.map(l=><option key={l}>{l}</option>)}
-        </select>
-        <select value={tf} onChange={e=>setTf(e.target.value)} style={{...iS,width:"auto"}}>{tags.map(t=><option key={t}>{t}</option>)}</select>
+        <MultiFilter label="Likelihood" options={LP_LIKELIHOOD} selected={lf} onChange={v=>{setLf(v);}} colorMap={likelihoodColor}/>
+        <MultiFilter label="Tag" options={Array.from(new Set(contacts.filter(c=>c.type==="LP"&&c.tag).map(c=>c.tag))).sort()} selected={tf} onChange={setTf}/>
       </>}
     </div>
 
@@ -657,8 +692,8 @@ const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2
 function Tasks({tasks,setTasks,onSave,onDelete}){
   const [view,setView]=useState("calendar");
   const [form,setForm]=useState(null);
-  const [filterOwner,setFilterOwner]=useState("All");
-  const [filterStatus,setFilterStatus]=useState("All");
+  const [filterOwners,setFilterOwners]=useState([]);
+  const [filterStatuses,setFilterStatuses]=useState(TASK_STATUS_DISPLAY.filter(s=>s!=="Complete"));
   const [sortCol,setSortCol]=useState("due");
   const [sortDir,setSortDir]=useState("asc");
   const [calMonth,setCalMonth]=useState(()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d;});
@@ -678,7 +713,7 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
     "Overdue":enriched.filter(t=>t.status==="Overdue").length,
   };
 
-  const filtered=enriched.filter(t=>(filterOwner==="All"||t.owner===filterOwner)&&(filterStatus==="All"||t.status===filterStatus));
+  const filtered=enriched.filter(t=>(filterOwners.length===0||filterOwners.includes(t.owner))&&(filterStatuses.length===0||filterStatuses.includes(t.status)));
 
   async function saveTask(f){
     setSaving(true);
@@ -728,14 +763,15 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
     <div style={{padding:"1rem 0"}}>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
         {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
-          <div key={s} onClick={()=>setFilterStatus(filterStatus===s?"All":s)} style={{...SC(c),cursor:"pointer",outline:filterStatus===s?`2px solid ${B.steel}`:"none",opacity:filterStatus!=="All"&&filterStatus!==s?0.55:1}}>
+          <div key={s} onClick={()=>setFilterStatuses(prev=>prev.includes(s)?prev.filter(x=>x!==s):[...prev,s])} style={{...SC(c),cursor:"pointer",outline:filterStatuses.includes(s)?`2px solid ${B.steel}`:"none",opacity:filterStatuses.length>0&&!filterStatuses.includes(s)?0.55:1}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{s}</div>
             <div style={{fontSize:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
           </div>
         ))}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:"1rem",flexWrap:"wrap",alignItems:"center"}}>
-        <select value={filterOwner} onChange={e=>setFilterOwner(e.target.value)} style={{...iS,width:"auto"}}><option>All</option>{OWNERS.map(o=><option key={o}>{o}</option>)}</select>
+        <MultiFilter label="Owner" options={OWNERS} selected={filterOwners} onChange={setFilterOwners}/>
+        <MultiFilter label="Status" options={TASK_STATUS_DISPLAY} selected={filterStatuses} onChange={setFilterStatuses} colorMap={{"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger}}/>
         <div style={{flex:1}}/>
         <div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
           {[["calendar","Calendar"],["table","Table"]].map(([v,label])=>(
