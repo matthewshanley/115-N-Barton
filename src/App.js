@@ -1963,7 +1963,7 @@ const CASH_FLOWS = [
   { week:"July",      date:"Jul 17",   label:"SEEK — CD second half",        inflow:0,               outflow:48000,           category:"soft",       notes:"Construction Documents second half — $48k due July 17."},
   { week:"July",      date:"Jul 31",   label:"SEEK — Permitting",            inflow:0,               outflow:7000,            category:"soft",       notes:"SEEK Permitting phase — $7k due July 31."},
   { week:"Mid Aug",   date:"Aug 15",   label:"Permit approved",              inflow:0,               outflow:0,               category:"",           notes:"~7 weeks after June 27 submission (best case). Latest early September if 8-week review."},
-  { week:"Late Aug",  date:"Aug 24",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"OSLO mobilizes. 24-month construction window begins. SEEK CA ($3k/month × 10 months) draws from loan."},
+  { week:"Late Aug",  date:"Aug 24",   label:"Break ground",                 inflow:0,               outflow:150000,          category:"construction",notes:"OSLO mobilizes. 10–12 month construction window begins. SEEK CA ($3k/month × 10 months) draws from loan."},
 ];
 
 const SCENARIOS = [
@@ -1998,7 +1998,6 @@ const catColor = c => ({equity:"#2a6b3f",land:B.danger,soft:B.gold,loan:B.blue,c
 const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft costs",loan:"Construction loan",construction:"Construction draw","":"Milestone"}[c]||c);
 
 function CapitalTiming(){
-  const [activeScenario,setActiveScenario]=useState("a");
   const [showAll,setShowAll]=useState(false);
   const savedBal = parseInt(localStorage.getItem("ecg-starting-balance")||"50000")||50000;
   const [startingBalance,setStartingBalance]=useState(savedBal);
@@ -2047,38 +2046,31 @@ function CapitalTiming(){
         ))}
       </div>
 
-      {/* Critical path alert */}
-      <div style={{background:B.danger+"15",border:`1px solid ${B.danger}44`,borderRadius:8,padding:"12px 16px",marginBottom:"1.25rem",fontSize:13,color:B.navy,lineHeight:1.7}}>
-        <strong>Critical path:</strong> Full remaining LP raise of {fmt$(TRANCHE_1)} wired June 5. Close 109 Barton June 15, file lot combo June 16 (~7–10 days to record). SEEK CDs complete June 24–26. Permit submitted June 27. Construction loan closes July 7. Permit approved ~August 15. <strong>Break ground ~August 24.</strong>{gap>0&&<> Current cash ({fmt$(startingBalance)}) is {fmt$(gap)} short of 109 Barton close — covered by June 5 capital wire.</>}
-      </div>
-
-      {/* Two column layout */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1.25rem",marginBottom:"1.25rem"}}>
-
-        {/* Critical path timeline */}
-        <div style={card}>
-          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"1rem"}}>Critical path</div>
+      {/* Critical path timeline — centered */}
+      <div style={{...card,marginBottom:"1.25rem"}}>
+        <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"1rem"}}>Critical path</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 2rem"}}>
           {[
-            {date:"May 11",label:"Horizon site visit",sub:"Present sequencing. Get answer on loan close timing.",color:B.blue,icon:"●"},
-            {date:"May 12",label:"Entitlements hearing",sub:"Plan commission vote. Approval recommended to City Council.",color:B.blue,icon:"●"},
-            {date:"May 18",label:"City Council ratification",sub:"Ratifies PC approval — fully entitled.",color:B.blue,icon:"●"},
-            {date:"May 20",label:"Subscription docs + Operating Agreement",sub:"LPs receive subscription documents and updated Operating Agreement.",color:B.blue,icon:"●"},
-            {date:"May 22",label:"Confirm capital commitments",sub:"All LP and Co-GP commitments confirmed ahead of subscription signing.",color:"#2a6b3f",icon:"●"},
-            {date:"Jun 5", label:"Subscription docs signed + capital wired",sub:`Full remaining raise — $${(TRANCHE_1/1000).toFixed(0)}k wired. Equity raise complete.`,color:"#2a6b3f",icon:"●"},
-            {date:"Jun 15",label:"Close 109 Barton",sub:"Own both parcels. File lot combination next day.",color:B.danger,icon:"●",critical:true},
-            {date:"Jun 16",label:"Lot combination filed",sub:"7–10 days to record. Targets June 23–26.",color:B.gold,icon:"●"},
-            {date:"Jun 24–26",label:"CDs complete + lot combo recorded",sub:"Both must be done before permit submission.",color:B.gold,icon:"●"},
-            {date:"Jun 27",label:"Permit submitted",sub:"CDs + combined parcel. Review clock starts.",color:B.danger,icon:"●",critical:true},
-            {date:"Jul 7",label:"Construction loan closes",sub:"Horizon funds. Bridge reimbursed day-one.",color:B.gold,icon:"●"},
-            {date:"~Aug 15",label:"Permit approved",sub:"~7 weeks after June 27. Latest early September.",color:B.sage,icon:"●"},
-            {date:"~Aug 24",label:"Break ground",sub:"OSLO mobilizes. 24-month build begins.",color:"#2a6b3f",icon:"●"},
+            {date:"May 11",label:"Horizon site visit",sub:"Present sequencing. Get answer on loan close timing.",color:B.blue},
+            {date:"May 12",label:"Entitlements hearing",sub:"Plan commission vote. Approval recommended to City Council.",color:B.blue},
+            {date:"May 18",label:"City Council ratification",sub:"Ratifies PC approval — fully entitled.",color:B.blue},
+            {date:"May 20",label:"Subscription docs + Operating Agreement",sub:"LPs receive subscription documents and updated Operating Agreement.",color:B.blue},
+            {date:"May 22",label:"Confirm capital commitments",sub:"All LP and Co-GP commitments confirmed ahead of subscription signing.",color:"#2a6b3f"},
+            {date:"Jun 5", label:"Subscription docs signed + capital wired",sub:`Full remaining raise — $${(TRANCHE_1/1000).toFixed(0)}k wired. Equity raise complete.`,color:"#2a6b3f"},
+            {date:"Jun 15",label:"Close 109 Barton",sub:"Own both parcels. File lot combination next day.",color:B.danger,critical:true},
+            {date:"Jun 16",label:"Lot combination filed",sub:"7–10 days to record. Targets June 23–26.",color:B.gold},
+            {date:"Jun 24–26",label:"CDs complete + lot combo recorded",sub:"Both must be done before permit submission.",color:B.gold},
+            {date:"Jun 27",label:"Permit submitted",sub:"CDs + combined parcel. Review clock starts.",color:B.danger,critical:true},
+            {date:"Jul 7",label:"Construction loan closes",sub:"Horizon funds. Bridge reimbursed day-one.",color:B.gold},
+            {date:"~Aug 15",label:"Permit approved",sub:"~7 weeks after June 27. Latest early September.",color:B.sage},
+            {date:"~Aug 24",label:"Break ground",sub:"OSLO mobilizes. 10–12 month build begins.",color:"#2a6b3f"},
           ].map((item,i,arr)=>(
-            <div key={i} style={{display:"flex",gap:12,marginBottom:i<arr.length-1?0:0}}>
+            <div key={i} style={{display:"flex",gap:12,marginBottom:0}}>
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:12,flexShrink:0}}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:item.color,flexShrink:0,marginTop:3}}/>
                 {i<arr.length-1&&<div style={{width:2,flex:1,minHeight:24,background:B.light,margin:"3px 0"}}/>}
               </div>
-              <div style={{paddingBottom:i<arr.length-1?16:0,flex:1}}>
+              <div style={{paddingBottom:16,flex:1}}>
                 <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
                   <span style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase",flexShrink:0}}>{item.date}</span>
                   <span style={{fontSize:13,fontWeight:600,color:item.critical?B.danger:B.navy}}>{item.label}</span>
@@ -2086,36 +2078,6 @@ function CapitalTiming(){
                 </div>
                 <div style={{fontSize:12,color:B.muted,marginTop:2,lineHeight:1.5}}>{item.sub}</div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Scenarios */}
-        <div>
-          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>How to fund the gap</div>
-          {SCENARIOS.map(s=>(
-            <div key={s.id} onClick={()=>setActiveScenario(s.id)}
-              style={{...card,cursor:"pointer",padding:"10px 14px",marginBottom:8,
-                border:`1px solid ${activeScenario===s.id?s.color:B.steel}`,
-                background:activeScenario===s.id?s.color+"0d":B.white}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:activeScenario===s.id?6:0}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:s.color,flexShrink:0}}/>
-                <span style={{fontSize:13,fontWeight:600,color:B.navy,flex:1}}>{s.label}</span>
-                <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:3,
-                  background:s.badge==="green"?"#2a6b3f20":s.badge==="amber"?B.gold+"20":s.badge==="blue"?B.blue+"20":B.danger+"20",
-                  color:s.badge==="green"?"#2a6b3f":s.badge==="amber"?B.gold:s.badge==="blue"?B.blue:B.danger,
-                  letterSpacing:"0.05em",textTransform:"uppercase"}}>{s.feasibility}</span>
-              </div>
-              {activeScenario===s.id&&<>
-                <div style={{fontSize:12,color:B.navy,lineHeight:1.6,marginBottom:8,paddingLeft:16}}>{s.description}</div>
-                <div style={{paddingLeft:16}}>
-                  {s.requirements.map((r,i)=>(
-                    <div key={i} style={{display:"flex",gap:6,fontSize:11,color:B.muted,marginBottom:3}}>
-                      <span style={{color:s.color,flexShrink:0}}>→</span>{r}
-                    </div>
-                  ))}
-                </div>
-              </>}
             </div>
           ))}
         </div>
