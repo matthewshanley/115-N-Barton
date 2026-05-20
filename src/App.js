@@ -292,7 +292,20 @@ function normalizeDate(d){
   return s;
 }
 
-// ── Multi-select checkbox filter component ────────────────────────────────
+// ── Responsive helpers ─────────────────────────────────────────────────────
+function useIsMobile(){ 
+  const [mobile,setMobile]=useState(()=>window.innerWidth<768);
+  useEffect(()=>{
+    const h=()=>setMobile(window.innerWidth<768);
+    window.addEventListener('resize',h);
+    return()=>window.removeEventListener('resize',h);
+  },[]);
+  return mobile;
+}
+// Responsive grid: 4-col → 2-col on mobile, 2-col → 1-col on mobile
+const g4=(mobile)=>({display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"});
+const g2=(mobile)=>({display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:mobile?"0.75rem":"1rem",marginBottom:"1rem"});
+const g3=(mobile)=>({display:"grid",gridTemplateColumns:mobile?"1fr":"repeat(3,1fr)",gap:10});
 function MultiFilter({label, options, selected, onChange, colorMap}){
   const [open, setOpen] = useState(false);
   const allSelected = selected.length === 0 || selected.length === options.length;
@@ -337,6 +350,7 @@ const LP_EQUITY_COMMITTED = 656276; // Committed to date (matches CRM "Committed
 const LP_EQUITY_REMAINING = LP_EQUITY_TARGET - LP_EQUITY_COMMITTED; // $1,843,724
 
 function Dashboard({contacts,tasks,miles,setNav}){
+  const mobile=useIsMobile();
   const lps=contacts.filter(c=>c.type==="LP");
   const lenders=contacts.filter(c=>c.type==="Lender");
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
@@ -351,12 +365,12 @@ function Dashboard({contacts,tasks,miles,setNav}){
   const remaining=Math.max(0,LP_EQUITY_TARGET-committed);
   return(
     <div style={{padding:"1.25rem 0"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
+      <div style={g4(mobile)}>
         {[["LP equity target",fmt$(LP_EQUITY_TARGET),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Remaining to raise",fmt$(remaining),committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
-          <div key={l} style={SC(c)}><div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div><div style={{fontSize:24,fontWeight:700,color:B.white}}>{v}</div></div>
+          <div key={l} style={SC(c)}><div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div><div style={{fontSize:mobile?18:24,fontWeight:700,color:B.white}}>{v}</div></div>
         ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1rem",marginBottom:"1rem"}}>
+      <div style={g2(mobile)}>
         <div style={card}>
           <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Project timeline</div>
           <div style={{marginBottom:12}}>
@@ -366,7 +380,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
           {miles.slice(0,6).map(m=>{
             const s=new Date(m.start),e=new Date(m.end),left=tP(m.start),width=((e-s)/GT)*100;
             return(<div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{fontSize:11,color:B.navy,width:160,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
+              <div style={{fontSize:11,color:B.navy,width:mobile?120:160,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
               <div style={{flex:1,height:6,background:B.light,borderRadius:3,position:"relative"}}><div style={{position:"absolute",left:`${left}%`,width:`${Math.max(width,2)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:3}}/></div>
             </div>);
           })}
@@ -377,8 +391,8 @@ function Dashboard({contacts,tasks,miles,setNav}){
           {urgT.map(t=>(
             <div key={t.id} style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${B.light}`}}>
               <div style={{width:28,height:28,borderRadius:"50%",background:B.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:B.white,fontWeight:700,flexShrink:0}}>{(t.owner||"?")[0]}</div>
-              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy}}>{t.title}</div><div style={{fontSize:11,color:B.muted,marginTop:1}}>{t.owner} · Due {t.due||"TBD"}</div></div>
-              <Badge label={normalizeStatus(t.status)} color={normalizeStatus(t.status)==="In Progress"?B.blue:normalizeStatus(t.status)==="Overdue"?B.danger:B.muted}/>
+              <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.title}</div><div style={{fontSize:11,color:B.muted,marginTop:1}}>{t.owner} · Due {t.due||"TBD"}</div></div>
+              {!mobile&&<Badge label={normalizeStatus(t.status)} color={normalizeStatus(t.status)==="In Progress"?B.blue:normalizeStatus(t.status)==="Overdue"?B.danger:B.muted}/>}
             </div>
           ))}
         </div>
@@ -392,9 +406,9 @@ function Dashboard({contacts,tasks,miles,setNav}){
             {wLPs.map(c=>(
               <div key={c.id} onClick={()=>setNav("CRM")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
                 <Avatar name={c.name} color={B.navy}/>
-                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy}}>{c.name}</div><div style={{fontSize:11,color:B.muted}}>{c.firm||c.tag||""}</div></div>
-                <div style={{fontSize:13,color:B.navy,fontWeight:600}}>{fmt$(c.expectedAmount)}</div>
-                <div style={{display:"flex",alignItems:"center",fontSize:11,color:statCol(c.status)}}><Pip color={statCol(c.status)}/>{c.status}</div>
+                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div><div style={{fontSize:11,color:B.muted}}>{c.firm||c.tag||""}</div></div>
+                {!mobile&&<div style={{fontSize:13,color:B.navy,fontWeight:600}}>{fmt$(c.expectedAmount)}</div>}
+                <div style={{display:"flex",alignItems:"center",fontSize:11,color:statCol(c.status)}}><Pip color={statCol(c.status)}/>{mobile?c.status.split(" ")[0]:c.status}</div>
               </div>
             ))}
           </div>}
@@ -411,11 +425,11 @@ const likelihoodColor={"High":"#2a6b3f","Medium":B.gold,"Low":B.danger};
 const likelihoodPct={"High":80,"Medium":40,"Low":10};
 
 function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
+  const mobile=useIsMobile();
   const target=LP_EQUITY_TARGET;
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
   const remaining=Math.max(0,target-committed);
   const pct=Math.min(100,Math.round(committed/target*100));
-
   const tiers=["High","Medium","Low"].map(tier=>{
     const members=lps.filter(c=>c.likelihood===tier&&c.status!=="Committed"&&c.status!=="Passed");
     const total=members.reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
@@ -424,31 +438,27 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
   const highTotal=tiers.find(t=>t.tier==="High")?.total||0;
   const ifHighCommit=committed+highTotal;
   const afterHigh=Math.max(0,target-ifHighCommit);
-
   return(
     <div style={{marginBottom:"1.25rem"}}>
-      {/* Progress bar */}
       <div style={{...card,marginBottom:10,padding:"14px 18px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8,flexWrap:"wrap",gap:8}}>
           <div style={{fontSize:11,fontWeight:600,color:B.muted,letterSpacing:"0.07em",textTransform:"uppercase"}}>Equity raise progress</div>
-          <div style={{display:"flex",gap:20}}>
-            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Committed</div><div style={{fontSize:16,fontWeight:700,color:"#2a6b3f"}}>{fmt$(committed)}</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Target</div><div style={{fontSize:16,fontWeight:700,color:B.navy}}>{fmt$(target)}</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Remaining</div><div style={{fontSize:16,fontWeight:700,color:remaining===0?"#2a6b3f":B.danger}}>{fmt$(remaining)}</div></div>
+          <div style={{display:"flex",gap:mobile?12:20,flexWrap:"wrap"}}>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Committed</div><div style={{fontSize:mobile?14:16,fontWeight:700,color:"#2a6b3f"}}>{fmt$(committed)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Target</div><div style={{fontSize:mobile?14:16,fontWeight:700,color:B.navy}}>{fmt$(target)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:10,color:B.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Remaining</div><div style={{fontSize:mobile?14:16,fontWeight:700,color:remaining===0?"#2a6b3f":B.danger}}>{fmt$(remaining)}</div></div>
           </div>
         </div>
         <div style={{height:10,background:B.light,borderRadius:5,overflow:"hidden",marginBottom:6}}>
           <div style={{height:"100%",width:`${pct}%`,background:"#2a6b3f",borderRadius:5,transition:"width 0.4s ease"}}/>
         </div>
-        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,flexWrap:"wrap",gap:4}}>
           <span>{pct}% raised</span>
-          {afterHigh<target&&<span style={{color:"#2a6b3f"}}>If all High-likelihood commit → {fmt$(ifHighCommit)} raised ({fmt$(afterHigh)} still needed)</span>}
+          {afterHigh<target&&<span style={{color:"#2a6b3f"}}>If all High commit → {fmt$(ifHighCommit)} raised ({fmt$(afterHigh)} still needed)</span>}
           {afterHigh>=target&&<span style={{color:"#2a6b3f"}}>✓ High-likelihood pipeline covers full target</span>}
         </div>
       </div>
-
-      {/* Tier cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+      <div style={g3(mobile)}>
         {tiers.map(({tier,members,total,count})=>{
           const col=likelihoodColor[tier];
           const active=Array.isArray(likelihoodFilter)?likelihoodFilter.includes(tier):likelihoodFilter===tier;
@@ -459,8 +469,8 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
                 <span style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:active?B.white:col}}>{tier} likelihood</span>
                 <span style={{fontSize:11,fontWeight:600,color:active?"rgba(255,255,255,0.7)":B.muted}}>{count} prospects</span>
               </div>
-              <div style={{fontSize:22,fontWeight:700,color:active?B.white:B.navy,marginBottom:2}}>{fmt$(total)}</div>
-              <div style={{fontSize:11,color:active?"rgba(255,255,255,0.65)":B.muted}}>If all commit → {fmt$(committed+total)} total · {fmt$(Math.max(0,target-committed-total))} left</div>
+              <div style={{fontSize:mobile?18:22,fontWeight:700,color:active?B.white:B.navy,marginBottom:2}}>{fmt$(total)}</div>
+              {!mobile&&<div style={{fontSize:11,color:active?"rgba(255,255,255,0.65)":B.muted}}>If all commit → {fmt$(committed+total)} total · {fmt$(Math.max(0,target-committed-total))} left</div>}
             </div>
           );
         })}
@@ -470,6 +480,7 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
 }
 
 function CRM({contacts,setContacts,onSave,onDelete}){
+  const mobile=useIsMobile();
   const [tab,setTab]=useState("LP");
   const [sf,setSf]=useState([]); // status filter — empty = all
   const [lf,setLf]=useState([]); // likelihood filter
@@ -591,7 +602,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
     {tab==="LP"&&<LPPipeline lps={lps} onSelectLikelihood={v=>setLf(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v])} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
 
     {tab==="Lender"&&(
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1rem"}}>
+      <div style={g4(mobile)}>
         {[["Lenders",lnds.length],["Projected loan",fmt$(lnT)],["Target",fmt$(5500000)],["Active",lnds.filter(c=>!["Not contacted","Passed"].includes(c.status)).length]].map(([l,v])=>(
           <div key={l} style={SC()}><div style={{fontSize:10,color:"rgba(255,255,255,0.65)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:B.white}}>{v}</div></div>
         ))}
@@ -643,6 +654,7 @@ const QS=[];
 for(let y=2025;y<=2027;y++)for(let q=0;q<4;q++){const d=new Date(y,q*3,1);if(d>=GS&&d<=GE)QS.push({label:`Q${q+1} ${y}`,pct:tP(d)});}
 
 function Timeline({miles,setMiles,onSave}){
+  const mobile=useIsMobile();
   const [editing,setEditing]=useState(null);
   const [form,setForm]=useState({});
   const [saving,setSaving]=useState(false);
@@ -660,11 +672,11 @@ function Timeline({miles,setMiles,onSave}){
       {Object.entries(pC).map(([ph,col])=><span key={ph} style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:2,background:col,display:"inline-block"}}/>{ph}</span>)}
     </div>
     <div style={{...card,overflowX:"auto"}}>
-      <div style={{display:"flex",marginBottom:8,marginLeft:180,position:"relative",height:20}}>
+      <div style={{display:"flex",marginBottom:8,marginLeft:mobile?100:180,position:"relative",height:20}}>
         {QS.map(q=><div key={q.label} style={{position:"absolute",left:`${q.pct}%`,fontSize:10,color:B.muted,letterSpacing:"0.04em",whiteSpace:"nowrap",transform:"translateX(-50%)"}}>{q.label}</div>)}
       </div>
       {miles.map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}} onClick={()=>{setEditing(m.id);setForm({...m});}}>
-        <div style={{width:172,flexShrink:0,fontSize:12,color:B.navy,fontWeight:editing===m.id?700:400,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
+        <div style={{width:mobile?96:172,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:400,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
         <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer"}}>
           <div style={{position:"absolute",left:`${Math.max(0,tP(m.start))}%`,width:`${wP(m.start,m.end)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:4,opacity:0.85}}/>
           <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:2}}/>
@@ -673,11 +685,11 @@ function Timeline({miles,setMiles,onSave}){
     </div>
     {editing&&<div style={{...card,marginTop:"1rem"}}>
       <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Edit milestone</div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:12}}>
-        <div><label style={lS}>Label</label><input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS}/></div>
+      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"2fr 1fr 1fr 1fr",gap:12}}>
+        {!mobile&&<div><label style={lS}>Label</label><input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS}/></div>}
         <div><label style={lS}>Start</label><input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} style={iS}/></div>
         <div><label style={lS}>End</label><input type="date" value={form.end||""} onChange={e=>setForm(f=>({...f,end:e.target.value}))} style={iS}/></div>
-        <div><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
+        <div style={mobile?{gridColumn:"span 2"}:{}}><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
       </div>
       <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={save} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
     </div>}
@@ -690,6 +702,7 @@ const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
 
 function Tasks({tasks,setTasks,onSave,onDelete}){
+  const mobile=useIsMobile();
   const [view,setView]=useState("calendar");
   const [form,setForm]=useState(null);
   const [filterOwners,setFilterOwners]=useState([]);
@@ -761,11 +774,11 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
 
   return(
     <div style={{padding:"1rem 0"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
+      <div style={g4(mobile)}>
         {[["Not Started",B.muted],["In Progress",B.blue],["Complete","#2a6b3f"],["Overdue",B.danger]].map(([s,c])=>(
           <div key={s} onClick={()=>setFilterStatuses(prev=>prev.includes(s)?prev.filter(x=>x!==s):[...prev,s])} style={{...SC(c),cursor:"pointer",outline:filterStatuses.includes(s)?`2px solid ${B.steel}`:"none",opacity:filterStatuses.length>0&&!filterStatuses.includes(s)?0.55:1}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{s}</div>
-            <div style={{fontSize:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
+            <div style={{fontSize:mobile?22:28,fontWeight:700,color:B.white}}>{counts[s]}</div>
           </div>
         ))}
       </div>
@@ -773,11 +786,11 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
         <MultiFilter label="Owner" options={OWNERS} selected={filterOwners} onChange={setFilterOwners}/>
         <MultiFilter label="Status" options={TASK_STATUS_DISPLAY} selected={filterStatuses} onChange={setFilterStatuses} colorMap={{"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger}}/>
         <div style={{flex:1}}/>
-        <div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
+        {!mobile&&<div style={{display:"flex",gap:0,border:`1px solid ${B.steel}`,borderRadius:4,overflow:"hidden"}}>
           {[["calendar","Calendar"],["table","Table"]].map(([v,label])=>(
             <button key={v} onClick={()=>setView(v)} style={{fontSize:11,padding:"7px 18px",background:view===v?B.navy:"transparent",color:view===v?B.white:B.muted,border:"none",cursor:"pointer",fontFamily:FONT,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}</button>
           ))}
-        </div>
+        </div>}
         <button onClick={()=>setForm({...ET,id:`task-${Date.now()}`})} style={btn()}>+ Add task</button>
       </div>
       {view==="calendar"&&(
@@ -1404,35 +1417,32 @@ function BudgetSection({section,pKey,pGSF}){
 }
 
 function Budget({committed}){
+  const mobile=useIsMobile();
   const [osloOpen,setOsloOpen]=useState(false);
   const [seekOpen,setSeekOpen]=useState(false);
-
   const pKey=v=>fmt$(Math.round(v/KEYS));
   const pGSF=v=>"$"+(v/GSF).toFixed(2);
-
   const ColHead=({label})=><div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",textAlign:"right"}}>{label}</div>;
   const SU=({label,total,bold,indent,muted,pct})=>(
-    <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
+    <div style={{display:"grid",gridTemplateColumns:mobile?`30px 1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
       <div style={{textAlign:"right",fontSize:10,color:B.muted}}>{pct||""}</div>
       <div style={{display:"flex",alignItems:"baseline"}}>
         {indent&&<span style={{display:"inline-block",width:16,flexShrink:0}}/>}
         <span style={{fontSize:bold?13:12,fontWeight:bold?700:400,color:muted?B.muted:B.navy}}>{label}</span>
       </div>
       <div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:bold?700:400,color:muted?B.muted:B.navy}}>{fmt$(total)}</div>
-      <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(total)}</div>
-      <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(total)}</div>
+      {!mobile&&<div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(total)}</div>}
+      {!mobile&&<div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(total)}</div>}
     </div>
   );
-
   const TotalBar=({label,amount})=>(
-    <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"12px 14px",background:B.navy,alignItems:"center"}}>
-      <div/><span style={{fontSize:13,fontWeight:700,color:B.white,letterSpacing:"0.04em"}}>{label}</span>
+    <div style={{display:"grid",gridTemplateColumns:mobile?`1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:"12px 14px",background:B.navy,alignItems:"center"}}>
+      {!mobile&&<div/>}<span style={{fontSize:13,fontWeight:700,color:B.white,letterSpacing:"0.04em"}}>{label}</span>
       <span style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.white}}>{fmt$(amount)}</span>
-      <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pKey(amount)}/key</span>
-      <span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pGSF(amount)}/sf</span>
+      {!mobile&&<span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pKey(amount)}/key</span>}
+      {!mobile&&<span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pGSF(amount)}/sf</span>}
     </div>
   );
-
   const SectionToggle=({label,total,open,onToggle,note})=>(
     <div onClick={onToggle} style={{display:"grid",gridTemplateColumns:"1fr 110px auto",gap:8,padding:"10px 14px",background:open?B.navy:B.light,cursor:"pointer",alignItems:"center",marginBottom:open?0:1}}>
       <span style={{fontSize:12,fontWeight:600,color:open?B.white:B.navy,letterSpacing:"0.03em"}}>{label}{note&&<span style={{fontSize:10,fontWeight:400,marginLeft:8,opacity:0.7}}>{note}</span>}</span>
@@ -1440,10 +1450,9 @@ function Budget({committed}){
       <span style={{fontSize:11,color:open?"rgba(255,255,255,0.5)":B.muted}}>{open?"▲":"▼"}</span>
     </div>
   );
-
   return(
     <div style={{padding:"1.25rem 0"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
+      <div style={g4(mobile)}>
         {[
           ["Total Project Cost",fmt$(TOTAL_PROJECT),B.navy],
           ["Total Debt",fmt$(DEBT),B.blue],
@@ -1452,17 +1461,16 @@ function Budget({committed}){
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
-            <div style={{fontSize:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+            <div style={{fontSize:mobile?15:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
           </div>
         ))}
       </div>
-
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"1.5rem",alignItems:"start"}}>
+      <div style={{...g2(mobile),alignItems:"start",gap:mobile?"1rem":"1.5rem"}}>
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Sources</div>
           <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
-            <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-              <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            <div style={{display:"grid",gridTemplateColumns:mobile?`30px 1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
             </div>
             <SU label="Construction Debt" total={DEBT} bold pct="70%"/>
             <div style={{padding:"6px 14px 8px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
@@ -1477,8 +1485,8 @@ function Budget({committed}){
           <div style={{marginTop:"1.5rem"}}>
             <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Returns Summary</div>
             <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 60px 60px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-                <div/><ColHead label="Cash Out"/><ColHead label="Profit"/><ColHead label="IRR"/><ColHead label="MOIC"/>
+              <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+                <div/>{!mobile&&<ColHead label="Cash Out"/>}{!mobile&&<ColHead label="Profit"/>}<ColHead label="IRR"/><ColHead label="MOIC"/>
               </div>
               {[
                 ["Unlevered","(8,433,945)","13,340,350","14.52%","2.65x"],
@@ -1486,10 +1494,10 @@ function Budget({committed}){
                 ["Limited Partner","(3,108,666)","7,081,353","22.63%","3.28x"],
                 ["Sponsor","(345,407)","2,520,557","34.73%","8.30x"],
               ].map(([label,out,profit,irr,moic])=>(
-                <div key={label} style={{display:"grid",gridTemplateColumns:"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
-                  <span style={{fontSize:13,fontWeight:600,color:B.navy}}>{label}</span>
-                  <span style={{textAlign:"right",fontSize:12,color:B.muted}}>{out}</span>
-                  <span style={{textAlign:"right",fontSize:12,color:"#2a6b3f",fontWeight:600}}>{profit}</span>
+                <div key={label} style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
+                  <span style={{fontSize:mobile?11:13,fontWeight:600,color:B.navy}}>{label}</span>
+                  {!mobile&&<span style={{textAlign:"right",fontSize:12,color:B.muted}}>{out}</span>}
+                  {!mobile&&<span style={{textAlign:"right",fontSize:12,color:"#2a6b3f",fontWeight:600}}>{profit}</span>}
                   <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{irr}</span>
                   <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{moic}</span>
                 </div>
@@ -1504,8 +1512,8 @@ function Budget({committed}){
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Uses</div>
           <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
-            <div style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-              <div/><div/><ColHead label="Total"/><ColHead label="Per Key"/><ColHead label="Per SF"/>
+            <div style={{display:"grid",gridTemplateColumns:mobile?`30px 1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
             </div>
             {[
               {label:"Acquisition & Land Purchase",total:1196089,pct:"14.2%",children:[
@@ -1600,11 +1608,13 @@ const MATRIX_ROWS = [
 ];
 
 function LenderMatrix() {
+  const mobile=useIsMobile();
   const [selected, setSelected] = useState(null);
+  const mobile=useIsMobile();
   const TARGET = 5925000;
   return (
     <div style={{padding:"1.25rem 0"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.5rem"}}>
+      <div style={g4(mobile)}>
         {[
           ["Target Loan Amount", fmt$(TARGET), B.navy],
           ["Term Sheets Received", LENDER_DATA.filter(l=>l.status==="Term sheet received").length, B.gold],
@@ -1613,7 +1623,7 @@ function LenderMatrix() {
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
-            <div style={{fontSize:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+            <div style={{fontSize:mobile?15:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
           </div>
         ))}
       </div>
@@ -1762,6 +1772,7 @@ const scoreLabel = score => score >= 6 ? "Critical" : score >= 4 ? "High" : scor
 const ER = { id: null, category: "Market", description: "", likelihood: "Medium", impact: "Medium", mitigation: "", owner: "Jimmy", status: "Open" };
 
 function Risks({ risks, setRisks, onSave, onDelete }) {
+  const mobile=useIsMobile();
   const [form, setForm] = useState(null);
   const [filterCat, setFilterCat] = useState("All");
   const [saving, setSaving] = useState(false);
@@ -1796,7 +1807,7 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
   const RiskRow = ({ r }) => {
     const sc = r.score;
     return (
-      <div onClick={() => setForm({ ...r })} style={{ ...card, cursor: "pointer", padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 80px 80px 72px 100px", gap: 12, alignItems: "center" }}>
+      <div onClick={() => setForm({ ...r })} style={{ ...card, cursor: "pointer", padding: "12px 16px", display: "grid", gridTemplateColumns: mobile?"1fr 60px 80px":"1fr 80px 80px 72px 100px", gap: 12, alignItems: "center" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
             <Badge label={r.category} color={B.blue} />
@@ -1828,7 +1839,7 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
 
   return (
     <div style={{ padding: "1.25rem 0" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10, marginBottom: "1.25rem" }}>
+      <div style={g4(mobile)}>
         {[
           ["Total Risks", risks.filter(r => r.status !== "Closed").length, B.navy],
           ["Critical (score ≥ 6)", criticalCount, criticalCount > 0 ? B.danger : "#2a6b3f"],
@@ -1837,7 +1848,7 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
         ].map(([l, v, c]) => (
           <div key={l} style={SC(c)}>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>{l}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: B.white }}>{v}</div>
+            <div style={{ fontSize: mobile?22:28, fontWeight: 700, color: B.white }}>{v}</div>
           </div>
         ))}
       </div>
@@ -2034,39 +2045,27 @@ const catColor = c => ({equity:"#2a6b3f",land:B.danger,soft:B.gold,loan:B.blue,c
 const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft costs",loan:"Construction loan",construction:"Construction draw","":"Milestone"}[c]||c);
 
 function CapitalTiming(){
+  const mobile=useIsMobile();
   const [showAll,setShowAll]=useState(false);
   const savedBal = parseInt(localStorage.getItem("ecg-starting-balance")||"50000")||50000;
   const [startingBalance,setStartingBalance]=useState(savedBal);
   const [balInput,setBalInput]=useState(String(savedBal));
-
   const gap=BARTON_109_DUE-startingBalance;
-
-  // Running balance starts from editable starting balance
   let running=startingBalance;
   const rows=CASH_FLOWS.map(r=>{
     running=running+r.inflow-r.outflow;
     return{...r,runningAfter:running};
   });
-
   return(
     <div style={{padding:"1.25rem 0"}}>
-
       {/* KPIs */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:"1.25rem"}}>
-        <div style={{...SC(gap>0?B.danger:"#2a6b3f"),gridColumn:"span 1"}}>
+      <div style={g4(mobile)}>
+        <div style={{...SC(gap>0?B.danger:"#2a6b3f")}}>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Starting cash balance</div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <span style={{fontSize:16,fontWeight:700,color:B.white}}>$</span>
-            <input
-              value={balInput}
-              onChange={e=>{
-                setBalInput(e.target.value);
-                const n=parseInt(e.target.value.replace(/[^0-9]/g,""))||0;
-                setStartingBalance(n);
-                localStorage.setItem("ecg-starting-balance", String(n));
-              }}
-              style={{fontSize:20,fontWeight:700,color:B.white,background:"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.4)",outline:"none",width:"100%",fontFamily:FONT}}
-            />
+            <input value={balInput} onChange={e=>{setBalInput(e.target.value);const n=parseInt(e.target.value.replace(/[^0-9]/g,""))||0;setStartingBalance(n);localStorage.setItem("ecg-starting-balance",String(n));}}
+              style={{fontSize:mobile?16:20,fontWeight:700,color:B.white,background:"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.4)",outline:"none",width:"100%",fontFamily:FONT}}/>
           </div>
           <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:4}}>Edit to update all projections</div>
         </div>
@@ -2122,10 +2121,11 @@ function CapitalTiming(){
       {/* Cash flow table */}
       <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Cash flow schedule</div>
       <div style={{...card,padding:0,overflow:"hidden",marginBottom:"1rem"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:mobile?11:12,minWidth:mobile?400:700}}>
           <thead>
             <tr style={{background:B.navy}}>
-              {[["Date","80px"],["Event",""],["Category","100px"],["Inflow","90px"],["Outflow","90px"],["Running balance","110px"]].map(([h,w])=>(
+              {[["Date","70px"],["Event",""],mobile?null:["Category","90px"],["Inflow","80px"],["Outflow","80px"],["Running balance","100px"]].filter(Boolean).map(([h,w])=>(
                 <th key={h} style={{padding:"9px 12px",color:"rgba(255,255,255,0.65)",fontSize:10,fontWeight:600,textAlign:h==="Date"||h==="Category"?"left":"right",letterSpacing:"0.05em",textTransform:"uppercase",width:w||"auto",whiteSpace:"nowrap"}}>{h}</th>
               ))}
             </tr>
@@ -2134,30 +2134,25 @@ function CapitalTiming(){
             {rows.filter((_,i)=>showAll||i<8).map((r,i)=>{
               const bal=r.runningAfter;
               const balColor=bal<0?B.danger:bal<100000?B.gold:"#2a6b3f";
-              const isGap=r.runningAfter<0;
               return(
-                <tr key={i} style={{borderBottom:`1px solid ${B.light}`,background:isGap?B.danger+"08":i%2===0?B.white:B.offwhite}}>
-                  <td style={{padding:"8px 12px",color:B.muted,whiteSpace:"nowrap"}}>{r.date}</td>
+                <tr key={i} style={{borderBottom:`1px solid ${B.light}`,background:i%2===0?B.white:B.offwhite}}>
+                  <td style={{padding:"8px 12px",color:B.muted,whiteSpace:"nowrap",fontSize:11}}>{r.date}</td>
                   <td style={{padding:"8px 12px",color:B.navy,fontWeight:r.category===""?400:500}}>
-                    {r.label}
-                    {r.category===""&&<span style={{fontSize:10,color:B.muted,fontWeight:400}}> — milestone</span>}
-                    {r.notes&&<div style={{fontSize:11,color:B.muted,fontWeight:400,marginTop:2,lineHeight:1.4}}>{r.notes}</div>}
+                    <div style={{fontSize:mobile?11:13}}>{r.label}{r.category===""&&<span style={{fontSize:10,color:B.muted,fontWeight:400}}> — milestone</span>}</div>
+                    {!mobile&&r.notes&&<div style={{fontSize:11,color:B.muted,fontWeight:400,marginTop:2,lineHeight:1.4}}>{r.notes}</div>}
                   </td>
-                  <td style={{padding:"8px 12px"}}>
-                    {r.category&&<span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,
-                      background:catColor(r.category)+"20",color:catColor(r.category),
-                      border:`1px solid ${catColor(r.category)}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>
-                      {catLabel(r.category)}
-                    </span>}
-                  </td>
-                  <td style={{padding:"8px 12px",textAlign:"right",color:"#2a6b3f",fontWeight:r.inflow>0?600:400}}>{r.inflow>0?fmt$(r.inflow):"—"}</td>
-                  <td style={{padding:"8px 12px",textAlign:"right",color:r.outflow>0?B.danger:B.muted,fontWeight:r.outflow>0?600:400}}>{r.outflow>0?`(${fmt$(r.outflow)})`:"—"}</td>
-                  <td style={{padding:"8px 12px",textAlign:"right",fontWeight:700,color:balColor,whiteSpace:"nowrap"}}>{fmt$(bal)}</td>
+                  {!mobile&&<td style={{padding:"8px 12px"}}>
+                    {r.category&&<span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,background:catColor(r.category)+"20",color:catColor(r.category),border:`1px solid ${catColor(r.category)}44`,letterSpacing:"0.04em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{catLabel(r.category)}</span>}
+                  </td>}
+                  <td style={{padding:"8px 12px",textAlign:"right",color:"#2a6b3f",fontWeight:r.inflow>0?600:400,fontSize:mobile?11:12}}>{r.inflow>0?fmt$(r.inflow):"—"}</td>
+                  <td style={{padding:"8px 12px",textAlign:"right",color:r.outflow>0?B.danger:B.muted,fontWeight:r.outflow>0?600:400,fontSize:mobile?11:12}}>{r.outflow>0?`(${fmt$(r.outflow)})`:"—"}</td>
+                  <td style={{padding:"8px 12px",textAlign:"right",fontWeight:700,color:balColor,whiteSpace:"nowrap",fontSize:mobile?11:12}}>{fmt$(bal)}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
         {!showAll&&rows.length>8&&(
           <div onClick={()=>setShowAll(true)} style={{padding:"10px 16px",textAlign:"center",fontSize:12,color:B.blue,cursor:"pointer",borderTop:`1px solid ${B.light}`,background:B.offwhite}}>
             Show all {rows.length} line items ↓
@@ -2294,18 +2289,19 @@ export default function App(){
     </div>
   );
 
+  const mobile=useIsMobile();
   return(<div style={{fontFamily:FONT,background:B.offwhite,minHeight:"100vh"}}>
-    <div style={{background:B.navy,padding:"0 2rem",display:"flex",alignItems:"center",gap:0}}>
-      <div style={{marginRight:32,paddingRight:32,borderRight:"1px solid rgba(255,255,255,0.15)"}}>
+    <div style={{background:B.navy,padding:mobile?"0 1rem":"0 2rem",display:"flex",alignItems:"center",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      {!mobile&&<div style={{marginRight:32,paddingRight:32,borderRight:"1px solid rgba(255,255,255,0.15)",flexShrink:0}}>
         <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.1em",textTransform:"uppercase"}}>The Neighborhood Hotel</div>
         <div style={{fontSize:14,fontWeight:700,color:B.white,letterSpacing:"0.06em",textTransform:"uppercase"}}>115 N Barton</div>
-      </div>
-      {TABS.map(t=>(<button key={t} onClick={()=>setNav(t)} style={{background:"none",border:"none",borderBottom:nav===t?"2px solid #ccd5de":"2px solid transparent",color:nav===t?B.white:"rgba(255,255,255,0.55)",fontSize:11,fontWeight:nav===t?700:400,letterSpacing:"0.07em",textTransform:"uppercase",padding:"1rem 1.25rem",cursor:"pointer",fontFamily:FONT,marginBottom:-1}}>{t}</button>))}
+      </div>}
+      {TABS.map(t=>(<button key={t} onClick={()=>setNav(t)} style={{background:"none",border:"none",borderBottom:nav===t?"2px solid #ccd5de":"2px solid transparent",color:nav===t?B.white:"rgba(255,255,255,0.55)",fontSize:mobile?10:11,fontWeight:nav===t?700:400,letterSpacing:"0.07em",textTransform:"uppercase",padding:mobile?"0.75rem 0.75rem":"1rem 1.25rem",cursor:"pointer",fontFamily:FONT,marginBottom:-1,flexShrink:0,whiteSpace:"nowrap"}}>{t}</button>))}
       <div style={{flex:1}}/>
-      {syncing&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.05em",marginLeft:12}}>Saving…</div>}
-      {loadError&&<div style={{fontSize:11,color:B.gold,letterSpacing:"0.05em"}} title={loadError}>⚠ Offline mode</div>}
+      {syncing&&<div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.05em",marginLeft:12,flexShrink:0}}>Saving…</div>}
+      {loadError&&<div style={{fontSize:11,color:B.gold,letterSpacing:"0.05em",flexShrink:0}} title={loadError}>⚠ Offline</div>}
     </div>
-    <div style={{maxWidth:1400,margin:"0 auto",padding:"0 2rem 3rem"}}>
+    <div style={{maxWidth:1400,margin:"0 auto",padding:mobile?"0 0.75rem 3rem":"0 2rem 3rem"}}>
       {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles} setNav={setNav}/>}
       {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
