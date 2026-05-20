@@ -2281,14 +2281,14 @@ export default function App(){
 
   const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Capital Timing","Import"];
 
+  const mobile=useIsMobile();
+
   if(!loaded)return(
     <div style={{fontFamily:FONT,padding:"3rem",color:B.muted,textAlign:"center",fontSize:14}}>
       <div style={{marginBottom:8}}>Connecting to database…</div>
       <div style={{fontSize:12,color:B.steel}}>bhwfnogroaxttmtvulft.supabase.co</div>
     </div>
   );
-
-  const mobile=useIsMobile();
   return(<div style={{fontFamily:FONT,background:B.offwhite,minHeight:"100vh"}}>
     <div style={{background:B.navy,padding:mobile?"0 1rem":"0 2rem",display:"flex",alignItems:"center",gap:0,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
       {!mobile&&<div style={{marginRight:32,paddingRight:32,borderRight:"1px solid rgba(255,255,255,0.15)",flexShrink:0}}>
