@@ -1610,7 +1610,6 @@ const MATRIX_ROWS = [
 function LenderMatrix() {
   const mobile=useIsMobile();
   const [selected, setSelected] = useState(null);
-  const mobile=useIsMobile();
   const TARGET = 5925000;
   return (
     <div style={{padding:"1.25rem 0"}}>
