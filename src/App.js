@@ -2173,6 +2173,239 @@ function CapitalTiming(){
     </div>
   );
 }
+// ── OAC Meetings ───────────────────────────────────────────────────────────
+const OAC_SEED = [
+  {
+    id: "oac-2026-05-20",
+    date: "2026-05-20",
+    name: "Design OAC #1",
+    location: "SEEK's Office, Chicago",
+    attendees: [
+      "Jonathan Gordon — The Neighborhood Hotel",
+      "Matthew Stanley — The Neighborhood Hotel",
+      "Eric Lohmueller — Oslo Builders",
+      "Nathan Keene — Oslo Builders",
+      "Ian Honeywell — Oslo Builders",
+      "Marli Jones — Rebel House Design",
+      "Jason Nuttelman — SEEK",
+      "Jose Garcia — SEEK",
+      "Moriah Adam — SEEK",
+    ],
+    sections: [
+      { title:"Schedule & Permit", items:[
+        "50% permit set: June 17",
+        "100% permit set: June 30",
+        "Revised DD issued 04/10/2026",
+      ]},
+      { title:"Owner Items — Geotech", items:[
+        "Confirm if additional soil borings needed from structural engineering standpoint",
+        "Owner prefers not to spend additional money if not necessary",
+      ]},
+      { title:"Design Decisions — Owner Action Required", items:[
+        "Rebel House: provide direction on fireplace (style, venting, location, surround), plumbing fixtures, and lighting balance (overhead vs lamps, pendants, sconces)",
+        "Lobby: separate meeting space yes/no? 2 large tables — keep? Storage needs? Glazing walls?",
+        "Matt to share Brand Standards with SEEK and Oslo",
+        "Landscaping: hardscape and lighting affect civil and mechanical trades — fence location must be resolved as part of CD set",
+        "Low voltage: Matt to engage 3 consultants",
+      ]},
+      { title:"MEP / HVAC — Confirmed System", items:[
+        "Fan coil units on soffit fascia (blow out), with access panel and return grille — no ductwork",
+        "Floor-mounted units in closets — ducted, distribute air to all rooms, single thermostat per room",
+        "VRF system — 4 condensers total, 1 per floor. Cassettes = fan coils in rooms",
+      ]},
+      { title:"GC Items — Oslo", items:[
+        "Updated budget to be reviewed",
+        "Existing structures demolition coordination",
+        "Coordination items: exterior envelope, elevator, fireplace",
+      ]},
+      { title:"Cost Notes", items:[
+        "Heated bathroom floors: ~$4k per bathroom",
+      ]},
+    ],
+    next_steps: [
+      "Matt: share Brand Standards with SEEK + Oslo",
+      "Matt: engage 3 low voltage consultants",
+      "Matt + Rebel House: provide direction on fireplace, plumbing fixtures, lighting",
+      "Matt + Jonathan: decide on lobby layout — meeting space, tables, storage, glazing",
+      "SEEK: confirm with structural engineer whether additional soil borings are needed",
+      "Landscaping: resolve hardscape + fence location for inclusion in CD set",
+      "Oslo: share updated budget numbers",
+    ]
+  }
+];
+
+function OACMeetings(){
+  const mobile = useIsMobile();
+  const [meetings, setMeetings] = useState([]);
+  const [expanded, setExpanded] = useState("oac-2026-05-20");
+  const [loaded, setLoaded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({id:"",date:"",name:"",location:"",attendees_raw:"",sections_raw:"",next_steps_raw:""});
+
+  useEffect(()=>{
+    async function load(){
+      try{
+        const res = await fetch(`https://bhwfnogroaxttmtvulft.supabase.co/rest/v1/meetings?order=date.desc`,{
+          headers:{"apikey":SKEY,"Authorization":`Bearer ${SKEY}`}
+        });
+        if(res.ok){
+          const data = await res.json();
+          if(data.length===0){
+            await fetch(`https://bhwfnogroaxttmtvulft.supabase.co/rest/v1/meetings`,{
+              method:"POST",
+              headers:{"apikey":SKEY,"Authorization":`Bearer ${SKEY}`,"Content-Type":"application/json","Prefer":"return=representation"},
+              body:JSON.stringify(OAC_SEED.map(m=>({id:m.id,date:m.date,name:m.name,location:m.location,data:JSON.stringify(m)})))
+            });
+            setMeetings(OAC_SEED);
+          } else {
+            setMeetings(data.map(r=>typeof r.data==="string"?JSON.parse(r.data):r.data));
+          }
+        } else { setMeetings(OAC_SEED); }
+      } catch(e){ setMeetings(OAC_SEED); }
+      setLoaded(true);
+    }
+    load();
+  },[]);
+
+  async function persistMeeting(m){
+    try{
+      await fetch(`https://bhwfnogroaxttmtvulft.supabase.co/rest/v1/meetings?id=eq.${m.id}`,{method:"DELETE",headers:{"apikey":SKEY,"Authorization":`Bearer ${SKEY}`}});
+      await fetch(`https://bhwfnogroaxttmtvulft.supabase.co/rest/v1/meetings`,{method:"POST",headers:{"apikey":SKEY,"Authorization":`Bearer ${SKEY}`,"Content-Type":"application/json","Prefer":"return=representation"},body:JSON.stringify([{id:m.id,date:m.date,name:m.name,location:m.location,data:JSON.stringify(m)}])});
+    } catch(e){}
+  }
+
+  function openNew(){
+    setForm({id:`oac-${Date.now()}`,date:"",name:"",location:"",attendees_raw:"",sections_raw:"",next_steps_raw:""});
+    setEditingId(null);
+    setShowForm(true);
+  }
+
+  function openEdit(m){
+    setForm({
+      id:m.id, date:m.date, name:m.name, location:m.location||"",
+      attendees_raw:(m.attendees||[]).join("\n"),
+      sections_raw:(m.sections||[]).map(s=>`## ${s.title}\n${(s.items||[]).join("\n")}`).join("\n\n"),
+      next_steps_raw:(m.next_steps||[]).join("\n"),
+    });
+    setEditingId(m.id);
+    setShowForm(true);
+  }
+
+  async function submitForm(){
+    const m={
+      id:form.id, date:form.date, name:form.name, location:form.location,
+      attendees:form.attendees_raw.split("\n").map(s=>s.trim()).filter(Boolean),
+      sections:form.sections_raw.split(/\n(?=## )/).filter(Boolean).map(block=>{
+        const lines=block.replace(/^## /,"").split("\n").filter(Boolean);
+        return{title:lines[0],items:lines.slice(1)};
+      }),
+      next_steps:form.next_steps_raw.split("\n").map(s=>s.trim()).filter(Boolean),
+    };
+    setSaving(true);
+    try{
+      await persistMeeting(m);
+      if(editingId){ setMeetings(prev=>prev.map(x=>x.id===m.id?m:x)); }
+      else { setMeetings(prev=>[m,...prev].sort((a,b)=>b.date.localeCompare(a.date))); }
+      setShowForm(false);
+      setExpanded(m.id);
+    } finally { setSaving(false); }
+  }
+
+  const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});}catch(e){return d;}};
+
+  if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading meetings…</div>;
+
+  return(
+    <div style={{padding:"1.25rem 0"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.25rem",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:20,fontWeight:700,color:B.navy}}>OAC Meeting Notes</div>
+          <div style={{fontSize:12,color:B.muted,marginTop:2}}>Owner / Architect / Contractor — 115 N Barton</div>
+        </div>
+        <button onClick={openNew} style={btn()}>+ Add meeting</button>
+      </div>
+
+      {meetings.length===0&&<div style={{...card,textAlign:"center",padding:"3rem",color:B.muted,fontSize:13}}>No meetings yet.</div>}
+
+      {meetings.map(m=>{
+        const open=expanded===m.id;
+        const dt=new Date(m.date+"T12:00:00");
+        return(
+          <div key={m.id} style={{...card,padding:0,marginBottom:10,overflow:"hidden"}}>
+            <div onClick={()=>setExpanded(open?null:m.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"14px 18px",cursor:"pointer",background:open?B.navy:B.white}}>
+              <div style={{width:42,height:42,borderRadius:6,background:open?"rgba(255,255,255,0.12)":B.offwhite,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:open?"rgba(255,255,255,0.55)":B.muted}}>{dt.toLocaleDateString("en-US",{month:"short"})}</div>
+                <div style={{fontSize:18,fontWeight:700,lineHeight:1.1,color:open?B.white:B.navy}}>{dt.getDate()}</div>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:700,color:open?B.white:B.navy}}>{m.name}</div>
+                <div style={{fontSize:11,color:open?"rgba(255,255,255,0.55)":B.muted,marginTop:1}}>{fmtDate(m.date)}{m.location?` · ${m.location}`:""}</div>
+              </div>
+              {!mobile&&<div style={{fontSize:11,color:open?"rgba(255,255,255,0.45)":B.muted,flexShrink:0}}>{(m.attendees||[]).length} attendees</div>}
+              <span style={{fontSize:11,color:open?B.steel:B.muted,flexShrink:0}}>{open?"▲":"▼"}</span>
+            </div>
+
+            {open&&<div style={{padding:"1.25rem 1.5rem"}}>
+              <div style={{marginBottom:"1.25rem"}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,marginBottom:8}}>Attendees</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {(m.attendees||[]).map((a,i)=>(
+                    <span key={i} style={{fontSize:11,padding:"3px 10px",borderRadius:12,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy}}>{a}</span>
+                  ))}
+                </div>
+              </div>
+
+              {(m.sections||[]).map((s,si)=>(
+                <div key={si} style={{marginBottom:"1.25rem"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:B.navy,marginBottom:8,paddingBottom:6,borderBottom:`1px solid ${B.light}`}}>{s.title}</div>
+                  {(s.items||[]).map((item,ii)=>(
+                    <div key={ii} style={{display:"flex",gap:8,fontSize:13,color:B.navy,lineHeight:1.6,marginBottom:4}}>
+                      <span style={{color:B.muted,flexShrink:0}}>→</span><span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              {(m.next_steps||[]).length>0&&(
+                <div style={{background:B.offwhite,borderRadius:6,padding:"12px 16px",marginBottom:"0.75rem"}}>
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,marginBottom:8}}>Action items</div>
+                  {m.next_steps.map((ns,i)=>(
+                    <div key={i} style={{display:"flex",gap:8,fontSize:13,color:B.navy,lineHeight:1.6,marginBottom:4}}>
+                      <span style={{color:B.gold,fontWeight:700,flexShrink:0}}>☐</span><span>{ns}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button onClick={()=>openEdit(m)} style={{...btn(true),marginTop:4}}>Edit meeting</button>
+            </div>}
+          </div>
+        );
+      })}
+
+      {showForm&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"2rem 1rem",overflowY:"auto"}}>
+        <div style={{...card,width:"100%",maxWidth:680}}>
+          <div style={{fontSize:15,fontWeight:700,color:B.navy,marginBottom:"1.25rem"}}>{editingId?"Edit meeting":"New meeting"}</div>
+          <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:12,marginBottom:12}}>
+            <div><label style={lS}>Meeting name</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} style={iS} placeholder="Design OAC #2"/></div>
+            <div><label style={lS}>Date</label><input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={iS}/></div>
+            <div style={mobile?{}:{gridColumn:"span 2"}}><label style={lS}>Location</label><input value={form.location} onChange={e=>setForm(f=>({...f,location:e.target.value}))} style={iS}/></div>
+          </div>
+          <div style={{marginBottom:12}}><label style={lS}>Attendees (one per line)</label><textarea value={form.attendees_raw} onChange={e=>setForm(f=>({...f,attendees_raw:e.target.value}))} style={{...iS,height:90,resize:"vertical"}}/></div>
+          <div style={{marginBottom:12}}><label style={lS}>Notes — use ## Section Title to create sections, one item per line</label><textarea value={form.sections_raw} onChange={e=>setForm(f=>({...f,sections_raw:e.target.value}))} style={{...iS,height:220,resize:"vertical"}}/></div>
+          <div style={{marginBottom:"1.25rem"}}><label style={lS}>Action items (one per line)</label><textarea value={form.next_steps_raw} onChange={e=>setForm(f=>({...f,next_steps_raw:e.target.value}))} style={{...iS,height:90,resize:"vertical"}}/></div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={submitForm} style={btn()} disabled={saving}>{saving?"Saving…":"Save meeting"}</button>
+            <button onClick={()=>setShowForm(false)} style={btn(true)}>Cancel</button>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 export default function App(){
   const [nav,setNav]=useState("Dashboard");
   const [contacts,setContacts]=useState([]);
@@ -2279,7 +2512,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Capital Timing","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Capital Timing","OAC","Import"];
 
   const mobile=useIsMobile();
 
@@ -2309,6 +2542,7 @@ export default function App(){
       {nav==="Lenders"&&<LenderMatrix/>}
       {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Capital Timing"&&<CapitalTiming/>}
+      {nav==="OAC"&&<OACMeetings/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
