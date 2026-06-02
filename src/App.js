@@ -345,9 +345,9 @@ function MultiFilter({label, options, selected, onChange, colorMap}){
   );
 }
 // ── Equity raise constants — single source of truth ──────────────────────
-const LP_EQUITY_TARGET = 2500000;   // Total LP equity target
-const LP_EQUITY_COMMITTED = 656276; // Committed to date (matches CRM "Committed" contacts)
-const LP_EQUITY_REMAINING = LP_EQUITY_TARGET - LP_EQUITY_COMMITTED; // $1,843,724
+const LP_EQUITY_TARGET = 2500000;    // Total LP equity target
+const LP_EQUITY_COMMITTED = 2156276; // Committed to date — updated June 2 2026
+const LP_EQUITY_REMAINING = LP_EQUITY_TARGET - LP_EQUITY_COMMITTED; // $343,724
 
 function Dashboard({contacts,tasks,miles,setNav}){
   const mobile=useIsMobile();
@@ -1977,16 +1977,13 @@ function Risks({ risks, setRisks, onSave, onDelete }) {
 // ── Capital Timing ─────────────────────────────────────────────────────────
 const COMMITTED_EQUITY = LP_EQUITY_COMMITTED;
 const EQUITY_TARGET = LP_EQUITY_TARGET;
-const REMAINING_RAISE = LP_EQUITY_REMAINING; // $1,843,724
+const REMAINING_RAISE = LP_EQUITY_REMAINING; // $343,724 — updated June 2 2026
 const BARTON_109_PRICE = 680000;
 const BARTON_109_DEPOSIT = 25000;
 const BARTON_109_CLOSING = 14000;
 const BARTON_109_DUE = BARTON_109_PRICE - BARTON_109_DEPOSIT + BARTON_109_CLOSING; // $669,000
 
-// Tranche 1 must cover all outflows before Tranche 2 wires (Jun 28)
-// Outflows: $669k close + $32k SEEK CD1 + $30k permit + $25k appraisal = $756k
-// Starting cash ~$50k, so minimum T1 = $706k → round to $750k for buffer
-const TRANCHE_1 = REMAINING_RAISE; // $1,843,724 — full remaining raise, single capital call
+const TRANCHE_1 = REMAINING_RAISE; // $343,724 — remaining raise as of June 2
 const TRANCHE_2 = 0;
 
 const CASH_FLOWS = [
@@ -2046,7 +2043,7 @@ const catLabel = c => ({equity:"LP equity",land:"Land / acquisition",soft:"Soft 
 function CapitalTiming(){
   const mobile=useIsMobile();
   const [showAll,setShowAll]=useState(false);
-  const savedBal = parseInt(localStorage.getItem("ecg-starting-balance")||"50000")||50000;
+  const savedBal = parseInt(localStorage.getItem("ecg-starting-balance")||"1476528")||1476528;
   const [startingBalance,setStartingBalance]=useState(savedBal);
   const [balInput,setBalInput]=useState(String(savedBal));
   const gap=BARTON_109_DUE-startingBalance;
