@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS } from "./data";
+import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS, VE_ITEMS } from "./data";
 
 // ── Supabase config ────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://bhwfnogroaxttmtvulft.supabase.co";
@@ -738,6 +738,170 @@ function Timeline({miles,setMiles,onSave}){
   </div>);
 }
 
+// ── Value Engineering ────────────────────────────────────────────────────────
+const VE_STATUS_COLOR={"Pending":B.muted,"Accepted":"#2a6b3f","Rejected":B.danger};
+
+function veToRow(v){
+  return { id:String(v.id), status:v.status||"Pending", notes:v.notes||"", updated_at:new Date().toISOString() };
+}
+function rowToVeStatus(r){
+  return { id:r.id, status:r.status||"Pending", notes:r.notes||"" };
+}
+
+function ValueEngineering(){
+  const mobile=useIsMobile();
+  const [statusMap,setStatusMap]=useState({}); // id -> {status,notes}
+  const [loaded,setLoaded]=useState(false);
+  const [openId,setOpenId]=useState(null);
+  const [saving,setSaving]=useState(null);
+
+  useEffect(()=>{
+    async function load(){
+      try{
+        const rows=await sbFetch("ve_status");
+        const map={};
+        rows.map(rowToVeStatus).forEach(r=>{map[r.id]=r;});
+        setStatusMap(map);
+      }catch(e){ setStatusMap({}); }
+      setLoaded(true);
+    }
+    load();
+  },[]);
+
+  function getStatus(id){ return (statusMap[id]&&statusMap[id].status)||"Pending"; }
+  function getNotes(id){ return (statusMap[id]&&statusMap[id].notes)||""; }
+
+  async function setStatus(id,status){
+    const updated={id:String(id),status,notes:getNotes(id)};
+    setStatusMap(m=>({...m,[id]:updated}));
+    setSaving(id);
+    try{ await sbUpsert("ve_status",[veToRow(updated)]); }catch(e){}
+    setSaving(null);
+  }
+
+  async function setNotes(id,notes){
+    const updated={id:String(id),status:getStatus(id),notes};
+    setStatusMap(m=>({...m,[id]:updated}));
+  }
+
+  async function saveNotes(id){
+    setSaving(id);
+    try{ await sbUpsert("ve_status",[veToRow({id,status:getStatus(id),notes:getNotes(id)})]); }catch(e){}
+    setSaving(null);
+  }
+
+  if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
+
+  const savingsItems = VE_ITEMS.filter(v=>!v.isAdd);
+  const addItems = VE_ITEMS.filter(v=>v.isAdd);
+  const totalPotential = savingsItems.reduce((s,v)=>s+Math.abs(v.total),0);
+  const acceptedSavings = savingsItems.filter(v=>getStatus(v.id)==="Accepted").reduce((s,v)=>s+Math.abs(v.total),0);
+  const rejectedSavings = savingsItems.filter(v=>getStatus(v.id)==="Rejected").reduce((s,v)=>s+Math.abs(v.total),0);
+  const pendingSavings = totalPotential-acceptedSavings-rejectedSavings;
+  const acceptedAdds = addItems.filter(v=>getStatus(v.id)==="Accepted").reduce((s,v)=>s+v.total,0);
+  const netLockedIn = acceptedSavings-acceptedAdds;
+
+  const fmtV = v => (v<0?"−":"")+fmt$(Math.abs(v));
+
+  const Row = ({item}) => {
+    const status=getStatus(item.id);
+    const isOpen=openId===item.id;
+    return (
+      <div style={{borderBottom:`1px solid ${B.light}`}}>
+        <div onClick={()=>setOpenId(isOpen?null:item.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",cursor:"pointer",background:isOpen?B.offwhite:B.white}}>
+          <div style={{fontSize:11,color:B.muted,width:20,flexShrink:0}}>{item.number}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:600,color:B.navy}}>{item.title}{item.isAdd&&<span style={{marginLeft:8,fontSize:10,fontWeight:700,color:B.danger,textTransform:"uppercase",letterSpacing:"0.04em"}}>Cost add</span>}</div>
+            <div style={{fontSize:10,color:B.muted,marginTop:1}}>{item.category}</div>
+          </div>
+          <div style={{fontSize:14,fontWeight:700,color:item.isAdd?B.danger:"#2a6b3f",flexShrink:0,width:110,textAlign:"right"}}>{item.isAdd?"+":"−"}{fmt$(Math.abs(item.total))}</div>
+          <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:10,background:VE_STATUS_COLOR[status]+"18",color:VE_STATUS_COLOR[status],flexShrink:0,letterSpacing:"0.03em"}}>{status.toUpperCase()}</span>
+          <span style={{fontSize:11,color:B.muted,flexShrink:0}}>{isOpen?"▲":"▼"}</span>
+        </div>
+        {isOpen && (
+          <div style={{padding:"0 14px 16px 46px",background:B.offwhite}}>
+            {item.veNote && <div style={{fontSize:11,color:B.navy,background:B.white,border:`1px solid ${B.steel}`,borderRadius:6,padding:"8px 10px",marginBottom:10,maxWidth:640}}>{item.veNote}</div>}
+            <div style={{border:`1px solid ${B.steel}`,borderRadius:6,overflow:"hidden",background:B.white,maxWidth:640}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 50px 50px 80px 80px",gap:6,padding:"6px 10px",background:B.light,fontSize:9,textTransform:"uppercase",letterSpacing:"0.04em",color:B.muted,fontWeight:700}}>
+                <div>Description</div><div style={{textAlign:"right"}}>Qty</div><div>Unit</div><div style={{textAlign:"right"}}>Price</div><div style={{textAlign:"right"}}>Subtotal</div>
+              </div>
+              {item.lines.map((l,i)=>(
+                <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 50px 50px 80px 80px",gap:6,padding:"6px 10px",fontSize:11,color:B.navy,borderTop:`1px solid ${B.light}`}}>
+                  <div>{l.desc}</div>
+                  <div style={{textAlign:"right"}}>{l.qty??""}</div>
+                  <div>{l.unit}</div>
+                  <div style={{textAlign:"right"}}>{fmtV(l.price)}</div>
+                  <div style={{textAlign:"right",fontWeight:600}}>{fmtV(l.sub)}</div>
+                </div>
+              ))}
+              <div style={{display:"flex",justifyContent:"flex-end",padding:"7px 10px",borderTop:`2px solid ${B.navy}`,fontSize:12,fontWeight:700,color:B.navy}}>{fmtV(item.total)}</div>
+            </div>
+
+            <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap",alignItems:"center"}}>
+              {["Pending","Accepted","Rejected"].map(s=>(
+                <button key={s} onClick={()=>setStatus(item.id,s)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",borderRadius:14,cursor:"pointer",border:`1px solid ${status===s?VE_STATUS_COLOR[s]:B.light}`,background:status===s?VE_STATUS_COLOR[s]:B.white,color:status===s?B.white:B.muted}}>{s}</button>
+              ))}
+              {saving===item.id && <span style={{fontSize:11,color:B.muted}}>Saving…</span>}
+            </div>
+            <div style={{marginTop:8,maxWidth:640}}>
+              <textarea
+                value={getNotes(item.id)}
+                onChange={e=>setNotes(item.id,e.target.value)}
+                onBlur={()=>saveNotes(item.id)}
+                placeholder="Decision notes…"
+                style={{...iS,height:50,resize:"vertical"}}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return(
+    <div style={{padding:"1.25rem 0"}}>
+      <div style={{marginBottom:"1.25rem"}}>
+        <div style={{fontSize:20,fontWeight:700,color:B.navy}}>Value Engineering</div>
+        <div style={{fontSize:12,color:B.muted,marginTop:2}}>OSLO Builders, Project Options — NBHD Hotel Alternates (24-037), first pass</div>
+      </div>
+
+      <div style={g4(mobile)}>
+        {[
+          ["Total potential savings",fmt$(totalPotential),B.navy],
+          ["Accepted (locked in)","−"+fmt$(acceptedSavings),"#2a6b3f"],
+          ["Rejected (kept in scope)","−"+fmt$(rejectedSavings),B.muted],
+          ["Still pending",fmt$(pendingSavings),B.gold],
+        ].map(([l,v,c])=>(
+          <div key={l} style={SC(c)}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+            <div style={{fontSize:mobile?15:20,fontWeight:700,color:B.white}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {addItems.length>0 && (
+        <div style={{fontSize:11,color:B.muted,marginBottom:12}}>
+          Net of accepted cost adds ({fmt$(acceptedAdds)}): <b style={{color:netLockedIn>=0?"#2a6b3f":B.danger}}>{netLockedIn>=0?"−":"+"}{fmt$(Math.abs(netLockedIn))}</b> net savings locked in so far.
+        </div>
+      )}
+
+      <div style={{...card,padding:0,overflow:"hidden",marginBottom:16}}>
+        <div style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>Savings options ({savingsItems.length})</div>
+        {savingsItems.map(item=><Row key={item.id} item={item}/>)}
+      </div>
+
+      {addItems.length>0 && (
+        <div style={{...card,padding:0,overflow:"hidden"}}>
+          <div style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>Related cost adds ({addItems.length})</div>
+          {addItems.map(item=><Row key={item.id} item={item}/>)}
+        </div>
+      )}
+
+      <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any item to see OSLO's full line-item detail and set a decision. Notes save when you click away from the field.</div>
+    </div>
+  );
+}
+
 // ── Tasks ──────────────────────────────────────────────────────────────────
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
@@ -1409,17 +1573,19 @@ const SEEK_LINES=[
 
 const KEYS=21;
 const GSF=14686;
-const TOTAL_PROJECT=8433945;
+const TOTAL_PROJECT=8433945; // original underwriting / committed Sources (debt + equity)
 const DEBT=5903654;
 const EQUITY=2530290;
 const LP_TARGET=LP_EQUITY_TARGET;
 const USE_ACQUISITION=1196089;
 const USE_SOFT=778700;
-const USE_HARD=5144475;
+const USE_HARD=5953229; // OSLO Builders budget, updated 7/29/26 (was $5,144,475 as of the original model)
 const USE_FFE=542932;
 const USE_INTEREST=303192;
 const USE_PREOPENING=150000;
-const USE_CONTINGENCY=318557;
+const USE_CONTINGENCY=73582; // soft-cost contingency only; hard-cost contingency now lives inside OSLO's own Hard Costs total to avoid double-counting
+const TOTAL_USES=USE_ACQUISITION+USE_SOFT+USE_HARD+USE_FFE+USE_INTEREST+USE_PREOPENING+USE_CONTINGENCY;
+const FUNDING_GAP=TOTAL_USES-(DEBT+EQUITY);
 
 function BudgetSection({section,pKey,pGSF}){
   const [open,setOpen]=useState(false);
@@ -1495,9 +1661,9 @@ function Budget({committed}){
     <div style={{padding:"1.25rem 0"}}>
       <div style={g4(mobile)}>
         {[
-          ["Total Project Cost",fmt$(TOTAL_PROJECT),B.navy],
-          ["Total Debt",fmt$(DEBT),B.blue],
-          ["Total Equity",fmt$(EQUITY),B.sage],
+          ["Total Uses (current)",fmt$(TOTAL_USES),B.navy],
+          ["Total Sources (Debt + Equity)",fmt$(DEBT+EQUITY),B.blue],
+          ["Funding Gap",fmt$(FUNDING_GAP),FUNDING_GAP>0?B.danger:"#2a6b3f"],
           ["LP Equity Committed",fmt$(committed)+` / ${fmt$(LP_EQUITY_TARGET)}`,committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],
         ].map(([l,v,c])=>(
           <div key={l} style={SC(c)}>
@@ -1520,7 +1686,7 @@ function Budget({committed}){
             <SU label="LP Equity (target)" total={LP_TARGET} bold pct="30%"/>
             <SU label="Committed to date" total={committed} pct={`${Math.round(committed/LP_TARGET*100)}%`} muted/>
             <SU label="Remaining to raise" total={Math.max(0,LP_TARGET-committed)} pct="" muted/>
-            <TotalBar label="Total Sources" amount={TOTAL_PROJECT}/>
+            <TotalBar label="Total Sources" amount={DEBT+EQUITY}/>
           </div>
 
           <div style={{marginTop:"1.5rem"}}>
@@ -1557,7 +1723,7 @@ function Budget({committed}){
               <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
             </div>
             {[
-              {label:"Acquisition & Land Purchase",total:1196089,pct:"14.2%",children:[
+              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"13.3%",children:[
                 {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
                 {label:"Closing Costs",total:9003,pct:"0.1%"},
                 {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
@@ -1565,7 +1731,7 @@ function Budget({committed}){
                 {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
                 {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
               ]},
-              {label:"Soft Costs",total:778700,pct:"9.2%",children:[
+              {label:"Soft Costs",total:USE_SOFT,pct:"8.7%",children:[
                 {label:"Architect — Design Phase",total:170000,pct:"2.0%"},
                 {label:"Zoning",total:5000,pct:"0.1%"},
                 {label:"Taxes",total:18917,pct:"0.2%"},
@@ -1581,38 +1747,94 @@ function Budget({committed}){
                 {label:"Lender Underwriting Fee",total:5000,pct:"0.1%"},
                 {label:"Acquisition Fee (109 Barton)",total:14000,pct:"0.2%"},
               ]},
-              {label:"Hard Costs",total:5144475,pct:"61.0%",children:[
-                {label:"Construction Hard Costs",total:4815000,pct:"57.1%"},
-                {label:"Demo",total:50000,pct:"0.6%"},
-                {label:"Salto Locks & Install",total:34500,pct:"0.4%"},
-                {label:"Construction Contingency",total:244975,pct:"2.9%"},
+              {label:"Hard Costs",total:USE_HARD,pct:"66.2%",children:[
+                {label:"Permits",total:0,pct:"0.0%"},
+                {label:"Winter Conditions Allowance",total:0,pct:"0.0%"},
+                {label:"Survey and Layout",total:14500,pct:"0.2%"},
+                {label:"Cleaning and Protection",total:104872,pct:"1.2%"},
+                {label:"Site Requirements",total:33400,pct:"0.4%"},
+                {label:"Demolition",total:51250,pct:"0.6%"},
+                {label:"Cast-in-place Concrete",total:185400,pct:"2.1%"},
+                {label:"Gypsum Floor Topping",total:0,pct:"0.0%"},
+                {label:"Masonry",total:204136,pct:"2.3%"},
+                {label:"Structural Steel",total:199500,pct:"2.2%"},
+                {label:"Misc Metals",total:178595,pct:"2.0%"},
+                {label:"Rough Carpentry",total:351180,pct:"3.9%"},
+                {label:"Finish Carpentry",total:112664,pct:"1.3%"},
+                {label:"Insulation",total:142000,pct:"1.6%"},
+                {label:"Siding & Deck",total:169513,pct:"1.9%"},
+                {label:"Roofing",total:135888,pct:"1.5%"},
+                {label:"Fireproofing",total:0,pct:"0.0%"},
+                {label:"Joint Sealants",total:0,pct:"0.0%"},
+                {label:"Doors, Frames and Hardware",total:133958,pct:"1.5%"},
+                {label:"Overhead Doors",total:0,pct:"0.0%"},
+                {label:"Storefront",total:36168,pct:"0.4%"},
+                {label:"Windows & Sliding Doors",total:137163,pct:"1.5%"},
+                {label:"Interior Glazing",total:13138,pct:"0.1%"},
+                {label:"Gypsum Board & Insulation",total:145546,pct:"1.6%"},
+                {label:"EIFS & Scaffolding",total:109400,pct:"1.2%"},
+                {label:"Tile",total:134367,pct:"1.5%"},
+                {label:"LVT Flooring",total:61280,pct:"0.7%"},
+                {label:"Carpet Tile Flooring",total:0,pct:"0.0%"},
+                {label:"Painting",total:125415,pct:"1.4%"},
+                {label:"Specialties",total:14445,pct:"0.2%"},
+                {label:"Signage",total:0,pct:"0.0%"},
+                {label:"Toilet Accessories",total:10795,pct:"0.1%"},
+                {label:"Fireplaces (infrastructure only — see Value Engineering)",total:0,pct:"0.0%"},
+                {label:"Appliances",total:79073,pct:"0.9%"},
+                {label:"Closets",total:11850,pct:"0.1%"},
+                {label:"Window Treatments",total:36493,pct:"0.4%"},
+                {label:"Cabinets",total:61236,pct:"0.7%"},
+                {label:"Countertops",total:45689,pct:"0.5%"},
+                {label:"Elevator",total:153300,pct:"1.7%"},
+                {label:"Trash Chute",total:0,pct:"0.0%"},
+                {label:"Fire Protection",total:157955,pct:"1.8%"},
+                {label:"Plumbing",total:391800,pct:"4.4%"},
+                {label:"Plumbing Fixtures",total:0,pct:"0.0%"},
+                {label:"HVAC",total:388543,pct:"4.3%"},
+                {label:"Electrical",total:540500,pct:"6.0%"},
+                {label:"Light Fixtures & Lighting Control",total:134265,pct:"1.5%"},
+                {label:"Low Voltage (infrastructure only — vendor TBD)",total:0,pct:"0.0%"},
+                {label:"Earthwork",total:72750,pct:"0.8%"},
+                {label:"Concrete & Asphalt Sitework",total:75843,pct:"0.8%"},
+                {label:"Landscaping, Pavers & Irrigation",total:142760,pct:"1.6%"},
+                {label:"Site Utilities",total:80500,pct:"0.9%"},
+                {label:"General Conditions",total:295720,pct:"3.3%"},
+                {label:"Insurance (1.00%)",total:54728,pct:"0.6%"},
+                {label:"Overhead & Fee (2.75%)",total:152008,pct:"1.7%"},
+                {label:"Construction Contingency (5.00%)",total:273642,pct:"3.0%"},
               ]},
-              {label:"FF&E & OS&E",total:542932,pct:"6.4%",children:[
+              {label:"FF&E & OS&E",total:USE_FFE,pct:"6.0%",children:[
                 {label:"Furniture",total:296118,pct:"3.5%"},
                 {label:"Fixtures",total:30900,pct:"0.4%"},
                 {label:"Operating Supplies",total:85107,pct:"1.0%"},
                 {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
               ]},
-              {label:"Interest Reserve + Loan Fees",total:303192,pct:"3.6%",children:[]},
-              {label:"Pre-Opening Costs",total:150000,pct:"1.8%",children:[
+              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.4%",children:[]},
+              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.7%",children:[
                 {label:"Operating Shortfall",total:125000,pct:"1.5%"},
                 {label:"General Marketing",total:25000,pct:"0.3%"},
               ]},
-              {label:"Contingency",total:318557,pct:"3.8%",children:[
-                {label:"5% of Hard Costs",total:244975,pct:"2.9%"},
-                {label:"5% of Soft Costs",total:73582,pct:"0.9%"},
+              {label:"Contingency (soft costs only — hard cost contingency is inside Hard Costs above)",total:USE_CONTINGENCY,pct:"0.8%",children:[
+                {label:"5% of Soft Costs",total:73582,pct:"0.8%"},
               ]},
             ].map(section=>(
               <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
             ))}
-            <TotalBar label="Total Uses" amount={TOTAL_PROJECT}/>
+            <TotalBar label="Total Uses" amount={TOTAL_USES}/>
           </div>
         </div>
       </div>
 
       <div style={{marginTop:"1rem",fontSize:11,color:B.muted}}>
-        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders GMP (21-key) dated 12/4/2025. Model v8 — Horizon Loan Terms.
+        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders budget dated 7/29/26 (supersedes 12/4/2025 GMP and the prior $5,144,475 placeholder). Model v8 — Horizon Loan Terms.
       </div>
+      {FUNDING_GAP>0 && (
+        <div style={{marginTop:"0.75rem",padding:"0.85rem 1rem",borderRadius:8,background:B.danger+"12",border:`1px solid ${B.danger}44`}}>
+          <div style={{fontSize:12,fontWeight:700,color:B.danger}}>Funding gap: {fmt$(FUNDING_GAP)}</div>
+          <div style={{fontSize:11,color:B.navy,marginTop:2}}>Total Uses now exceeds committed Sources (Debt + Equity) by this amount, driven by OSLO's 7/29 budget update. Value engineering, additional equity, or a contingency draw need to close this before GMP is locked.</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2670,7 +2892,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lenders","Risks","Capital Timing","OAC","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Value Engineering","Lenders","Risks","Capital Timing","OAC","Import"];
 
   const mobile=useIsMobile();
 
@@ -2697,6 +2919,7 @@ export default function App(){
       {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
+      {nav==="Value Engineering"&&<ValueEngineering/>}
       {nav==="Lenders"&&<LenderMatrix/>}
       {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Capital Timing"&&<CapitalTiming/>}
