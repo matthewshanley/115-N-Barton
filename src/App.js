@@ -156,6 +156,7 @@ function mileToRow(m) {
     phase: m.phase || "Execution",
     start_date: m.start || null,
     end_date: m.end || null,
+    notes: m.notes || "",
     updated_at: new Date().toISOString(),
   };
 }
@@ -167,6 +168,7 @@ function rowToMile(r) {
     phase: r.phase || "Execution",
     start: r.start_date || "",
     end: r.end_date || "",
+    notes: r.notes || "",
   };
 }
 
@@ -356,8 +358,8 @@ function Dashboard({contacts,tasks,miles,setNav}){
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
   const activeLenders=lenders.filter(c=>!["Not contacted","Passed"].includes(c.status)).length;
   const highTasks=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").length;
-  const pC={"Initiation":B.navy,"Planning":B.sage,"Execution":B.blue,"Go Live":B.gold};
-  const GS=new Date("2025-07-01"),GE=new Date("2027-07-01"),GT=GE-GS;
+  const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
+  const GS=new Date("2026-07-20"),GE=new Date("2026-10-05"),GT=GE-GS;
   const tP=d=>((new Date(d)-GS)/GT)*100;
   const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
   const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
@@ -374,7 +376,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
         <div style={card}>
           <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Project timeline</div>
           <div style={{marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,marginBottom:4}}><span>Jul 2025</span><span>Today</span><span>Jul 2027</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,marginBottom:4}}><span>7/20</span><span>Today</span><span>10/5</span></div>
             <div style={{height:6,background:B.light,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${nowP}%`,background:B.blue,borderRadius:3}}/></div>
           </div>
           {miles.slice(0,6).map(m=>{
@@ -646,12 +648,14 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 }
 
 // ── Timeline ───────────────────────────────────────────────────────────────
-const pC={"Initiation":B.navy,"Planning":B.sage,"Execution":B.blue,"Go Live":B.gold};
-const GS=new Date("2025-07-01"),GE=new Date("2027-07-01"),GT=GE-GS;
+const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
+const GS=new Date("2026-07-20"),GE=new Date("2026-10-05"),GT=GE-GS;
 const tP=d=>((new Date(d)-GS)/GT)*100;
 const wP=(s,e)=>Math.max(((new Date(e)-new Date(s))/GT)*100,1);
-const QS=[];
-for(let y=2025;y<=2027;y++)for(let q=0;q<4;q++){const d=new Date(y,q*3,1);if(d>=GS&&d<=GE)QS.push({label:`Q${q+1} ${y}`,pct:tP(d)});}
+const WS=[];
+for(let d=new Date(GS); d<=GE; d.setDate(d.getDate()+7)){
+  WS.push({label:`${d.getMonth()+1}/${d.getDate()}`,pct:tP(new Date(d))});
+}
 
 function Timeline({miles,setMiles,onSave}){
   const mobile=useIsMobile();
@@ -667,36 +671,46 @@ function Timeline({miles,setMiles,onSave}){
       setEditing(null);
     }finally{setSaving(false);}
   }
+  const sorted = miles.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||""));
   return(<div style={{padding:"1rem 0"}}>
+    <div style={{fontSize:11,color:B.muted,marginBottom:"0.75rem"}}>115 N Barton — demolition and construction schedule, tactical view</div>
     <div style={{fontSize:11,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"1rem",display:"flex",gap:16,flexWrap:"wrap"}}>
       {Object.entries(pC).map(([ph,col])=><span key={ph} style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:2,background:col,display:"inline-block"}}/>{ph}</span>)}
     </div>
     <div style={{...card,overflowX:"auto"}}>
-      <div style={{display:"flex",marginBottom:8,marginLeft:mobile?100:180,position:"relative",height:20}}>
-        {QS.map(q=><div key={q.label} style={{position:"absolute",left:`${q.pct}%`,fontSize:10,color:B.muted,letterSpacing:"0.04em",whiteSpace:"nowrap",transform:"translateX(-50%)"}}>{q.label}</div>)}
+      <div style={{display:"flex",marginBottom:8,marginLeft:mobile?110:200,position:"relative",height:20}}>
+        {WS.map(q=><div key={q.label} style={{position:"absolute",left:`${q.pct}%`,fontSize:10,color:B.muted,letterSpacing:"0.02em",whiteSpace:"nowrap",transform:"translateX(-50%)"}}>{q.label}</div>)}
       </div>
-      {miles.map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}} onClick={()=>{setEditing(m.id);setForm({...m});}}>
-        <div style={{width:mobile?96:172,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:400,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
-        <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer"}}>
-          <div style={{position:"absolute",left:`${Math.max(0,tP(m.start))}%`,width:`${wP(m.start,m.end)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:4,opacity:0.85}}/>
-          <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:2}}/>
+      {sorted.map(m=>(<div key={m.id} style={{marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}} onClick={()=>{setEditing(m.id);setForm({...m});}}>
+          <div style={{width:mobile?104:192,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
+          <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer"}}>
+            <div style={{position:"absolute",left:`${Math.max(0,tP(m.start))}%`,width:`${wP(m.start,m.end)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:4,opacity:0.85}}/>
+            <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:2}}/>
+          </div>
         </div>
+        {m.notes && <div style={{marginLeft:mobile?112:200,fontSize:11,color:B.muted,marginTop:3,maxWidth:560}} title={m.notes}>{m.notes}</div>}
       </div>))}
     </div>
     {editing&&<div style={{...card,marginTop:"1rem"}}>
-      <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Edit milestone</div>
-      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"2fr 1fr 1fr 1fr",gap:12}}>
+      <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Edit phase</div>
+      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"2fr 1fr 1fr 1fr",gap:12,marginBottom:12}}>
         {!mobile&&<div><label style={lS}>Label</label><input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS}/></div>}
         <div><label style={lS}>Start</label><input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} style={iS}/></div>
         <div><label style={lS}>End</label><input type="date" value={form.end||""} onChange={e=>setForm(f=>({...f,end:e.target.value}))} style={iS}/></div>
         <div style={mobile?{gridColumn:"span 2"}:{}}><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
       </div>
-      <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={save} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
+      <div style={{marginBottom:12}}>
+        <label style={lS}>Status / notes</label>
+        <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={{...iS,height:70,resize:"vertical"}}/>
+      </div>
+      <div style={{display:"flex",gap:8}}><button onClick={save} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
     </div>}
-    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any milestone row to edit dates.</div>
+    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any phase row to edit dates, phase, or notes.</div>
   </div>);
 }
 
+// ── Tasks ──────────────────────────────────────────────────────────────────
 // ── Tasks ──────────────────────────────────────────────────────────────────
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
