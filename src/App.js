@@ -659,21 +659,41 @@ for(let d=new Date(GS); d<=GE; d.setDate(d.getDate()+7)){
 
 function Timeline({miles,setMiles,onSave}){
   const mobile=useIsMobile();
-  const [editing,setEditing]=useState(null);
+  const [editing,setEditing]=useState(null); // milestone id, or "__new__", or null
   const [form,setForm]=useState({});
   const [saving,setSaving]=useState(false);
   const nowP=tP(today);
+
+  function openNew(){
+    setForm({id:`m-${Date.now()}`,label:"",start:todayStr,end:todayStr,phase:Object.keys(pC)[0],notes:""});
+    setEditing("__new__");
+  }
+
   async function save(){
     setSaving(true);
     try{
       await onSave("milestones",[form]);
-      setMiles(miles.map(m=>m.id===form.id?{...form}:m));
+      setMiles(prev => editing==="__new__" ? [...prev, {...form}] : prev.map(m=>m.id===form.id?{...form}:m));
       setEditing(null);
     }finally{setSaving(false);}
   }
+
+  async function removePhase(){
+    if(!form.id) return;
+    setSaving(true);
+    try{
+      await sbDelete("milestones", form.id);
+      setMiles(prev => prev.filter(m=>m.id!==form.id));
+      setEditing(null);
+    }finally{setSaving(false);}
+  }
+
   const sorted = miles.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||""));
   return(<div style={{padding:"1rem 0"}}>
-    <div style={{fontSize:11,color:B.muted,marginBottom:"0.75rem"}}>115 N Barton — demolition and construction schedule, tactical view</div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:"0.75rem"}}>
+      <div style={{fontSize:11,color:B.muted}}>115 N Barton — demolition and construction schedule, tactical view</div>
+      <button onClick={openNew} style={btn()}>+ Add phase</button>
+    </div>
     <div style={{fontSize:11,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"1rem",display:"flex",gap:16,flexWrap:"wrap"}}>
       {Object.entries(pC).map(([ph,col])=><span key={ph} style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:2,background:col,display:"inline-block"}}/>{ph}</span>)}
     </div>
@@ -691,11 +711,15 @@ function Timeline({miles,setMiles,onSave}){
         </div>
         {m.notes && <div style={{marginLeft:mobile?112:200,fontSize:11,color:B.muted,marginTop:3,maxWidth:560}} title={m.notes}>{m.notes}</div>}
       </div>))}
+      {sorted.length===0 && <div style={{fontSize:13,color:B.muted,padding:"1rem 0"}}>No phases yet. Click "+ Add phase" to start.</div>}
     </div>
     {editing&&<div style={{...card,marginTop:"1rem"}}>
-      <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>Edit phase</div>
-      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"2fr 1fr 1fr 1fr",gap:12,marginBottom:12}}>
-        {!mobile&&<div><label style={lS}>Label</label><input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS}/></div>}
+      <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>{editing==="__new__"?"New phase":"Edit phase"}</div>
+      <div style={{marginBottom:12}}>
+        <label style={lS}>Label</label>
+        <input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS} placeholder="e.g. Rough-in electrical" autoFocus={editing==="__new__"}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"1fr 1fr 1fr",gap:12,marginBottom:12}}>
         <div><label style={lS}>Start</label><input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} style={iS}/></div>
         <div><label style={lS}>End</label><input type="date" value={form.end||""} onChange={e=>setForm(f=>({...f,end:e.target.value}))} style={iS}/></div>
         <div style={mobile?{gridColumn:"span 2"}:{}}><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
@@ -704,13 +728,16 @@ function Timeline({miles,setMiles,onSave}){
         <label style={lS}>Status / notes</label>
         <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={{...iS,height:70,resize:"vertical"}}/>
       </div>
-      <div style={{display:"flex",gap:8}}><button onClick={save} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button><button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button></div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={save} style={btn()} disabled={saving||!form.label}>{saving?"Saving…":"Save"}</button>
+        <button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button>
+        {editing!=="__new__" && <button onClick={removePhase} style={{...btn(),background:B.danger}} disabled={saving}>Delete</button>}
+      </div>
     </div>}
-    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any phase row to edit dates, phase, or notes.</div>
+    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any phase row to edit dates, phase, or notes. Use "+ Add phase" to add a new one.</div>
   </div>);
 }
 
-// ── Tasks ──────────────────────────────────────────────────────────────────
 // ── Tasks ──────────────────────────────────────────────────────────────────
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
