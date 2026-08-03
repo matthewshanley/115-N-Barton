@@ -2208,9 +2208,22 @@ function RichTextField({value, onChange}){
   },[value, focused]);
 
   function exec(cmd){
-    if(ref.current){ ref.current.focus(); }
+    const el = ref.current;
+    if(!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if(!el.textContent && !el.querySelector("br")){
+      el.innerHTML = "<br>";
+    }
+    if(!sel.rangeCount || !el.contains(sel.anchorNode)){
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
     document.execCommand(cmd, false, null);
-    if(ref.current) onChange(ref.current.innerHTML);
+    onChange(el.innerHTML);
   }
 
   const toolBtn = {fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:4,border:`1px solid ${B.steel}`,background:B.white,color:B.navy,cursor:"pointer"};
