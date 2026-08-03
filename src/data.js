@@ -85,18 +85,15 @@ export const DEFAULT_CONTACTS=[
 ];
 
 export const DEFAULT_MILES=[
-  {id:1,label:"Project Entitlements",start:"2025-07-01",end:"2026-05-01",phase:"Initiation"},
-  {id:2,label:"Design Development",start:"2025-07-01",end:"2026-02-01",phase:"Planning"},
-  {id:3,label:"GC Budgeting",start:"2025-10-01",end:"2026-02-01",phase:"Planning"},
-  {id:4,label:"Site Plan Submittal",start:"2026-02-01",end:"2026-04-01",phase:"Execution"},
-  {id:5,label:"LP Fundraising",start:"2026-03-01",end:"2026-05-01",phase:"Execution"},
-  {id:6,label:"Construction Documents",start:"2026-03-01",end:"2026-06-01",phase:"Execution"},
-  {id:7,label:"Permitting",start:"2026-05-01",end:"2026-06-15",phase:"Execution"},
-  {id:8,label:"Demo / Break Ground",start:"2026-06-01",end:"2026-07-01",phase:"Execution"},
-  {id:9,label:"Construction",start:"2026-06-01",end:"2027-02-01",phase:"Execution"},
-  {id:10,label:"FF&E / Punchlist",start:"2027-02-01",end:"2027-04-01",phase:"Go Live"},
-  {id:11,label:"Marketing / Photography",start:"2027-01-01",end:"2027-04-01",phase:"Go Live"},
-  {id:12,label:"Grand Opening",start:"2027-04-01",end:"2027-07-01",phase:"Go Live"},
+  {id:1,label:"Vendor selection (remediation/demo)",start:"2026-07-27",end:"2026-07-31",phase:"Approvals",notes:"Selecting group; group submits remediation request to state upon selection."},
+  {id:2,label:"State remediation approval",start:"2026-08-03",end:"2026-08-14",phase:"Approvals",notes:"Statutory 10 business day review period following submission."},
+  {id:3,label:"Right-of-way permit",start:"2026-07-27",end:"2026-08-07",phase:"Approvals",notes:"Allows occupation of sidewalk/street. Fire hydrant contract already in place through Oslo."},
+  {id:4,label:"Fencing installation",start:"2026-08-10",end:"2026-08-14",phase:"Site Prep",notes:"Chainlink, L-shape, ties into existing fencing including white fence. Mesh decision open."},
+  {id:5,label:"Tree pruning / removal",start:"2026-07-27",end:"2026-08-14",phase:"Site Prep",notes:"Nate and Christian (arborist) connecting this week to set dig plans and timeline."},
+  {id:6,label:"Remediation",start:"2026-08-17",end:"2026-08-21",phase:"Remediation/Demo",notes:"Budgeted 5 business days (est. 2\u20133). Demo permit already in hand."},
+  {id:7,label:"Demolition",start:"2026-08-24",end:"2026-09-04",phase:"Remediation/Demo",notes:"Up to 10 business days (conservative). Same group performing remediation."},
+  {id:8,label:"Excavation",start:"2026-09-07",end:"2026-09-11",phase:"Remediation/Demo",notes:"Up to 5 business days. Same demo group."},
+  {id:9,label:"Structural (concrete & steel)",start:"2026-09-14",end:"2026-09-30",phase:"Structural",notes:"Target: GMP locked and ready for substantial construction in September."},
 ];
 
 export const DEFAULT_TASKS=[
