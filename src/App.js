@@ -800,6 +800,7 @@ function ValueEngineering(){
   const pendingSavings = totalPotential-acceptedSavings-rejectedSavings;
   const acceptedAdds = addItems.filter(v=>getStatus(v.id)==="Accepted").reduce((s,v)=>s+v.total,0);
   const netLockedIn = acceptedSavings-acceptedAdds;
+  const remainingGap = FUNDING_GAP-netLockedIn;
 
   const fmtV = v => (v<0?"−":"")+fmt$(Math.abs(v));
 
@@ -884,6 +885,24 @@ function ValueEngineering(){
           Net of accepted cost adds ({fmt$(acceptedAdds)}): <b style={{color:netLockedIn>=0?"#2a6b3f":B.danger}}>{netLockedIn>=0?"−":"+"}{fmt$(Math.abs(netLockedIn))}</b> net savings locked in so far.
         </div>
       )}
+
+      <div style={{...card,marginBottom:16,background:remainingGap>0?B.danger+"0d":"#2a6b3f0d",border:`1px solid ${remainingGap>0?B.danger+"44":"#2a6b3f44"}`}}>
+        <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+          <div>
+            <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Original funding gap</div>
+            <div style={{fontSize:16,fontWeight:700,color:B.navy}}>{fmt$(FUNDING_GAP)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Net locked in so far</div>
+            <div style={{fontSize:16,fontWeight:700,color:"#2a6b3f"}}>−{fmt$(Math.max(0,netLockedIn))}</div>
+          </div>
+          <div>
+            <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Remaining gap</div>
+            <div style={{fontSize:16,fontWeight:700,color:remainingGap>0?B.danger:"#2a6b3f"}}>{remainingGap>0?fmt$(remainingGap):"Closed"}</div>
+          </div>
+        </div>
+        <div style={{fontSize:11,color:B.muted,marginTop:8}}>Updates automatically as items below are marked Accepted or Rejected. Pending items aren't counted until a decision is made.</div>
+      </div>
 
       <div style={{...card,padding:0,overflow:"hidden",marginBottom:16}}>
         <div style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>Savings options ({savingsItems.length})</div>
