@@ -2198,6 +2198,7 @@ function OACTodos(){
   const [newItem, setNewItem] = useState("");
   const [newSource, setNewSource] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   useEffect(()=>{
     async function load(){
@@ -2217,24 +2218,26 @@ function OACTodos(){
     const text = newItem.trim();
     if(!text) return;
     const item = { id:`t-${Date.now()}`, item:text, source:newSource.trim(), done:false, created_at:new Date().toISOString() };
+    setItems(prev=>[item, ...prev]);
+    setNewItem("");
+    setNewSource("");
+    setSaveError(null);
     setSaving(true);
     try{
       await sbUpsert("oac_todos", [todoToRow(item)]);
-      setItems(prev=>[item, ...prev]);
-      setNewItem("");
-    } catch(e){ /* leave input as-is so nothing is lost */ }
+    } catch(e){ setSaveError(String(e.message||e)); }
     setSaving(false);
   }
 
   async function toggleDone(it){
     const updated = { ...it, done: !it.done };
     setItems(prev=>prev.map(x=>x.id===it.id?updated:x));
-    try{ await sbUpsert("oac_todos", [todoToRow(updated)]); } catch(e){}
+    try{ await sbUpsert("oac_todos", [todoToRow(updated)]); setSaveError(null); } catch(e){ setSaveError(String(e.message||e)); }
   }
 
   async function deleteItem(id){
     setItems(prev=>prev.filter(x=>x.id!==id));
-    try{ await sbDelete("oac_todos", id); } catch(e){}
+    try{ await sbDelete("oac_todos", id); setSaveError(null); } catch(e){ setSaveError(String(e.message||e)); }
   }
 
   if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
@@ -2259,6 +2262,7 @@ function OACTodos(){
       </div>
 
       {loadFailed && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Couldn't load saved items. Check Supabase connection.</div>}
+      {saveError && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Showing locally, but didn't save to the database: {saveError}</div>}
 
       <div style={{...card,padding:"12px 14px",marginBottom:16,display:"flex",gap:8,flexWrap:"wrap"}}>
         <input
