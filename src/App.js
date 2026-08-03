@@ -2327,53 +2327,70 @@ function OACTodos(){
     const openRows = items.filter(i=>!i.done && matches(i)).sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999"));
     const doneRows = items.filter(i=>i.done && matches(i));
 
-    const rowHtml = (it) => `
+    const ownerTagHtml = o => `<span class="ownertag">${esc(o)}</span>`;
+
+    const rowHtml = (it) => {
+      const overdue = it.due_date && !it.done && it.due_date < todayStr;
+      return `
       <tr>
         <td class="chk">${it.done?"&#9745;":"&#9744;"}</td>
         <td class="main">
           <div class="subj">${esc(it.subject)}</div>
           ${it.description?`<div class="desc">${it.description}</div>`:""}
+          <div class="tags">${ownerTagHtml(it.owner)}</div>
         </td>
-        <td class="owner">${esc(it.owner)}</td>
-        <td class="due">${fmtDate(it.due_date)}</td>
+        <td class="due ${overdue?"overdue":""}">${fmtDate(it.due_date)}</td>
       </tr>`;
+    };
 
     const tableHtml = (rows) => rows.length
-      ? `<table><thead><tr><th></th><th>Item</th><th>Owner</th><th>Due</th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`
+      ? `<table><thead><tr><th></th><th>Item</th><th>Due</th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`
       : `<div class="empty">None</div>`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>115 N Barton — OAC To-Dos</title>
     <style>
       * { box-sizing:border-box; }
-      body{ font-family:Georgia,'Times New Roman',serif; color:#021d2b; margin:0; padding:40px 48px; }
-      h1{ font-size:20px; margin:0 0 2px 0; letter-spacing:0.02em; }
-      .subtitle{ font-size:12px; color:#6b8497; margin-bottom:2px; }
-      .meta{ font-size:11px; color:#6b8497; margin-bottom:28px; }
-      h2{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#6b8497; border-bottom:1px solid #ccd5de; padding-bottom:6px; margin:24px 0 0 0; }
-      table{ width:100%; border-collapse:collapse; margin-top:4px; }
-      th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#6b8497; font-weight:600; padding:8px 6px 4px 6px; }
-      td{ padding:8px 6px; border-bottom:1px solid #e8edf1; vertical-align:top; font-size:12px; }
-      td.chk{ width:20px; font-size:14px; text-align:center; }
-      td.owner{ white-space:nowrap; font-size:11px; color:#021d2b; }
-      td.due{ white-space:nowrap; font-size:11px; color:#6b8497; }
-      .subj{ font-weight:700; }
-      .desc{ font-size:11px; color:#555; margin-top:3px; line-height:1.5; }
+      body{ font-family:'Gill Sans','Gill Sans MT','Trebuchet MS',Arial,sans-serif; color:#021d2b; margin:0; padding:0; }
+      .headerbar{ background:#021d2b; padding:28px 48px 22px 48px; }
+      .eyebrow{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#c9a84c; margin-bottom:6px; font-weight:600; }
+      .headerbar h1{ font-size:23px; margin:0; letter-spacing:0.02em; color:#ffffff; font-weight:700; }
+      .goldrule{ height:3px; background:#c9a84c; }
+      .content{ padding:28px 48px 40px 48px; }
+      .subtitle{ font-size:13px; color:#021d2b; font-weight:600; margin-bottom:2px; }
+      .meta{ font-size:11px; color:#6b8497; margin-bottom:26px; }
+      h2{ font-size:11px; text-transform:uppercase; letter-spacing:0.09em; color:#033b57; font-weight:700; border-bottom:1px solid #ccd5de; padding-bottom:6px; margin:22px 0 0 0; }
+      table{ width:100%; border-collapse:collapse; margin-top:2px; }
+      th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#6b8497; font-weight:600; padding:9px 6px 5px 6px; }
+      td{ padding:9px 6px; border-bottom:1px solid #e8edf1; vertical-align:top; font-size:12px; }
+      td.chk{ width:20px; font-size:14px; text-align:center; color:#033b57; }
+      td.due{ white-space:nowrap; font-size:11px; color:#6b8497; text-align:right; }
+      td.due.overdue{ color:#7a1e1e; font-weight:700; }
+      .subj{ font-weight:700; color:#021d2b; }
+      .desc{ font-size:11px; color:#5f5e5a; margin-top:3px; line-height:1.5; }
       .desc ul{ margin:2px 0 2px 18px; padding:0; }
+      .tags{ margin-top:6px; }
+      .ownertag{ display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:0.03em; padding:2px 9px; border-radius:9px; background:#f4f6f8; border:1px solid #e8edf1; color:#021d2b; }
       .empty{ font-size:12px; color:#6b8497; padding:10px 6px; }
-      .footer{ margin-top:40px; padding-top:10px; border-top:1px solid #ccd5de; font-size:10px; color:#6b8497; }
-      @media print{ body{ padding:0.5in; } }
+      .footer{ margin-top:36px; padding-top:12px; border-top:1px solid #ccd5de; font-size:10px; color:#6b8497; }
+      @media print{ .headerbar{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
     </style></head><body>
-      <h1>115 N Barton Street</h1>
-      <div class="subtitle">OAC To-Dos${ownerFilter!=="All"?" — "+esc(ownerFilter):""}</div>
-      <div class="meta">Generated ${genDate}</div>
+      <div class="headerbar">
+        <div class="eyebrow">The Neighborhood Hotel</div>
+        <h1>115 N Barton Street</h1>
+      </div>
+      <div class="goldrule"></div>
+      <div class="content">
+        <div class="subtitle">OAC To-Dos${ownerFilter!=="All"?" — "+esc(ownerFilter):""}</div>
+        <div class="meta">Generated ${genDate}</div>
 
-      <h2>Open (${openRows.length})</h2>
-      ${tableHtml(openRows)}
+        <h2>Open (${openRows.length})</h2>
+        ${tableHtml(openRows)}
 
-      <h2>Done (${doneRows.length})</h2>
-      ${tableHtml(doneRows)}
+        <h2>Done (${doneRows.length})</h2>
+        ${tableHtml(doneRows)}
 
-      <div class="footer">The Neighborhood Hotel — 115 N Barton St, New Buffalo, MI</div>
+        <div class="footer">The Neighborhood Hotel — 115 N Barton St, New Buffalo, MI</div>
+      </div>
     </body></html>`;
 
     const w = window.open("", "_blank");
