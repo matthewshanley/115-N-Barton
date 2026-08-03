@@ -1602,7 +1602,9 @@ const USE_HARD=5953229; // OSLO Builders budget, updated 7/29/26 (was $5,144,475
 const USE_FFE=542932;
 const USE_INTEREST=303192;
 const USE_PREOPENING=150000;
-const USE_CONTINGENCY=73582; // soft-cost contingency only; hard-cost contingency now lives inside OSLO's own Hard Costs total to avoid double-counting
+const ECG_HARD_COST_CONTINGENCY=283979; // ECG's own 5% owner-level contingency, separate from OSLO's own contingency embedded in Hard Costs. Recomputed 5% x (trade cost + GC's General Conditions/Insurance/OH&P), consistent with the original model's methodology.
+const USE_SOFT_CONTINGENCY=73582;
+const USE_CONTINGENCY=ECG_HARD_COST_CONTINGENCY+USE_SOFT_CONTINGENCY;
 const TOTAL_USES=USE_ACQUISITION+USE_SOFT+USE_HARD+USE_FFE+USE_INTEREST+USE_PREOPENING+USE_CONTINGENCY;
 const FUNDING_GAP=TOTAL_USES-(DEBT+EQUITY);
 
@@ -1742,7 +1744,7 @@ function Budget({committed}){
               <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
             </div>
             {[
-              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"13.3%",children:[
+              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"12.9%",children:[
                 {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
                 {label:"Closing Costs",total:9003,pct:"0.1%"},
                 {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
@@ -1750,7 +1752,7 @@ function Budget({committed}){
                 {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
                 {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
               ]},
-              {label:"Soft Costs",total:USE_SOFT,pct:"8.7%",children:[
+              {label:"Soft Costs",total:USE_SOFT,pct:"8.4%",children:[
                 {label:"Architect — Design Phase",total:170000,pct:"2.0%"},
                 {label:"Zoning",total:5000,pct:"0.1%"},
                 {label:"Taxes",total:18917,pct:"0.2%"},
@@ -1766,7 +1768,7 @@ function Budget({committed}){
                 {label:"Lender Underwriting Fee",total:5000,pct:"0.1%"},
                 {label:"Acquisition Fee (109 Barton)",total:14000,pct:"0.2%"},
               ]},
-              {label:"Hard Costs",total:USE_HARD,pct:"66.2%",children:[
+              {label:"Hard Costs",total:USE_HARD,pct:"64.1%",children:[
                 {label:"Permits",total:0,pct:"0.0%"},
                 {label:"Winter Conditions Allowance",total:0,pct:"0.0%"},
                 {label:"Survey and Layout",total:14500,pct:"0.2%"},
@@ -1823,19 +1825,20 @@ function Budget({committed}){
                 {label:"Overhead & Fee (2.75%)",total:152008,pct:"1.7%"},
                 {label:"Construction Contingency (5.00%)",total:273642,pct:"3.0%"},
               ]},
-              {label:"FF&E & OS&E",total:USE_FFE,pct:"6.0%",children:[
+              {label:"FF&E & OS&E",total:USE_FFE,pct:"5.8%",children:[
                 {label:"Furniture",total:296118,pct:"3.5%"},
                 {label:"Fixtures",total:30900,pct:"0.4%"},
                 {label:"Operating Supplies",total:85107,pct:"1.0%"},
                 {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
               ]},
-              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.4%",children:[]},
-              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.7%",children:[
+              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.3%",children:[]},
+              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.6%",children:[
                 {label:"Operating Shortfall",total:125000,pct:"1.5%"},
                 {label:"General Marketing",total:25000,pct:"0.3%"},
               ]},
-              {label:"Contingency (soft costs only — hard cost contingency is inside Hard Costs above)",total:USE_CONTINGENCY,pct:"0.8%",children:[
-                {label:"5% of Soft Costs",total:73582,pct:"0.8%"},
+              {label:"Contingency (ECG owner-level, separate from OSLO's own contingency inside Hard Costs)",total:USE_CONTINGENCY,pct:"3.9%",children:[
+                {label:"ECG Hard Cost Contingency (5% of OSLO cost, excl. OSLO's own contingency)",total:ECG_HARD_COST_CONTINGENCY,pct:"3.1%"},
+                {label:"5% of Soft Costs",total:USE_SOFT_CONTINGENCY,pct:"0.8%"},
               ]},
             ].map(section=>(
               <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
