@@ -2174,8 +2174,10 @@ function CapitalTiming(){
 function todoToRow(t) {
   return {
     id: String(t.id),
-    item: t.item || "",
-    source: t.source || "",
+    subject: t.subject || "",
+    description: t.description || "",
+    owner: t.owner || "ECG",
+    due_date: t.due_date || null,
     done: !!t.done,
     created_at: t.created_at || new Date().toISOString(),
   };
@@ -2184,21 +2186,27 @@ function todoToRow(t) {
 function rowToTodo(r) {
   return {
     id: r.id,
-    item: r.item || "",
-    source: r.source || "",
+    subject: r.subject || "",
+    description: r.description || "",
+    owner: r.owner || "ECG",
+    due_date: r.due_date || "",
     done: !!r.done,
     created_at: r.created_at || "",
   };
 }
 
+const OAC_OWNERS = ["ECG", "Oslo", "SEEK", "Rebel House"];
+
 function OACTodos(){
+  const mobile = useIsMobile();
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [newItem, setNewItem] = useState("");
-  const [newSource, setNewSource] = useState("");
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({subject:"",description:"",owner:"ECG",due_date:""});
 
   useEffect(()=>{
     async function load(){
@@ -2214,18 +2222,30 @@ function OACTodos(){
     load();
   },[]);
 
-  async function addItem(){
-    const text = newItem.trim();
-    if(!text) return;
-    const item = { id:`t-${Date.now()}`, item:text, source:newSource.trim(), done:false, created_at:new Date().toISOString() };
-    setItems(prev=>[item, ...prev]);
-    setNewItem("");
-    setNewSource("");
+  function openNew(){
+    setForm({subject:"",description:"",owner:"ECG",due_date:""});
+    setEditingId(null);
+    setShowForm(true);
+  }
+
+  function openEdit(it){
+    setForm({subject:it.subject,description:it.description,owner:it.owner,due_date:it.due_date});
+    setEditingId(it.id);
+    setShowForm(true);
+  }
+
+  async function submitForm(){
+    const subject = form.subject.trim();
+    if(!subject) return;
+    const item = editingId
+      ? { ...items.find(i=>i.id===editingId), subject, description:form.description.trim(), owner:form.owner, due_date:form.due_date }
+      : { id:`t-${Date.now()}`, subject, description:form.description.trim(), owner:form.owner, due_date:form.due_date, done:false, created_at:new Date().toISOString() };
+
+    setItems(prev => editingId ? prev.map(i=>i.id===editingId?item:i) : [item, ...prev]);
+    setShowForm(false);
     setSaveError(null);
     setSaving(true);
-    try{
-      await sbUpsert("oac_todos", [todoToRow(item)]);
-    } catch(e){ setSaveError(String(e.message||e)); }
+    try{ await sbUpsert("oac_todos", [todoToRow(item)]); } catch(e){ setSaveError(String(e.message||e)); }
     setSaving(false);
   }
 
@@ -2238,49 +2258,55 @@ function OACTodos(){
   async function deleteItem(id){
     setItems(prev=>prev.filter(x=>x.id!==id));
     try{ await sbDelete("oac_todos", id); setSaveError(null); } catch(e){ setSaveError(String(e.message||e)); }
+    setShowForm(false);
   }
 
   if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
 
-  const open = items.filter(i=>!i.done);
+  const open = items.slice().sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999")).filter(i=>!i.done);
   const done = items.filter(i=>i.done);
 
+  const fmtDue = (d) => {
+    if(!d) return null;
+    try{
+      const dt = new Date(d+"T12:00:00");
+      const today = new Date(); today.setHours(12,0,0,0);
+      const overdue = dt < today;
+      return <span style={{fontSize:11,color:overdue?B.danger:B.muted,fontWeight:overdue?700:400}}>{dt.toLocaleDateString("en-US",{month:"short",day:"numeric"})}{overdue?" · overdue":""}</span>;
+    } catch(e){ return null; }
+  };
+
+  const ownerTag = (o) => (
+    <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy,fontWeight:600,flexShrink:0}}>{o}</span>
+  );
+
   const row = (it) => (
-    <div key={it.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:`1px solid ${B.light}`}}>
-      <input type="checkbox" checked={it.done} onChange={()=>toggleDone(it)} style={{width:16,height:16,flexShrink:0,cursor:"pointer"}}/>
-      <div style={{flex:1,minWidth:0,fontSize:13,color:it.done?B.muted:B.navy,textDecoration:it.done?"line-through":"none"}}>{it.item}</div>
-      {it.source&&<span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,color:B.muted,flexShrink:0}}>{it.source}</span>}
-      <button onClick={()=>deleteItem(it.id)} style={{border:"none",background:"none",color:B.muted,cursor:"pointer",fontSize:14,flexShrink:0,padding:"0 4px"}}>×</button>
+    <div key={it.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",borderBottom:`1px solid ${B.light}`}}>
+      <input type="checkbox" checked={it.done} onChange={()=>toggleDone(it)} style={{width:16,height:16,flexShrink:0,cursor:"pointer",marginTop:2}}/>
+      <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>openEdit(it)}>
+        <div style={{fontSize:13,fontWeight:600,color:it.done?B.muted:B.navy,textDecoration:it.done?"line-through":"none"}}>{it.subject}</div>
+        {it.description && <div style={{fontSize:12,color:B.muted,marginTop:2}}>{it.description}</div>}
+        <div style={{display:"flex",gap:8,alignItems:"center",marginTop:6}}>
+          {ownerTag(it.owner)}
+          {fmtDue(it.due_date)}
+        </div>
+      </div>
+      <button onClick={()=>deleteItem(it.id)} style={{border:"none",background:"none",color:B.muted,cursor:"pointer",fontSize:16,flexShrink:0,padding:"0 4px"}}>×</button>
     </div>
   );
 
   return(
     <div style={{padding:"1.25rem 0"}}>
-      <div style={{marginBottom:"1.25rem"}}>
-        <div style={{fontSize:20,fontWeight:700,color:B.navy}}>OAC To-Dos</div>
-        <div style={{fontSize:12,color:B.muted,marginTop:2}}>Action items from Owner / Architect / Contractor meetings — 115 N Barton</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.25rem",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:20,fontWeight:700,color:B.navy}}>OAC To-Dos</div>
+          <div style={{fontSize:12,color:B.muted,marginTop:2}}>Action items from Owner / Architect / Contractor meetings — 115 N Barton</div>
+        </div>
+        <button onClick={openNew} style={btn()}>+ Add</button>
       </div>
 
       {loadFailed && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Couldn't load saved items. Check Supabase connection.</div>}
       {saveError && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Showing locally, but didn't save to the database: {saveError}</div>}
-
-      <div style={{...card,padding:"12px 14px",marginBottom:16,display:"flex",gap:8,flexWrap:"wrap"}}>
-        <input
-          value={newItem}
-          onChange={e=>setNewItem(e.target.value)}
-          onKeyDown={e=>{ if(e.key==="Enter") addItem(); }}
-          placeholder="New to-do…"
-          style={{...iS, flex:"1 1 260px"}}
-        />
-        <input
-          value={newSource}
-          onChange={e=>setNewSource(e.target.value)}
-          onKeyDown={e=>{ if(e.key==="Enter") addItem(); }}
-          placeholder="Meeting/date (optional)"
-          style={{...iS, flex:"0 1 180px"}}
-        />
-        <button onClick={addItem} style={btn()} disabled={saving}>{saving?"Adding…":"+ Add"}</button>
-      </div>
 
       <div style={{...card,padding:0,marginBottom:16,overflow:"hidden"}}>
         <div style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>Open ({open.length})</div>
@@ -2295,9 +2321,47 @@ function OACTodos(){
           {done.map(row)}
         </div>
       )}
+
+      {showForm && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"2rem 1rem",overflowY:"auto"}}>
+          <div style={{...card,width:"100%",maxWidth:520}}>
+            <div style={{fontSize:15,fontWeight:700,color:B.navy,marginBottom:"1.25rem"}}>{editingId?"Edit to-do":"New to-do"}</div>
+
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Subject line</label>
+              <input value={form.subject} onChange={e=>setForm(f=>({...f,subject:e.target.value}))} style={iS} placeholder="e.g. Confirm elevator shaft dimensions" autoFocus/>
+            </div>
+
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Description</label>
+              <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={{...iS,height:80,resize:"vertical"}}/>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:12,marginBottom:"1.25rem"}}>
+              <div>
+                <label style={lS}>Owner</label>
+                <select value={form.owner} onChange={e=>setForm(f=>({...f,owner:e.target.value}))} style={iS}>
+                  {OAC_OWNERS.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lS}>Due date</label>
+                <input type="date" value={form.due_date} onChange={e=>setForm(f=>({...f,due_date:e.target.value}))} style={iS}/>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={submitForm} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button>
+              <button onClick={()=>setShowForm(false)} style={btn(true)}>Cancel</button>
+              {editingId && <button onClick={()=>deleteItem(editingId)} style={{...btn(),background:B.danger}}>Delete</button>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 
 export default function App(){
