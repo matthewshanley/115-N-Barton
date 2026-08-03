@@ -2314,6 +2314,76 @@ function OACTodos(){
     setShowForm(false);
   }
 
+  function exportPDF(){
+    const esc = s => (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const fmtDate = d => {
+      if(!d) return "";
+      try{ return new Date(d+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+      catch(e){ return d; }
+    };
+    const genDate = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+
+    const matches = i => ownerFilter==="All" || i.owner===ownerFilter;
+    const openRows = items.filter(i=>!i.done && matches(i)).sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999"));
+    const doneRows = items.filter(i=>i.done && matches(i));
+
+    const rowHtml = (it) => `
+      <tr>
+        <td class="chk">${it.done?"&#9745;":"&#9744;"}</td>
+        <td class="main">
+          <div class="subj">${esc(it.subject)}</div>
+          ${it.description?`<div class="desc">${it.description}</div>`:""}
+        </td>
+        <td class="owner">${esc(it.owner)}</td>
+        <td class="due">${fmtDate(it.due_date)}</td>
+      </tr>`;
+
+    const tableHtml = (rows) => rows.length
+      ? `<table><thead><tr><th></th><th>Item</th><th>Owner</th><th>Due</th></tr></thead><tbody>${rows.map(rowHtml).join("")}</tbody></table>`
+      : `<div class="empty">None</div>`;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>115 N Barton — OAC To-Dos</title>
+    <style>
+      * { box-sizing:border-box; }
+      body{ font-family:Georgia,'Times New Roman',serif; color:#021d2b; margin:0; padding:40px 48px; }
+      h1{ font-size:20px; margin:0 0 2px 0; letter-spacing:0.02em; }
+      .subtitle{ font-size:12px; color:#6b8497; margin-bottom:2px; }
+      .meta{ font-size:11px; color:#6b8497; margin-bottom:28px; }
+      h2{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:#6b8497; border-bottom:1px solid #ccd5de; padding-bottom:6px; margin:24px 0 0 0; }
+      table{ width:100%; border-collapse:collapse; margin-top:4px; }
+      th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.05em; color:#6b8497; font-weight:600; padding:8px 6px 4px 6px; }
+      td{ padding:8px 6px; border-bottom:1px solid #e8edf1; vertical-align:top; font-size:12px; }
+      td.chk{ width:20px; font-size:14px; text-align:center; }
+      td.owner{ white-space:nowrap; font-size:11px; color:#021d2b; }
+      td.due{ white-space:nowrap; font-size:11px; color:#6b8497; }
+      .subj{ font-weight:700; }
+      .desc{ font-size:11px; color:#555; margin-top:3px; line-height:1.5; }
+      .desc ul{ margin:2px 0 2px 18px; padding:0; }
+      .empty{ font-size:12px; color:#6b8497; padding:10px 6px; }
+      .footer{ margin-top:40px; padding-top:10px; border-top:1px solid #ccd5de; font-size:10px; color:#6b8497; }
+      @media print{ body{ padding:0.5in; } }
+    </style></head><body>
+      <h1>115 N Barton Street</h1>
+      <div class="subtitle">OAC To-Dos${ownerFilter!=="All"?" — "+esc(ownerFilter):""}</div>
+      <div class="meta">Generated ${genDate}</div>
+
+      <h2>Open (${openRows.length})</h2>
+      ${tableHtml(openRows)}
+
+      <h2>Done (${doneRows.length})</h2>
+      ${tableHtml(doneRows)}
+
+      <div class="footer">The Neighborhood Hotel — 115 N Barton St, New Buffalo, MI</div>
+    </body></html>`;
+
+    const w = window.open("", "_blank");
+    if(!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{ w.print(); }, 350);
+  }
+
   if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
 
   const matchesFilter = (i) => ownerFilter==="All" || i.owner===ownerFilter;
@@ -2361,7 +2431,10 @@ function OACTodos(){
           <div style={{fontSize:20,fontWeight:700,color:B.navy}}>OAC To-Dos</div>
           <div style={{fontSize:12,color:B.muted,marginTop:2}}>Action items from Owner / Architect / Contractor meetings — 115 N Barton</div>
         </div>
-        <button onClick={openNew} style={btn()}>+ Add</button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={exportPDF} style={btn(true)}>Export PDF</button>
+          <button onClick={openNew} style={btn()}>+ Add</button>
+        </div>
       </div>
 
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:"1.25rem"}}>
