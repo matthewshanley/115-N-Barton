@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS } from "./data";
 
 // ── Supabase config ────────────────────────────────────────────────────────
@@ -2197,6 +2197,44 @@ function rowToTodo(r) {
 
 const OAC_OWNERS = ["ECG", "Oslo", "SEEK", "Rebel House"];
 
+function RichTextField({value, onChange}){
+  const ref = useRef(null);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(()=>{
+    if(ref.current && !focused && ref.current.innerHTML !== (value||"")){
+      ref.current.innerHTML = value || "";
+    }
+  },[value, focused]);
+
+  function exec(cmd){
+    if(ref.current){ ref.current.focus(); }
+    document.execCommand(cmd, false, null);
+    if(ref.current) onChange(ref.current.innerHTML);
+  }
+
+  const toolBtn = {fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:4,border:`1px solid ${B.steel}`,background:B.white,color:B.navy,cursor:"pointer"};
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
+        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>exec("bold")} style={toolBtn}><b>B</b></button>
+        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>exec("italic")} style={{...toolBtn,fontStyle:"italic"}}>I</button>
+        <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>exec("insertUnorderedList")} style={toolBtn}>• List</button>
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onFocus={()=>setFocused(true)}
+        onBlur={()=>setFocused(false)}
+        onInput={e=>onChange(e.currentTarget.innerHTML)}
+        style={{...iS,height:90,overflowY:"auto",lineHeight:1.5}}
+      />
+    </div>
+  );
+}
+
 function OACTodos(){
   const mobile = useIsMobile();
   const [items, setItems] = useState([]);
@@ -2207,6 +2245,8 @@ function OACTodos(){
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({subject:"",description:"",owner:"ECG",due_date:""});
+  const [ownerFilter, setOwnerFilter] = useState("All");
+  const [doneOpen, setDoneOpen] = useState(false);
 
   useEffect(()=>{
     async function load(){
@@ -2238,8 +2278,8 @@ function OACTodos(){
     const subject = form.subject.trim();
     if(!subject) return;
     const item = editingId
-      ? { ...items.find(i=>i.id===editingId), subject, description:form.description.trim(), owner:form.owner, due_date:form.due_date }
-      : { id:`t-${Date.now()}`, subject, description:form.description.trim(), owner:form.owner, due_date:form.due_date, done:false, created_at:new Date().toISOString() };
+      ? { ...items.find(i=>i.id===editingId), subject, description:form.description, owner:form.owner, due_date:form.due_date }
+      : { id:`t-${Date.now()}`, subject, description:form.description, owner:form.owner, due_date:form.due_date, done:false, created_at:new Date().toISOString() };
 
     setItems(prev => editingId ? prev.map(i=>i.id===editingId?item:i) : [item, ...prev]);
     setShowForm(false);
@@ -2263,8 +2303,9 @@ function OACTodos(){
 
   if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
 
-  const open = items.slice().sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999")).filter(i=>!i.done);
-  const done = items.filter(i=>i.done);
+  const matchesFilter = (i) => ownerFilter==="All" || i.owner===ownerFilter;
+  const open = items.filter(i=>!i.done && matchesFilter(i)).sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999"));
+  const done = items.filter(i=>i.done && matchesFilter(i));
 
   const fmtDue = (d) => {
     if(!d) return null;
@@ -2285,7 +2326,7 @@ function OACTodos(){
       <input type="checkbox" checked={it.done} onChange={()=>toggleDone(it)} style={{width:16,height:16,flexShrink:0,cursor:"pointer",marginTop:2}}/>
       <div style={{flex:1,minWidth:0,cursor:"pointer"}} onClick={()=>openEdit(it)}>
         <div style={{fontSize:13,fontWeight:600,color:it.done?B.muted:B.navy,textDecoration:it.done?"line-through":"none"}}>{it.subject}</div>
-        {it.description && <div style={{fontSize:12,color:B.muted,marginTop:2}}>{it.description}</div>}
+        {it.description && <div style={{fontSize:12,color:B.muted,marginTop:2,lineHeight:1.5}} dangerouslySetInnerHTML={{__html:it.description}}/>}
         <div style={{display:"flex",gap:8,alignItems:"center",marginTop:6}}>
           {ownerTag(it.owner)}
           {fmtDue(it.due_date)}
@@ -2295,14 +2336,26 @@ function OACTodos(){
     </div>
   );
 
+  const chipStyle = (active) => ({
+    fontSize:11,fontWeight:600,padding:"5px 12px",borderRadius:14,cursor:"pointer",
+    border:`1px solid ${active?B.navy:B.light}`,background:active?B.navy:B.white,color:active?B.white:B.muted,
+  });
+
   return(
     <div style={{padding:"1.25rem 0"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.25rem",flexWrap:"wrap",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1rem",flexWrap:"wrap",gap:8}}>
         <div>
           <div style={{fontSize:20,fontWeight:700,color:B.navy}}>OAC To-Dos</div>
           <div style={{fontSize:12,color:B.muted,marginTop:2}}>Action items from Owner / Architect / Contractor meetings — 115 N Barton</div>
         </div>
         <button onClick={openNew} style={btn()}>+ Add</button>
+      </div>
+
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:"1.25rem"}}>
+        <div onClick={()=>setOwnerFilter("All")} style={chipStyle(ownerFilter==="All")}>All</div>
+        {OAC_OWNERS.map(o=>(
+          <div key={o} onClick={()=>setOwnerFilter(o)} style={chipStyle(ownerFilter===o)}>{o}</div>
+        ))}
       </div>
 
       {loadFailed && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Couldn't load saved items. Check Supabase connection.</div>}
@@ -2315,12 +2368,14 @@ function OACTodos(){
           : open.map(row)}
       </div>
 
-      {done.length>0 && (
-        <div style={{...card,padding:0,overflow:"hidden"}}>
-          <div style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:`1px solid ${B.light}`}}>Done ({done.length})</div>
-          {done.map(row)}
+      <div style={{...card,padding:0,overflow:"hidden"}}>
+        <div onClick={()=>setDoneOpen(v=>!v)} style={{padding:"10px 14px",fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,background:B.offwhite,borderBottom:doneOpen?`1px solid ${B.light}`:"none",cursor:"pointer",display:"flex",justifyContent:"space-between"}}>
+          <span>Done ({done.length})</span><span>{doneOpen?"▲":"▼"}</span>
         </div>
-      )}
+        {doneOpen && (done.length===0
+          ? <div style={{padding:"1.5rem",textAlign:"center",color:B.muted,fontSize:13}}>Nothing completed yet.</div>
+          : done.map(row))}
+      </div>
 
       {showForm && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"2rem 1rem",overflowY:"auto"}}>
@@ -2334,7 +2389,7 @@ function OACTodos(){
 
             <div style={{marginBottom:12}}>
               <label style={lS}>Description</label>
-              <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} style={{...iS,height:80,resize:"vertical"}}/>
+              <RichTextField value={form.description} onChange={html=>setForm(f=>({...f,description:html}))}/>
             </div>
 
             <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr 1fr",gap:12,marginBottom:"1.25rem"}}>
@@ -2361,6 +2416,7 @@ function OACTodos(){
     </div>
   );
 }
+
 
 
 
