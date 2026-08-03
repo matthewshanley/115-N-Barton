@@ -2636,9 +2636,10 @@ function OACTodos(){
     <style>
       * { box-sizing:border-box; }
       body{ font-family:'Gill Sans','Gill Sans MT','Trebuchet MS',Arial,sans-serif; color:#021d2b; margin:0; padding:0; }
-      .headerbar{ background:#021d2b; padding:28px 48px 22px 48px; }
-      .eyebrow{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#c9a84c; margin-bottom:6px; font-weight:600; }
+      .headerbar{ background:#021d2b; padding:28px 48px 22px 48px; display:flex; align-items:flex-end; justify-content:space-between; }
+      .eyebrow{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#ffffff; margin-bottom:6px; font-weight:600; }
       .headerbar h1{ font-size:23px; margin:0; letter-spacing:0.02em; color:#ffffff; font-weight:700; }
+      .doclabel{ font-size:13px; letter-spacing:0.06em; text-transform:uppercase; color:#ffffff; font-weight:700; text-align:right; }
       .goldrule{ height:3px; background:#c9a84c; }
       .content{ padding:28px 48px 40px 48px; }
       .subtitle{ font-size:13px; color:#021d2b; font-weight:600; margin-bottom:2px; }
@@ -2660,12 +2661,14 @@ function OACTodos(){
       @media print{ .headerbar{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
     </style></head><body>
       <div class="headerbar">
-        <div class="eyebrow">The Neighborhood Hotel</div>
-        <h1>115 N Barton Street</h1>
+        <div>
+          <div class="eyebrow">The Neighborhood Hotel</div>
+          <h1>115 N Barton Street</h1>
+        </div>
+        <div class="doclabel">OAC To-Dos${ownerFilter!=="All"?" — "+esc(ownerFilter):""}</div>
       </div>
       <div class="goldrule"></div>
       <div class="content">
-        <div class="subtitle">OAC To-Dos${ownerFilter!=="All"?" — "+esc(ownerFilter):""}</div>
         <div class="meta">Generated ${genDate}</div>
 
         <h2>Open (${openRows.length})</h2>
