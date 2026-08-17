@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS, VE_ITEMS } from "./data";
+import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS, VE_ITEMS, LESSONS_SEED } from "./data";
 
 // ── Supabase config ────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://bhwfnogroaxttmtvulft.supabase.co";
@@ -921,6 +921,203 @@ function ValueEngineering(){
   );
 }
 
+// ── Lessons Learned ──────────────────────────────────────────────────────────
+const LL_CATEGORIES=["Layout/Flow","Furniture/FF&E","Materials/Finishes","Storage","MEP/Systems","Building Envelope","Housekeeping/Ops"];
+const LL_OWNERS=["Rebel House","OSLO","SEEK","Rebel House / SEEK","SEEK / OSLO","OSLO / SEEK","ECG"];
+const LL_SEVERITY_COLOR={"High":"#7a1e1e","Medium":"#8a5a00","Low":"#5f5e5a"};
+const LL_STATUS_COLOR={"Flagged":B.danger,"In Barton Budget":"#2a6b3f","Needs Decision":B.gold,"Resolved":B.muted};
+
+function llToRow(l){
+  return {
+    id:String(l.id), category:l.category||"", item:l.item||"", issue:l.issue||"",
+    owner:l.owner||"", severity:l.severity||"Medium", status:l.status||"Flagged",
+    photo_url:l.photo_url||"", notes:l.notes||"", updated_at:new Date().toISOString(),
+  };
+}
+function rowToLesson(r){
+  return {
+    id:r.id, category:r.category||"", item:r.item||"", issue:r.issue||"",
+    owner:r.owner||"", severity:r.severity||"Medium", status:r.status||"Flagged",
+    photo_url:r.photo_url||"", notes:r.notes||"",
+  };
+}
+
+function LessonsLearned(){
+  const mobile=useIsMobile();
+  const [items,setItems]=useState([]);
+  const [loaded,setLoaded]=useState(false);
+  const [loadFailed,setLoadFailed]=useState(false);
+  const [saveError,setSaveError]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+  const [editingId,setEditingId]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({});
+  const [catFilter,setCatFilter]=useState("All");
+
+  useEffect(()=>{
+    async function load(){
+      try{
+        const rows=await sbFetch("lessons_learned");
+        if(rows.length===0){
+          await sbUpsert("lessons_learned", LESSONS_SEED.map(llToRow));
+          setItems(LESSONS_SEED);
+        } else {
+          setItems(rows.map(rowToLesson));
+        }
+      }catch(e){
+        setItems(LESSONS_SEED);
+        setLoadFailed(true);
+      }
+      setLoaded(true);
+    }
+    load();
+  },[]);
+
+  function openNew(){
+    setForm({category:LL_CATEGORIES[0],item:"",issue:"",owner:LL_OWNERS[0],severity:"Medium",status:"Flagged",photo_url:"",notes:""});
+    setEditingId(null);
+    setShowForm(true);
+  }
+  function openEdit(it){
+    setForm({...it});
+    setEditingId(it.id);
+    setShowForm(true);
+  }
+
+  async function submitForm(){
+    const item = form.item && form.item.trim();
+    if(!item) return;
+    const rec = editingId
+      ? {...items.find(i=>i.id===editingId), ...form}
+      : {id:`ll-${Date.now()}`, ...form, item};
+    setItems(prev => editingId ? prev.map(i=>i.id===editingId?rec:i) : [rec, ...prev]);
+    setShowForm(false);
+    setSaveError(null);
+    setSaving(true);
+    try{ await sbUpsert("lessons_learned",[llToRow(rec)]); }catch(e){ setSaveError(String(e.message||e)); }
+    setSaving(false);
+  }
+
+  async function deleteItem(id){
+    setItems(prev=>prev.filter(i=>i.id!==id));
+    try{ await sbDelete("lessons_learned", id); }catch(e){}
+    setShowForm(false);
+  }
+
+  if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
+
+  const filtered = catFilter==="All" ? items : items.filter(i=>i.category===catFilter);
+  const counts = {};
+  LL_CATEGORIES.forEach(c=>{ counts[c]=items.filter(i=>i.category===c).length; });
+
+  const chipStyle=(active)=>({fontSize:11,fontWeight:600,padding:"5px 12px",borderRadius:14,cursor:"pointer",border:`1px solid ${active?B.navy:B.light}`,background:active?B.navy:B.white,color:active?B.white:B.muted});
+
+  return(
+    <div style={{padding:"1.25rem 0"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"0.75rem",flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:20,fontWeight:700,color:B.navy}}>Lessons Learned</div>
+          <div style={{fontSize:12,color:B.muted,marginTop:2}}>Little Italy walkthrough — what doesn't work, ahead of finalizing Barton's design and budget</div>
+        </div>
+        <button onClick={openNew} style={btn()}>+ Add item</button>
+      </div>
+
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:"1.25rem"}}>
+        <div onClick={()=>setCatFilter("All")} style={chipStyle(catFilter==="All")}>All ({items.length})</div>
+        {LL_CATEGORIES.filter(c=>counts[c]>0 || catFilter===c).map(c=>(
+          <div key={c} onClick={()=>setCatFilter(c)} style={chipStyle(catFilter===c)}>{c} ({counts[c]||0})</div>
+        ))}
+      </div>
+
+      {loadFailed && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Couldn't load saved items. Check Supabase connection.</div>}
+      {saveError && <div style={{fontSize:12,color:B.danger,marginBottom:12}}>Showing locally, but didn't save to the database: {saveError}</div>}
+
+      <div style={{...card,padding:0,overflow:"hidden"}}>
+        {filtered.length===0
+          ? <div style={{padding:"1.5rem",textAlign:"center",color:B.muted,fontSize:13}}>Nothing in this category yet.</div>
+          : filtered.map(it=>(
+            <div key={it.id} onClick={()=>openEdit(it)} style={{padding:"12px 14px",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:13,fontWeight:700,color:B.navy}}>{it.item}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:LL_SEVERITY_COLOR[it.severity]||B.muted,letterSpacing:"0.04em",textTransform:"uppercase"}}>{it.severity}</span>
+                  </div>
+                  <div style={{fontSize:12,color:B.muted,marginTop:3}}>{it.issue}</div>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy,fontWeight:600}}>{it.category}</span>
+                    <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy,fontWeight:600}}>{it.owner}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:LL_STATUS_COLOR[it.status]||B.muted}}>{it.status}</span>
+                    {it.photo_url && <a href={it.photo_url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:B.blue}}>Photo →</a>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+      </div>
+
+      {showForm && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:500,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"2rem 1rem",overflowY:"auto"}}>
+          <div style={{...card,width:"100%",maxWidth:560}}>
+            <div style={{fontSize:15,fontWeight:700,color:B.navy,marginBottom:"1.25rem"}}>{editingId?"Edit item":"New item"}</div>
+
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Item</label>
+              <input value={form.item||""} onChange={e=>setForm(f=>({...f,item:e.target.value}))} style={iS} placeholder="e.g. Shower doors leak" autoFocus/>
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Issue / description</label>
+              <textarea value={form.issue||""} onChange={e=>setForm(f=>({...f,issue:e.target.value}))} style={{...iS,height:70,resize:"vertical"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>
+                <label style={lS}>Category</label>
+                <select value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={iS}>
+                  {LL_CATEGORIES.map(c=><option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lS}>Likely owner</label>
+                <select value={form.owner||""} onChange={e=>setForm(f=>({...f,owner:e.target.value}))} style={iS}>
+                  {LL_OWNERS.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lS}>Severity</label>
+                <select value={form.severity||""} onChange={e=>setForm(f=>({...f,severity:e.target.value}))} style={iS}>
+                  {["High","Medium","Low"].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={lS}>Status</label>
+                <select value={form.status||""} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={iS}>
+                  {["Flagged","In Barton Budget","Needs Decision","Resolved"].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Photo link (optional — paste a Drive/Photos URL)</label>
+              <input value={form.photo_url||""} onChange={e=>setForm(f=>({...f,photo_url:e.target.value}))} style={iS} placeholder="https://..."/>
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={lS}>Notes</label>
+              <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={{...iS,height:60,resize:"vertical"}}/>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={submitForm} style={btn()} disabled={saving}>{saving?"Saving…":"Save"}</button>
+              <button onClick={()=>setShowForm(false)} style={btn(true)}>Cancel</button>
+              {editingId && <button onClick={()=>deleteItem(editingId)} style={{...btn(),background:B.danger}}>Delete</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any item to edit. Add more live during the walkthrough, from your phone.</div>
+    </div>
+  );
+}
+
 // ── Tasks ──────────────────────────────────────────────────────────────────
 const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
@@ -1598,11 +1795,11 @@ const EQUITY=2530290;
 const LP_TARGET=LP_EQUITY_TARGET;
 const USE_ACQUISITION=1196089;
 const USE_SOFT=778700;
-const USE_HARD=5953229; // OSLO Builders budget, updated 7/29/26 (was $5,144,475 as of the original model)
+const USE_HARD=5686444; // OSLO Builders budget, updated 8/12/26 (was $5,953,229 as of 7/29, $5,144,475 original placeholder)
 const USE_FFE=542932;
 const USE_INTEREST=303192;
 const USE_PREOPENING=150000;
-const ECG_HARD_COST_CONTINGENCY=283979; // ECG's own 5% owner-level contingency, separate from OSLO's own contingency embedded in Hard Costs. Recomputed 5% x (trade cost + GC's General Conditions/Insurance/OH&P), consistent with the original model's methodology.
+const ECG_HARD_COST_CONTINGENCY=271253; // ECG's own 5% owner-level contingency, separate from OSLO's own contingency embedded in Hard Costs. Recomputed 5% x (trade cost + GC's General Conditions/Insurance/OH&P), consistent with the original model's methodology.
 const USE_SOFT_CONTINGENCY=73582;
 const USE_CONTINGENCY=ECG_HARD_COST_CONTINGENCY+USE_SOFT_CONTINGENCY;
 const TOTAL_USES=USE_ACQUISITION+USE_SOFT+USE_HARD+USE_FFE+USE_INTEREST+USE_PREOPENING+USE_CONTINGENCY;
@@ -1744,7 +1941,7 @@ function Budget({committed}){
               <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
             </div>
             {[
-              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"12.9%",children:[
+              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"13.3%",children:[
                 {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
                 {label:"Closing Costs",total:9003,pct:"0.1%"},
                 {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
@@ -1752,7 +1949,7 @@ function Budget({committed}){
                 {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
                 {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
               ]},
-              {label:"Soft Costs",total:USE_SOFT,pct:"8.4%",children:[
+              {label:"Soft Costs",total:USE_SOFT,pct:"8.7%",children:[
                 {label:"Architect — Design Phase",total:170000,pct:"2.0%"},
                 {label:"Zoning",total:5000,pct:"0.1%"},
                 {label:"Taxes",total:18917,pct:"0.2%"},
@@ -1768,76 +1965,76 @@ function Budget({committed}){
                 {label:"Lender Underwriting Fee",total:5000,pct:"0.1%"},
                 {label:"Acquisition Fee (109 Barton)",total:14000,pct:"0.2%"},
               ]},
-              {label:"Hard Costs",total:USE_HARD,pct:"64.1%",children:[
+              {label:"Hard Costs",total:USE_HARD,pct:"63.2%",children:[
                 {label:"Permits",total:0,pct:"0.0%"},
                 {label:"Winter Conditions Allowance",total:0,pct:"0.0%"},
                 {label:"Survey and Layout",total:14500,pct:"0.2%"},
                 {label:"Cleaning and Protection",total:104872,pct:"1.2%"},
                 {label:"Site Requirements",total:33400,pct:"0.4%"},
                 {label:"Demolition",total:51250,pct:"0.6%"},
-                {label:"Cast-in-place Concrete",total:185400,pct:"2.1%"},
+                {label:"Cast-in-place Concrete",total:252209,pct:"2.8%"},
                 {label:"Gypsum Floor Topping",total:0,pct:"0.0%"},
-                {label:"Masonry",total:204136,pct:"2.3%"},
-                {label:"Structural Steel",total:199500,pct:"2.2%"},
-                {label:"Misc Metals",total:178595,pct:"2.0%"},
-                {label:"Rough Carpentry",total:351180,pct:"3.9%"},
+                {label:"Masonry",total:178666,pct:"2.0%"},
+                {label:"Structural Steel",total:184500,pct:"2.0%"},
+                {label:"Misc Metals",total:119127,pct:"1.3%"},
+                {label:"Rough Carpentry",total:363005,pct:"4.0%"},
                 {label:"Finish Carpentry",total:112664,pct:"1.3%"},
                 {label:"Insulation",total:142000,pct:"1.6%"},
-                {label:"Siding & Deck",total:169513,pct:"1.9%"},
-                {label:"Roofing",total:135888,pct:"1.5%"},
+                {label:"Siding & Deck",total:181602,pct:"2.0%"},
+                {label:"Roofing",total:117715,pct:"1.3%"},
                 {label:"Fireproofing",total:0,pct:"0.0%"},
                 {label:"Joint Sealants",total:0,pct:"0.0%"},
-                {label:"Doors, Frames and Hardware",total:133958,pct:"1.5%"},
+                {label:"Doors, Frames and Hardware",total:122922,pct:"1.4%"},
                 {label:"Overhead Doors",total:0,pct:"0.0%"},
-                {label:"Storefront",total:36168,pct:"0.4%"},
-                {label:"Windows & Sliding Doors",total:137163,pct:"1.5%"},
+                {label:"Storefront",total:16168,pct:"0.2%"},
+                {label:"Windows & Sliding Doors",total:87875,pct:"1.0%"},
                 {label:"Interior Glazing",total:13138,pct:"0.1%"},
                 {label:"Gypsum Board & Insulation",total:145546,pct:"1.6%"},
-                {label:"EIFS & Scaffolding",total:109400,pct:"1.2%"},
-                {label:"Tile",total:134367,pct:"1.5%"},
+                {label:"EIFS & Scaffolding",total:77700,pct:"0.9%"},
+                {label:"Tile",total:105267,pct:"1.2%"},
                 {label:"LVT Flooring",total:61280,pct:"0.7%"},
                 {label:"Carpet Tile Flooring",total:0,pct:"0.0%"},
-                {label:"Painting",total:125415,pct:"1.4%"},
+                {label:"Painting",total:106885,pct:"1.2%"},
                 {label:"Specialties",total:14445,pct:"0.2%"},
-                {label:"Signage",total:0,pct:"0.0%"},
+                {label:"Signage",total:5000,pct:"0.1%"},
                 {label:"Toilet Accessories",total:10795,pct:"0.1%"},
                 {label:"Fireplaces (infrastructure only — see Value Engineering)",total:0,pct:"0.0%"},
                 {label:"Appliances",total:79073,pct:"0.9%"},
                 {label:"Closets",total:11850,pct:"0.1%"},
                 {label:"Window Treatments",total:36493,pct:"0.4%"},
-                {label:"Cabinets",total:61236,pct:"0.7%"},
+                {label:"Cabinets",total:49750,pct:"0.6%"},
                 {label:"Countertops",total:45689,pct:"0.5%"},
-                {label:"Elevator",total:153300,pct:"1.7%"},
+                {label:"Elevator",total:144000,pct:"1.6%"},
                 {label:"Trash Chute",total:0,pct:"0.0%"},
                 {label:"Fire Protection",total:157955,pct:"1.8%"},
-                {label:"Plumbing",total:391800,pct:"4.4%"},
+                {label:"Plumbing",total:381800,pct:"4.2%"},
                 {label:"Plumbing Fixtures",total:0,pct:"0.0%"},
-                {label:"HVAC",total:388543,pct:"4.3%"},
-                {label:"Electrical",total:540500,pct:"6.0%"},
+                {label:"HVAC",total:354068,pct:"3.9%"},
+                {label:"Electrical",total:525200,pct:"5.8%"},
                 {label:"Light Fixtures & Lighting Control",total:134265,pct:"1.5%"},
                 {label:"Low Voltage (infrastructure only — vendor TBD)",total:0,pct:"0.0%"},
                 {label:"Earthwork",total:72750,pct:"0.8%"},
                 {label:"Concrete & Asphalt Sitework",total:75843,pct:"0.8%"},
-                {label:"Landscaping, Pavers & Irrigation",total:142760,pct:"1.6%"},
+                {label:"Landscaping, Pavers & Irrigation",total:160105,pct:"1.8%"},
                 {label:"Site Utilities",total:80500,pct:"0.9%"},
                 {label:"General Conditions",total:295720,pct:"3.3%"},
-                {label:"Insurance (1.00%)",total:54728,pct:"0.6%"},
-                {label:"Overhead & Fee (2.75%)",total:152008,pct:"1.7%"},
-                {label:"Construction Contingency (5.00%)",total:273642,pct:"3.0%"},
+                {label:"Insurance (1.00%)",total:52276,pct:"0.6%"},
+                {label:"Overhead & Fee (2.75%)",total:145196,pct:"1.6%"},
+                {label:"Construction Contingency (5.00%)",total:261380,pct:"2.9%"},
               ]},
-              {label:"FF&E & OS&E",total:USE_FFE,pct:"5.8%",children:[
+              {label:"FF&E & OS&E",total:USE_FFE,pct:"6.0%",children:[
                 {label:"Furniture",total:296118,pct:"3.5%"},
                 {label:"Fixtures",total:30900,pct:"0.4%"},
                 {label:"Operating Supplies",total:85107,pct:"1.0%"},
                 {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
               ]},
-              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.3%",children:[]},
-              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.6%",children:[
+              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.4%",children:[]},
+              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.7%",children:[
                 {label:"Operating Shortfall",total:125000,pct:"1.5%"},
                 {label:"General Marketing",total:25000,pct:"0.3%"},
               ]},
-              {label:"Contingency (ECG owner-level, separate from OSLO's own contingency inside Hard Costs)",total:USE_CONTINGENCY,pct:"3.9%",children:[
-                {label:"ECG Hard Cost Contingency (5% of OSLO cost, excl. OSLO's own contingency)",total:ECG_HARD_COST_CONTINGENCY,pct:"3.1%"},
+              {label:"Contingency (ECG owner-level, separate from OSLO's own contingency inside Hard Costs)",total:USE_CONTINGENCY,pct:"3.8%",children:[
+                {label:"ECG Hard Cost Contingency (5% of OSLO cost, excl. OSLO's own contingency)",total:ECG_HARD_COST_CONTINGENCY,pct:"3.0%"},
                 {label:"5% of Soft Costs",total:USE_SOFT_CONTINGENCY,pct:"0.8%"},
               ]},
             ].map(section=>(
@@ -2917,7 +3114,7 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Value Engineering","Lenders","Risks","Capital Timing","OAC","Import"];
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Value Engineering","Lessons Learned","Lenders","Risks","Capital Timing","OAC","Import"];
 
   const mobile=useIsMobile();
 
@@ -2945,6 +3142,7 @@ export default function App(){
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
       {nav==="Value Engineering"&&<ValueEngineering/>}
+      {nav==="Lessons Learned"&&<LessonsLearned/>}
       {nav==="Lenders"&&<LenderMatrix/>}
       {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Capital Timing"&&<CapitalTiming/>}
