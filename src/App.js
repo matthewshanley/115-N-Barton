@@ -703,10 +703,10 @@ function Timeline({miles,setMiles,onSave}){
       </div>
       {sorted.map(m=>(<div key={m.id} style={{marginBottom:14}}>
         <div style={{display:"flex",alignItems:"center",gap:8}} onClick={()=>{setEditing(m.id);setForm({...m});}}>
-          <div style={{width:mobile?104:192,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
-          <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer"}}>
+          <div style={{width:mobile?104:192,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",position:"sticky",left:0,zIndex:2,background:B.white,paddingRight:8}}>{m.label}</div>
+          <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer",minWidth:400}}>
             <div style={{position:"absolute",left:`${Math.max(0,tP(m.start))}%`,width:`${wP(m.start,m.end)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:4,opacity:0.85}}/>
-            <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:2}}/>
+            <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:1}}/>
           </div>
         </div>
         {m.notes && <div style={{marginLeft:mobile?112:200,fontSize:11,color:B.muted,marginTop:3,maxWidth:560}} title={m.notes}>{m.notes}</div>}
