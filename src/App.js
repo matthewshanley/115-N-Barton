@@ -359,7 +359,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
   const activeLenders=lenders.filter(c=>!["Not contacted","Passed"].includes(c.status)).length;
   const highTasks=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").length;
   const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
-  const GS=new Date("2026-07-20"),GE=new Date("2026-10-05"),GT=GE-GS;
+  const GS=new Date("2026-08-01"),GE=new Date("2026-12-31"),GT=GE-GS;
   const tP=d=>((new Date(d)-GS)/GT)*100;
   const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
   const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
@@ -376,7 +376,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
         <div style={card}>
           <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Project timeline</div>
           <div style={{marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,marginBottom:4}}><span>7/20</span><span>Today</span><span>10/5</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,marginBottom:4}}><span>8/1</span><span>Today</span><span>12/31</span></div>
             <div style={{height:6,background:B.light,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${nowP}%`,background:B.blue,borderRadius:3}}/></div>
           </div>
           {miles.slice(0,6).map(m=>{
@@ -649,7 +649,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 
 // ── Timeline ───────────────────────────────────────────────────────────────
 const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
-const GS=new Date("2026-07-20"),GE=new Date("2026-10-05"),GT=GE-GS;
+const GS=new Date("2026-08-01"),GE=new Date("2026-12-31"),GT=GE-GS;
 const tP=d=>((new Date(d)-GS)/GT)*100;
 const wP=(s,e)=>Math.max(((new Date(e)-new Date(s))/GT)*100,1);
 const WS=[];
