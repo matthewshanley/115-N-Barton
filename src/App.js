@@ -953,6 +953,36 @@ function LessonsLearned(){
   const [saving,setSaving]=useState(false);
   const [form,setForm]=useState({});
   const [catFilter,setCatFilter]=useState("All");
+  const [uploading,setUploading]=useState(false);
+  const [uploadError,setUploadError]=useState(null);
+
+  function handlePhotoFile(file){
+    if(!file) return;
+    setUploadError(null);
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1000;
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+        setForm(f=>({...f, photo_url: dataUrl}));
+        setUploading(false);
+      };
+      img.onerror = () => { setUploadError("Couldn't read that image."); setUploading(false); };
+      img.src = e.target.result;
+    };
+    reader.onerror = () => { setUploadError("Couldn't read that file."); setUploading(false); };
+    reader.readAsDataURL(file);
+  }
 
   useEffect(()=>{
     async function load(){
@@ -1004,6 +1034,89 @@ function LessonsLearned(){
     setShowForm(false);
   }
 
+  function exportPDF(){
+    const esc = s => (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const genDate = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+    const sevOrder = {"High":0,"Medium":1,"Low":2};
+    const scope = catFilter==="All" ? items : items.filter(i=>i.category===catFilter);
+    const byCat = {};
+    scope.forEach(i=>{ (byCat[i.category]=byCat[i.category]||[]).push(i); });
+    const cats = Object.keys(byCat).sort((a,b)=>LL_CATEGORIES.indexOf(a)-LL_CATEGORIES.indexOf(b));
+
+    const cardHtml = (it) => `
+      <div class="item">
+        ${it.photo_url?`<img class="photo" src="${it.photo_url}"/>`:`<div class="nophoto">No photo</div>`}
+        <div class="itembody">
+          <div class="itemtitle">${esc(it.item)} <span class="sev sev-${(it.severity||"").toLowerCase()}">${esc(it.severity)}</span></div>
+          <div class="issue">${esc(it.issue)}</div>
+          <div class="tags">
+            <span class="tag">${esc(it.owner)}</span>
+            <span class="tag status-${(it.status||"").replace(/\s+/g,"-").toLowerCase()}">${esc(it.status)}</span>
+          </div>
+          ${it.notes?`<div class="notes"><b>Notes:</b> ${esc(it.notes)}</div>`:""}
+        </div>
+      </div>`;
+
+    const sectionHtml = (cat) => {
+      const rows = byCat[cat].slice().sort((a,b)=>(sevOrder[a.severity]??9)-(sevOrder[b.severity]??9));
+      return `<h2>${esc(cat)} (${rows.length})</h2><div class="grid">${rows.map(cardHtml).join("")}</div>`;
+    };
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>115 N Barton — Lessons Learned</title>
+    <style>
+      * { box-sizing:border-box; }
+      body{ font-family:'Gill Sans','Gill Sans MT','Trebuchet MS',Arial,sans-serif; color:#021d2b; margin:0; padding:0; }
+      .headerbar{ background:#021d2b; padding:28px 48px 22px 48px; display:flex; align-items:flex-end; justify-content:space-between; }
+      .eyebrow{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:#ffffff; margin-bottom:6px; font-weight:600; }
+      .headerbar h1{ font-size:23px; margin:0; letter-spacing:0.02em; color:#ffffff; font-weight:700; }
+      .doclabel{ font-size:13px; letter-spacing:0.06em; text-transform:uppercase; color:#ffffff; font-weight:700; text-align:right; }
+      .goldrule{ height:3px; background:#c9a84c; }
+      .content{ padding:28px 48px 40px 48px; }
+      .meta{ font-size:11px; color:#6b8497; margin-bottom:10px; }
+      h2{ font-size:12px; text-transform:uppercase; letter-spacing:0.09em; color:#033b57; font-weight:700; border-bottom:1px solid #ccd5de; padding-bottom:6px; margin:26px 0 12px 0; }
+      .grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      .item{ display:flex; gap:12px; border:1px solid #e8edf1; border-radius:6px; padding:10px; page-break-inside:avoid; }
+      .photo{ width:90px; height:90px; object-fit:cover; border-radius:4px; flex-shrink:0; border:1px solid #e8edf1; }
+      .nophoto{ width:90px; height:90px; flex-shrink:0; border-radius:4px; border:1px dashed #ccd5de; display:flex; align-items:center; justify-content:center; font-size:9px; color:#6b8497; text-align:center; }
+      .itembody{ flex:1; min-width:0; }
+      .itemtitle{ font-size:12.5px; font-weight:700; color:#021d2b; }
+      .sev{ font-size:8.5px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; margin-left:6px; }
+      .sev-high{ color:#7a1e1e; }
+      .sev-medium{ color:#8a5a00; }
+      .sev-low{ color:#5f5e5a; }
+      .issue{ font-size:10.5px; color:#5f5e5a; margin-top:4px; line-height:1.4; }
+      .tags{ margin-top:6px; }
+      .tag{ display:inline-block; font-size:8.5px; font-weight:700; letter-spacing:0.03em; padding:2px 7px; border-radius:8px; background:#f4f6f8; border:1px solid #e8edf1; color:#021d2b; margin-right:5px; }
+      .notes{ font-size:9.5px; color:#6b8497; margin-top:5px; line-height:1.4; }
+      .footer{ margin-top:36px; padding-top:12px; border-top:1px solid #ccd5de; font-size:10px; color:#6b8497; }
+      @media print{
+        .headerbar{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        .item{ break-inside:avoid; }
+      }
+    </style></head><body>
+      <div class="headerbar">
+        <div>
+          <div class="eyebrow">The Neighborhood Hotel</div>
+          <h1>115 N Barton Street</h1>
+        </div>
+        <div class="doclabel">Lessons Learned${catFilter!=="All"?" — "+esc(catFilter):""}</div>
+      </div>
+      <div class="goldrule"></div>
+      <div class="content">
+        <div class="meta">Little Italy walkthrough — generated ${genDate}${catFilter!=="All"?"":` — ${scope.length} items`}</div>
+        ${cats.map(sectionHtml).join("")}
+        <div class="footer">The Neighborhood Hotel — 115 N Barton St, New Buffalo, MI</div>
+      </div>
+    </body></html>`;
+
+    const w = window.open("", "_blank");
+    if(!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{ w.print(); }, 350);
+  }
+
   if(!loaded) return <div style={{padding:"3rem",textAlign:"center",fontSize:13,color:B.muted}}>Loading…</div>;
 
   const filtered = catFilter==="All" ? items : items.filter(i=>i.category===catFilter);
@@ -1019,7 +1132,10 @@ function LessonsLearned(){
           <div style={{fontSize:20,fontWeight:700,color:B.navy}}>Lessons Learned</div>
           <div style={{fontSize:12,color:B.muted,marginTop:2}}>Little Italy walkthrough — what doesn't work, ahead of finalizing Barton's design and budget</div>
         </div>
-        <button onClick={openNew} style={btn()}>+ Add item</button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={exportPDF} style={btn(true)}>Export PDF</button>
+          <button onClick={openNew} style={btn()}>+ Add item</button>
+        </div>
       </div>
 
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:"1.25rem"}}>
@@ -1038,6 +1154,7 @@ function LessonsLearned(){
           : filtered.map(it=>(
             <div key={it.id} onClick={()=>openEdit(it)} style={{padding:"12px 14px",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
               <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                {it.photo_url && <img src={it.photo_url} alt="" style={{width:52,height:52,objectFit:"cover",borderRadius:6,border:`1px solid ${B.light}`,flexShrink:0}}/>}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                     <span style={{fontSize:13,fontWeight:700,color:B.navy}}>{it.item}</span>
@@ -1048,7 +1165,6 @@ function LessonsLearned(){
                     <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy,fontWeight:600}}>{it.category}</span>
                     <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:B.offwhite,border:`1px solid ${B.light}`,color:B.navy,fontWeight:600}}>{it.owner}</span>
                     <span style={{fontSize:10,fontWeight:700,color:LL_STATUS_COLOR[it.status]||B.muted}}>{it.status}</span>
-                    {it.photo_url && <a href={it.photo_url} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,color:B.blue}}>Photo →</a>}
                   </div>
                 </div>
               </div>
@@ -1096,8 +1212,27 @@ function LessonsLearned(){
               </div>
             </div>
             <div style={{marginBottom:12}}>
-              <label style={lS}>Photo link (optional — paste a Drive/Photos URL)</label>
-              <input value={form.photo_url||""} onChange={e=>setForm(f=>({...f,photo_url:e.target.value}))} style={iS} placeholder="https://..."/>
+              <label style={lS}>Photo</label>
+              <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
+                {form.photo_url && (
+                  <div style={{position:"relative"}}>
+                    <img src={form.photo_url} alt="" style={{width:70,height:70,objectFit:"cover",borderRadius:6,border:`1px solid ${B.light}`}}/>
+                    <button type="button" onClick={()=>setForm(f=>({...f,photo_url:""}))} style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",border:"none",background:B.danger,color:B.white,fontSize:11,lineHeight:"18px",cursor:"pointer",padding:0}}>×</button>
+                  </div>
+                )}
+                <div style={{flex:1,minWidth:180}}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e=>handlePhotoFile(e.target.files && e.target.files[0])}
+                    style={{...iS,padding:"6px 8px"}}
+                  />
+                  {uploading && <div style={{fontSize:11,color:B.muted,marginTop:4}}>Processing photo…</div>}
+                  {uploadError && <div style={{fontSize:11,color:B.danger,marginTop:4}}>{uploadError}</div>}
+                  <div style={{fontSize:10,color:B.muted,marginTop:4}}>Or paste a link instead:</div>
+                  <input value={form.photo_url && form.photo_url.startsWith("data:") ? "" : (form.photo_url||"")} onChange={e=>setForm(f=>({...f,photo_url:e.target.value}))} style={{...iS,marginTop:4}} placeholder="https://..."/>
+                </div>
+              </div>
             </div>
             <div style={{marginBottom:12}}>
               <label style={lS}>Notes</label>
