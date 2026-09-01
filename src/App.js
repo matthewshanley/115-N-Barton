@@ -923,6 +923,7 @@ function ValueEngineering(){
 
 // ── Lessons Learned ──────────────────────────────────────────────────────────
 const LL_CATEGORIES=["Layout/Flow","Furniture/FF&E","Materials/Finishes","Storage","MEP/Systems","Building Envelope","Housekeeping/Ops"];
+const LL_PRINT_ORDER=["Building Envelope","Furniture/FF&E","Materials/Finishes","Storage","MEP/Systems","Housekeeping/Ops","Layout/Flow"];
 const LL_OWNERS=["Rebel House","OSLO","SEEK","Rebel House / SEEK","SEEK / OSLO","OSLO / SEEK","ECG"];
 const LL_SEVERITY_COLOR={"High":"#7a1e1e","Medium":"#8a5a00","Low":"#5f5e5a"};
 const LL_STATUS_COLOR={"Flagged":B.danger,"In Barton Budget":"#2a6b3f","Needs Decision":B.gold,"Resolved":B.muted};
@@ -1041,7 +1042,7 @@ function LessonsLearned(){
     const scope = catFilter==="All" ? items : items.filter(i=>i.category===catFilter);
     const byCat = {};
     scope.forEach(i=>{ (byCat[i.category]=byCat[i.category]||[]).push(i); });
-    const cats = Object.keys(byCat).sort((a,b)=>LL_CATEGORIES.indexOf(a)-LL_CATEGORIES.indexOf(b));
+    const cats = Object.keys(byCat).sort((a,b)=>LL_PRINT_ORDER.indexOf(a)-LL_PRINT_ORDER.indexOf(b));
 
     const cardHtml = (it) => `
       <div class="item">
