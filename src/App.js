@@ -3141,6 +3141,258 @@ function RichTextField({value, onChange}){
   );
 }
 
+// ── OAC Prep (owner agenda, action log, decision log) ──────────────────────
+// Stored in the existing oac_todos table. Record kind and meeting are encoded in the id prefix:
+//   ag|YYYY-MM-DD|<ts>  owner agenda item for that meeting (due_date = meeting date, done = resolved)
+//   ac|<ts>             action item (legacy "t-" ids are treated as action items)
+//   dc|<ts>             decision (due_date = date decided)
+const OAC_PEOPLE=["ECG","Oslo","SEEK","Rebel House","Aintree","Horizon"];
+const OAC_DOW=3; // Wednesday
+const oacKind=id=>String(id).startsWith("ag|")?"ag":String(id).startsWith("dc|")?"dc":"ac";
+const addDays=(s,n)=>{const d=sd(s);d.setUTCDate(d.getUTCDate()+n);return ds(d);};
+const nextMeeting=from=>{const d=sd(from);while(d.getUTCDay()!==OAC_DOW)d.setUTCDate(d.getUTCDate()+1);return ds(d);};
+const OAC_SEED_DATE="2026-10-21";
+const OAC_SEED=[
+  ["Reissue of the 10/14 schedule","Full detail needed. Foundation walls still show 10/26, which overlaps the revised footing window (10/19 to 10/30).","Oslo"],
+  ["PCO 001: $25K for soils","Approved. Confirm it is drawn from Oslo's contingency ($260,458, leaving $235,458).","Oslo"],
+  ["RH finish schedules vs. millwork shop drawings","RH tracking finish schedules and tagged plans around 10/29. Oslo's millwork shop drawings start 10/27. Confirm no impact.","Rebel House"],
+  ["Owner FF&E install window","Oslo shows Owner FF&E as one day after SC. Need a real delivery and install window.","Oslo"],
+  ["Invoice 01 and first Horizon draw","Draw package: G702/703, sworn statements, lien waivers (conditional current, unconditional prior per Rider).","Oslo"],
+].map(([subject,description,owner],i)=>({id:`ag|${OAC_SEED_DATE}|seed${i+1}`,subject,description,owner,due_date:OAC_SEED_DATE,done:false,created_at:"2026-10-19T12:00:00Z"}));
+
+function OACPrep(){
+  const mobile=useIsMobile();
+  const [items,setItems]=useState([]);
+  const [loaded,setLoaded]=useState(false);
+  const [offline,setOffline]=useState(false);
+  const [err,setErr]=useState(null);
+  const [meeting,setMeeting]=useState(nextMeeting(SCHED_TODAY));
+  const [draft,setDraft]=useState({ag:{subject:"",description:"",owner:"Oslo"},ac:{subject:"",owner:"ECG",due_date:""},dc:{subject:"",description:"",owner:"ECG",due_date:SCHED_TODAY}});
+  const [editId,setEditId]=useState(null);
+  const [showDoneAc,setShowDoneAc]=useState(false);
+  const [copied,setCopied]=useState(false);
+  const [showProc,setShowProc]=useState(false);
+
+  useEffect(()=>{(async()=>{
+    try{
+      let rows=(await sbFetch("oac_todos")).map(rowToTodo);
+      if(!rows.some(r=>oacKind(r.id)==="ag")){
+        try{await sbUpsert("oac_todos",OAC_SEED.map(todoToRow));}catch(e){}
+        rows=[...OAC_SEED,...rows];
+      }
+      setItems(rows);
+    }catch(e){setOffline(true);setItems(OAC_SEED);}
+    setLoaded(true);
+  })();},[]);
+
+  async function save(it){
+    setItems(p=>p.some(x=>x.id===it.id)?p.map(x=>x.id===it.id?it:x):[...p,it]);
+    if(offline)return;
+    try{await sbUpsert("oac_todos",[todoToRow(it)]);setErr(null);}catch(e){setErr(String(e.message||e));}
+  }
+  async function remove(id){
+    setItems(p=>p.filter(x=>x.id!==id));
+    if(offline)return;
+    try{await sbDelete("oac_todos",encodeURIComponent(id));}catch(e){setErr(String(e.message||e));}
+  }
+  function add(kind){
+    const d=draft[kind]; if(!d.subject.trim())return;
+    const ts=Date.now();
+    const it={subject:d.subject.trim(),description:d.description||"",owner:d.owner,done:false,created_at:new Date().toISOString(),
+      id:kind==="ag"?`ag|${meeting}|${ts}`:`${kind}|${ts}`,due_date:kind==="ag"?meeting:(d.due_date||"")};
+    save(it);
+    setDraft(p=>({...p,[kind]:{...p[kind],subject:"",description:""}}));
+  }
+
+  const agenda=items.filter(i=>oacKind(i.id)==="ag"&&i.due_date===meeting).sort((a,b)=>a.created_at.localeCompare(b.created_at));
+  const carried=items.filter(i=>oacKind(i.id)==="ag"&&!i.done&&i.due_date&&i.due_date<meeting);
+  const actions=items.filter(i=>oacKind(i.id)==="ac");
+  const openAc=actions.filter(i=>!i.done).sort((a,b)=>(a.due_date||"9999").localeCompare(b.due_date||"9999"));
+  const doneAc=actions.filter(i=>i.done);
+  const decisions=items.filter(i=>oacKind(i.id)==="dc").sort((a,b)=>(b.due_date||"").localeCompare(a.due_date||""));
+
+  // Standing item: did the last 7 days happen as scheduled?
+  const lbStart=addDays(meeting,-7), lbEnd=addDays(meeting,-1);
+  const shouldFinish=SCHED_ALL.filter(t=>t.cF>=lbStart&&t.cF<=lbEnd);
+  const shouldStart=SCHED_ALL.filter(t=>t.cS>=lbStart&&t.cS<=lbEnd&&!(t.cF>=lbStart&&t.cF<=lbEnd));
+  const acDueBefore=openAc.filter(a=>a.due_date&&a.due_date<=meeting);
+  const nextWeek=SCHED_ALL.filter(t=>t.cS>=meeting&&t.cS<=addDays(meeting,6)&&!t.done).sort((a,b)=>a.cS.localeCompare(b.cS));
+
+  function agendaText(){
+    const L=[`115 N Barton · OAC ${fmtD(meeting)} · Owner items`,""];
+    L.push(`1. Lookback (${fmtD(lbStart)} to ${fmtD(lbEnd)}): did we get done what was scheduled?`);
+    shouldFinish.forEach(t=>L.push(`   - Finish: ${t.name} (${t.group}), ${fmtD(t.cF)}`));
+    shouldStart.forEach(t=>L.push(`   - Start: ${t.name} (${t.group}), ${fmtD(t.cS)}`));
+    agenda.filter(a=>!a.done).forEach((a,i)=>{L.push(`${i+2}. ${a.subject}${a.owner?` [${a.owner}]`:""}`);if(a.description)L.push(`   ${a.description.replace(/<[^>]+>/g,"")}`);});
+    if(acDueBefore.length){L.push("","Open action items:");acDueBefore.forEach(a=>L.push(`- ${a.subject} [${a.owner}], due ${fmtD(a.due_date)}`));}
+    L.push("","Prepared by Matthew Shanley | matt@nbhdhotels.com | 734-474-1306 | "+fmtD(SCHED_TODAY));
+    return L.join("\n");
+  }
+  async function copyAgenda(){try{await navigator.clipboard.writeText(agendaText());setCopied(true);setTimeout(()=>setCopied(false),2000);}catch(e){setErr("Copy failed. Select and copy manually.");}}
+
+  const H=({children,right})=><div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:"0.75rem",flexWrap:"wrap"}}><div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700}}>{children}</div>{right}</div>;
+  const Pill=({who})=><span style={{fontSize:10,fontWeight:600,color:B.navy,background:B.light,borderRadius:10,padding:"2px 8px",whiteSpace:"nowrap"}}>{who}</span>;
+  const Check=({on,onClick})=><span onClick={onClick} style={{width:16,height:16,flexShrink:0,borderRadius:3,border:`1.5px solid ${on?"#2a6b3f":B.steel}`,background:on?"#2a6b3f":B.white,color:B.white,fontSize:11,lineHeight:"14px",textAlign:"center",cursor:"pointer",marginTop:2}}>{on?"✓":""}</span>;
+  const link={fontSize:11,color:B.blue,cursor:"pointer",background:"none",border:"none",padding:0,fontFamily:FONT};
+  const sel={...iS,width:"auto",padding:"6px 8px",fontSize:12};
+  const TaskLine=({t,kind})=>(
+    <div style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,padding:"3px 0"}}>
+      <span style={{color:B.navy}}>{kind}: {t.name} <span style={{color:B.muted}}>· {t.group}</span></span>
+      <span style={{color:t.changed?B.danger:B.muted,whiteSpace:"nowrap"}}>{fmtD(kind==="Finish"?t.cF:t.cS)}</span>
+    </div>
+  );
+
+  if(!loaded) return <div style={{padding:"2rem 0",color:B.muted,fontSize:13}}>Loading OAC items…</div>;
+  return(<div style={{padding:"1.25rem 0"}}>
+    {(offline||err)&&<div style={{marginBottom:"1rem",padding:"0.6rem 1rem",borderRadius:6,background:B.danger+"10",border:`1px solid ${B.danger}33`,fontSize:11,color:B.danger}}>{offline?"Database unavailable. Changes on this page will not be saved.":err}</div>}
+
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:"1.25rem"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <button style={btn(true)} onClick={()=>setMeeting(addDays(meeting,-7))}>←</button>
+        <div>
+          <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase"}}>OAC meeting</div>
+          <div style={{fontSize:20,fontWeight:700,color:B.navy}}>Wed {fmtD(meeting)}{meeting===nextMeeting(SCHED_TODAY)&&<span style={{fontSize:11,fontWeight:600,color:B.blue,marginLeft:8}}>Next</span>}</div>
+        </div>
+        <button style={btn(true)} onClick={()=>setMeeting(addDays(meeting,7))}>→</button>
+      </div>
+      <button style={btn(false)} onClick={copyAgenda}>{copied?"Copied":"Copy agenda for Oslo"}</button>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"3fr 2fr",gap:"1.25rem",alignItems:"start"}}>
+      <div>
+        <div style={{...card,marginBottom:"1.25rem"}}>
+          <H right={<span style={{fontSize:11,color:B.muted}}>{agenda.filter(a=>a.done).length} of {agenda.length+1} resolved</span>}>Owner agenda</H>
+
+          <div style={{padding:"10px 12px",borderRadius:6,background:B.offwhite,marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:B.navy,marginBottom:2}}>1. Did we get done what we expected in the last 7 days?</div>
+            <div style={{fontSize:11,color:B.muted,marginBottom:6}}>Scheduled {fmtD(lbStart)} to {fmtD(lbEnd)} per Oslo schedule. Confirm each with Oslo.</div>
+            {[...shouldFinish.map(t=>[t,"Finish"]),...shouldStart.map(t=>[t,"Start"])].filter(([t])=>isField(t)||t.owner).map(([t,k],i)=><TaskLine key={"m"+i} t={t} kind={k}/>)}
+            {(()=>{const proc=[...shouldFinish.map(t=>[t,"Finish"]),...shouldStart.map(t=>[t,"Start"])].filter(([t])=>!isField(t)&&!t.owner);
+              return proc.length>0&&<div style={{marginTop:4}}>
+                <button style={link} onClick={()=>setShowProc(o=>!o)}>{showProc?"Hide":"Show"} {proc.length} submittal and procurement items</button>
+                {showProc&&proc.map(([t,k],i)=><TaskLine key={"p"+i} t={t} kind={k}/>)}
+              </div>;})()}
+            {shouldFinish.length+shouldStart.length===0&&<div style={{fontSize:12,color:B.muted}}>Nothing scheduled to start or finish in this window.</div>}
+            {acDueBefore.length>0&&<div style={{marginTop:6,fontSize:11,color:B.danger}}>{acDueBefore.length} open action item{acDueBefore.length>1?"s":""} due by this meeting (see Action items).</div>}
+          </div>
+
+          {agenda.map((a,i)=>(
+            <div key={a.id} style={{display:"flex",gap:10,padding:"10px 0",borderBottom:`1px solid ${B.light}`,opacity:a.done?0.55:1}}>
+              <Check on={a.done} onClick={()=>save({...a,done:!a.done})}/>
+              <div style={{flex:1,minWidth:0}}>
+                {editId===a.id?(
+                  <div style={{display:"grid",gap:6}}>
+                    <input style={iS} value={a.subject} onChange={e=>setItems(p=>p.map(x=>x.id===a.id?{...x,subject:e.target.value}:x))}/>
+                    <textarea style={{...iS,height:64}} value={a.description} placeholder="Notes / outcome" onChange={e=>setItems(p=>p.map(x=>x.id===a.id?{...x,description:e.target.value}:x))}/>
+                    <div style={{display:"flex",gap:8}}>
+                      <select style={sel} value={a.owner} onChange={e=>setItems(p=>p.map(x=>x.id===a.id?{...x,owner:e.target.value}:x))}>{OAC_PEOPLE.map(o=><option key={o}>{o}</option>)}</select>
+                      <button style={btn(false)} onClick={()=>{save(items.find(x=>x.id===a.id));setEditId(null);}}>Save</button>
+                      <button style={btn(true)} onClick={()=>{if(window.confirm("Delete this item?")){remove(a.id);setEditId(null);}}}>Delete</button>
+                    </div>
+                  </div>
+                ):(<>
+                  <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"baseline"}}>
+                    <span style={{fontSize:13,fontWeight:700,color:B.navy,textDecoration:a.done?"line-through":"none"}}>{i+2}. {a.subject}</span>
+                    <span style={{display:"flex",gap:8,alignItems:"center"}}><Pill who={a.owner}/><button style={link} onClick={()=>setEditId(a.id)}>Edit</button></span>
+                  </div>
+                  {a.description&&<div style={{fontSize:12,color:B.muted,marginTop:3,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{a.description}</div>}
+                </>)}
+              </div>
+            </div>
+          ))}
+
+          <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"1fr auto auto",gap:8,marginTop:12}}>
+            <input style={iS} placeholder="Add owner agenda item" value={draft.ag.subject} onChange={e=>setDraft(p=>({...p,ag:{...p.ag,subject:e.target.value}}))} onKeyDown={e=>e.key==="Enter"&&add("ag")}/>
+            <select style={sel} value={draft.ag.owner} onChange={e=>setDraft(p=>({...p,ag:{...p.ag,owner:e.target.value}}))}>{OAC_PEOPLE.map(o=><option key={o}>{o}</option>)}</select>
+            <button style={btn(false)} onClick={()=>add("ag")}>Add</button>
+          </div>
+
+          {carried.length>0&&(
+            <div style={{marginTop:14,paddingTop:10,borderTop:`1px dashed ${B.steel}`}}>
+              <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>Unresolved from earlier meetings</div>
+              {carried.map(c=>(
+                <div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:12,padding:"4px 0"}}>
+                  <span style={{color:B.navy}}>{c.subject} <span style={{color:B.muted}}>· {fmtD(c.due_date)}</span></span>
+                  <button style={link} onClick={()=>{remove(c.id);save({...c,id:`ag|${meeting}|${Date.now()}`,due_date:meeting});}}>Move to {fmtD(meeting)}</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={card}>
+          <H>Decision log</H>
+          {decisions.map(d=>(
+            <div key={d.id} style={{display:"grid",gridTemplateColumns:"70px 1fr auto",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`,alignItems:"baseline"}}>
+              <span style={{fontSize:11,color:B.muted}}>{fmtD(d.due_date)}</span>
+              <div><div style={{fontSize:12,color:B.navy,fontWeight:600}}>{d.subject}</div>{d.description&&<div style={{fontSize:11,color:B.muted}}>{d.description}</div>}</div>
+              <span style={{display:"flex",gap:8,alignItems:"center"}}><Pill who={d.owner}/><button style={link} onClick={()=>window.confirm("Delete this decision?")&&remove(d.id)}>×</button></span>
+            </div>
+          ))}
+          {decisions.length===0&&<div style={{fontSize:12,color:B.muted,marginBottom:8}}>No decisions logged yet.</div>}
+          <div style={{display:"grid",gridTemplateColumns:mobile?"1fr":"120px 1fr auto auto",gap:8,marginTop:10}}>
+            <input type="date" style={iS} value={draft.dc.due_date} onChange={e=>setDraft(p=>({...p,dc:{...p.dc,due_date:e.target.value}}))}/>
+            <input style={iS} placeholder="Decision" value={draft.dc.subject} onChange={e=>setDraft(p=>({...p,dc:{...p.dc,subject:e.target.value}}))} onKeyDown={e=>e.key==="Enter"&&add("dc")}/>
+            <select style={sel} value={draft.dc.owner} onChange={e=>setDraft(p=>({...p,dc:{...p.dc,owner:e.target.value}}))}>{OAC_PEOPLE.map(o=><option key={o}>{o}</option>)}</select>
+            <button style={btn(false)} onClick={()=>add("dc")}>Log</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style={{...card,marginBottom:"1.25rem"}}>
+          <H right={<span style={{fontSize:11,color:B.muted}}>{openAc.length} open</span>}>Action items</H>
+          {openAc.map(a=>{
+            const over=a.due_date&&a.due_date<SCHED_TODAY;
+            return(
+              <div key={a.id} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`}}>
+                <Check on={false} onClick={()=>save({...a,done:true})}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,color:B.navy,fontWeight:600}}>{a.subject}</div>
+                  <div style={{fontSize:10,color:over?B.danger:B.muted,marginTop:2}}>{a.owner}{a.due_date?` · due ${fmtD(a.due_date)}`:""}{over?" · overdue":""}</div>
+                </div>
+                <button style={link} onClick={()=>window.confirm("Delete this action item?")&&remove(a.id)}>×</button>
+              </div>
+            );
+          })}
+          {openAc.length===0&&<div style={{fontSize:12,color:B.muted}}>No open action items.</div>}
+          <div style={{display:"grid",gap:8,marginTop:10}}>
+            <input style={iS} placeholder="New action item" value={draft.ac.subject} onChange={e=>setDraft(p=>({...p,ac:{...p.ac,subject:e.target.value}}))} onKeyDown={e=>e.key==="Enter"&&add("ac")}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:8}}>
+              <select style={{...sel,width:"100%"}} value={draft.ac.owner} onChange={e=>setDraft(p=>({...p,ac:{...p.ac,owner:e.target.value}}))}>{OAC_PEOPLE.map(o=><option key={o}>{o}</option>)}</select>
+              <input type="date" style={iS} value={draft.ac.due_date} onChange={e=>setDraft(p=>({...p,ac:{...p.ac,due_date:e.target.value}}))}/>
+              <button style={btn(false)} onClick={()=>add("ac")}>Add</button>
+            </div>
+          </div>
+          {doneAc.length>0&&(
+            <div style={{marginTop:10}}>
+              <button style={link} onClick={()=>setShowDoneAc(o=>!o)}>{showDoneAc?"Hide":"Show"} {doneAc.length} completed</button>
+              {showDoneAc&&doneAc.map(a=>(
+                <div key={a.id} style={{display:"flex",gap:10,padding:"5px 0",fontSize:11,color:B.muted}}>
+                  <Check on onClick={()=>save({...a,done:false})}/><span style={{textDecoration:"line-through"}}>{a.subject} · {a.owner}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={card}>
+          <H>From the schedule</H>
+          <div style={{fontSize:12,color:B.navy,marginBottom:8}}>SC {fmtD(SC_CURRENT)} <span style={{color:SC_SLIP>0?B.danger:B.muted}}>({SC_SLIP>0?`+${SC_SLIP}`:"0"} workdays vs {fmtD(SC_BASE)})</span></div>
+          <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Starting week of {fmtD(meeting)}</div>
+          {nextWeek.map((t,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11,padding:"4px 0",borderBottom:`1px solid ${B.light}`}}>
+              <span style={{color:B.navy}}>{t.owner&&<span style={{color:B.gold}}>● </span>}{t.name}</span>
+              <span style={{display:"flex",gap:8,whiteSpace:"nowrap"}}><span style={{color:B.muted}}>{fmtD(t.cS)}</span><button style={link} onClick={()=>save({id:`ag|${meeting}|${Date.now()}`,subject:t.name,description:`${t.group}: ${fmtD(t.cS)} to ${fmtD(t.cF)}.${t.owner?" "+t.owner:""}`,owner:"Oslo",due_date:meeting,done:false,created_at:new Date().toISOString()})}>+ Agenda</button></span>
+            </div>
+          ))}
+          {nextWeek.length===0&&<div style={{fontSize:11,color:B.muted}}>Nothing new starts that week.</div>}
+        </div>
+      </div>
+    </div>
+  </div>);
+}
+
 function OACTodos(){
   const mobile = useIsMobile();
   const [items, setItems] = useState([]);
@@ -3525,8 +3777,8 @@ export default function App(){
     }
   }, []);
 
-  // Hidden (components kept): "Value Engineering", "Capital Timing", "OAC"
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lessons Learned","Lender","Risks","Import"];
+  // Hidden (components kept): "Value Engineering", "Capital Timing"
+  const TABS=["Dashboard","CRM","Timeline","OAC","Tasks","Budget","Lessons Learned","Lender","Risks","Import"];
 
   const mobile=useIsMobile();
 
@@ -3558,7 +3810,7 @@ export default function App(){
       {nav==="Lender"&&<LenderMatrix/>}
       {nav==="Risks"&&<Risks risks={risks} setRisks={setRisks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Capital Timing"&&<CapitalTiming/>}
-      {nav==="OAC"&&<OACTodos/>}
+      {nav==="OAC"&&<OACPrep/>}
       {nav==="Import"&&<Import contacts={contacts} setContacts={setContacts} tasks={tasks} setTasks={setTasks} miles={miles} setMiles={setMiles} onSave={handleSave}/>}
     </div>
   </div>);
