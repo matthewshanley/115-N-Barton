@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { DEFAULT_CONTACTS, DEFAULT_MILES, DEFAULT_TASKS, VE_ITEMS, LESSONS_SEED } from "./data";
 
 // ── Supabase config ────────────────────────────────────────────────────────
@@ -1929,60 +1929,128 @@ const TOTAL_PROJECT=8433945; // original underwriting / committed Sources (debt 
 const DEBT=5903654;
 const EQUITY=2530290;
 const LP_TARGET=LP_EQUITY_TARGET;
-const USE_ACQUISITION=1196089;
-const USE_SOFT=778700;
-const USE_HARD=5686444; // OSLO Builders budget, updated 8/12/26 (was $5,953,229 as of 7/29, $5,144,475 original placeholder)
-const USE_FFE=542932;
-const USE_INTEREST=303192;
-const USE_PREOPENING=150000;
-const ECG_HARD_COST_CONTINGENCY=271253; // ECG's own 5% owner-level contingency, separate from OSLO's own contingency embedded in Hard Costs. Recomputed 5% x (trade cost + GC's General Conditions/Insurance/OH&P), consistent with the original model's methodology.
-const USE_SOFT_CONTINGENCY=73582;
-const USE_CONTINGENCY=ECG_HARD_COST_CONTINGENCY+USE_SOFT_CONTINGENCY;
-const TOTAL_USES=USE_ACQUISITION+USE_SOFT+USE_HARD+USE_FFE+USE_INTEREST+USE_PREOPENING+USE_CONTINGENCY;
-const FUNDING_GAP=TOTAL_USES-(DEBT+EQUITY);
 
-function BudgetSection({section,pKey,pGSF}){
-  const [open,setOpen]=useState(false);
-  const hasChildren=section.children&&section.children.length>0;
-  return(
-    <>
-      <div onClick={hasChildren?()=>setOpen(o=>!o):undefined}
-        style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,padding:"10px 14px",
-          borderBottom:`1px solid ${B.light}`,background:B.offwhite,
-          cursor:hasChildren?"pointer":"default",alignItems:"baseline"}}>
-        <div style={{fontSize:10,color:B.muted,textAlign:"right"}}>{section.pct}</div>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <span style={{fontSize:13,fontWeight:700,color:B.navy}}>{section.label}</span>
-          {hasChildren&&<span style={{fontSize:10,color:B.muted}}>{open?"▲":"▼"}</span>}
-        </div>
-        <div style={{textAlign:"right",fontSize:13,fontWeight:700,color:B.navy}}>{fmt$(section.total)}</div>
-        <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(section.total)}</div>
-        <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(section.total)}</div>
-      </div>
-      {open&&section.children.map((child,i)=>(
-        <div key={i} style={{display:"grid",gridTemplateColumns:"40px 1fr 110px 90px 80px",gap:8,
-          padding:"7px 14px",borderBottom:`1px solid ${B.light}`,
-          background:i%2===0?B.white:"#fafbfc",alignItems:"baseline"}}>
-          <div style={{fontSize:10,color:B.muted,textAlign:"right"}}>{child.pct}</div>
-          <div style={{display:"flex",alignItems:"baseline",gap:0}}>
-            <span style={{display:"inline-block",width:16,flexShrink:0}}/>
-            <span style={{fontSize:12,color:B.navy}}>{child.label}</span>
-          </div>
-          <div style={{textAlign:"right",fontSize:12,color:B.navy}}>{fmt$(child.total)}</div>
-          <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pKey(child.total)}</div>
-          <div style={{textAlign:"right",fontSize:11,color:B.muted}}>{pGSF(child.total)}</div>
-        </div>
-      ))}
-    </>
-  );
-}
+// ── Costs to Date ──
+// Source: "Construction Costs to Date - 115 Barton - 2026" workbook (Summary tab).
+// Spent = Bill.com + Horizon *1633 activity through 10/8/26. Budget = original soft costs + current OSLO hard costs.
+// Expected = forecast spend at completion. Variance = Budget minus Expected (negative = over budget).
+const COST_ASOF="10/8/26";
+const COST_SECTIONS=[
+  {label:"Acquisition & Land",children:[
+    {label:"115 N Barton",budget:470389,spent:459003.05,expected:459003.05},
+    {label:"109 N Barton",budget:725700,spent:708032.02,expected:708032.02},
+  ]},
+  {label:"Hard Costs",children:[
+    {label:"OSLO Hard Costs",budget:5666386,spent:0,expected:5666386},
+    {label:"Hard Cost Contingency",budget:104183,spent:0,expected:0,note:"Expected assumes no draw"},
+  ]},
+  {label:"Soft Costs",open:true,children:[
+    {label:"Architect (SEEK)",budget:170000,spent:171000,expected:200000,note:"Includes $30K CA moved from Project Management"},
+    {label:"Interior Design (Rebel House)",budget:50000,spent:51948.75,expected:100000},
+    {label:"Acquisition Fee",budget:23329,spent:13560,expected:23329},
+    {label:"Permitting / Zoning",budget:35000,spent:50460,expected:92460,note:"Includes $42K remaining for water/sewer buy-in"},
+    {label:"Other",budget:25000,spent:64079.71,expected:64079.71},
+    {label:"Taxes / Insurance",budget:58918,spent:10817.31,expected:58918},
+    {label:"Development Fee",budget:296453,spent:0,expected:296453},
+    {label:"Project Management",budget:75000,spent:0,expected:45000,note:"$30K moved to SEEK"},
+    {label:"Lender Legal / Appraisal",budget:25000,spent:35859.52,expected:35859.52,note:"All loan closing fees"},
+    {label:"Signage",budget:20000,spent:0,expected:20000},
+    {label:"Soft Cost Contingency",budget:73582,spent:0,expected:0,note:"Expected assumes no draw"},
+  ]},
+  {label:"FF&E & OS&E",children:[
+    {label:"Furniture",budget:296118,spent:0,expected:296118},
+    {label:"Fixtures",budget:30900,spent:0,expected:30900},
+    {label:"Operating Supplies",budget:85106.87,spent:0,expected:85106.87},
+    {label:"Freight / Storage / Install",budget:130807.20,spent:0,expected:130807.20},
+  ]},
+  {label:"Pre-Opening",children:[
+    {label:"Operating Shortfall",budget:125000,spent:0,expected:125000},
+    {label:"General Marketing",budget:25000,spent:0,expected:25000},
+  ]},
+  {label:"Interest Reserve & Loan Fees",children:[
+    {label:"Loan Fees",budget:14500,spent:14812,expected:14500},
+    {label:"Interest",budget:333122.04,spent:0,expected:333122.04},
+  ]},
+].map(sec=>({...sec,
+  budget:sec.children.reduce((a,c)=>a+c.budget,0),
+  spent:sec.children.reduce((a,c)=>a+c.spent,0),
+  expected:sec.children.reduce((a,c)=>a+c.expected,0),
+}));
+const TOTAL_BUDGET=COST_SECTIONS.reduce((a,s)=>a+s.budget,0);
+const TOTAL_SPENT=COST_SECTIONS.reduce((a,s)=>a+s.spent,0);
+const TOTAL_EXPECTED=COST_SECTIONS.reduce((a,s)=>a+s.expected,0);
+const TOTAL_USES=TOTAL_BUDGET;
+const FUNDING_GAP=TOTAL_BUDGET-(DEBT+EQUITY);
+const EXPECTED_GAP=TOTAL_EXPECTED-(DEBT+EQUITY);
+
+// Prior OSLO trade-level detail (8/12/26). Sums to $5,686,444. Not yet updated to current $5,666,386.
+const HARD_DETAIL_0812=[
+                {label:"Permits",total:0},
+                {label:"Winter Conditions Allowance",total:0},
+                {label:"Survey and Layout",total:14500},
+                {label:"Cleaning and Protection",total:104872},
+                {label:"Site Requirements",total:33400},
+                {label:"Demolition",total:51250},
+                {label:"Cast-in-place Concrete",total:252209},
+                {label:"Gypsum Floor Topping",total:0},
+                {label:"Masonry",total:178666},
+                {label:"Structural Steel",total:184500},
+                {label:"Misc Metals",total:119127},
+                {label:"Rough Carpentry",total:363005},
+                {label:"Finish Carpentry",total:112664},
+                {label:"Insulation",total:142000},
+                {label:"Siding & Deck",total:181602},
+                {label:"Roofing",total:117715},
+                {label:"Fireproofing",total:0},
+                {label:"Joint Sealants",total:0},
+                {label:"Doors, Frames and Hardware",total:122922},
+                {label:"Overhead Doors",total:0},
+                {label:"Storefront",total:16168},
+                {label:"Windows & Sliding Doors",total:87875},
+                {label:"Interior Glazing",total:13138},
+                {label:"Gypsum Board & Insulation",total:145546},
+                {label:"EIFS & Scaffolding",total:77700},
+                {label:"Tile",total:105267},
+                {label:"LVT Flooring",total:61280},
+                {label:"Carpet Tile Flooring",total:0},
+                {label:"Painting",total:106885},
+                {label:"Specialties",total:14445},
+                {label:"Signage",total:5000},
+                {label:"Toilet Accessories",total:10795},
+                {label:"Fireplaces (infrastructure only — see Value Engineering)",total:0},
+                {label:"Appliances",total:79073},
+                {label:"Closets",total:11850},
+                {label:"Window Treatments",total:36493},
+                {label:"Cabinets",total:49750},
+                {label:"Countertops",total:45689},
+                {label:"Elevator",total:144000},
+                {label:"Trash Chute",total:0},
+                {label:"Fire Protection",total:157955},
+                {label:"Plumbing",total:381800},
+                {label:"Plumbing Fixtures",total:0},
+                {label:"HVAC",total:354068},
+                {label:"Electrical",total:525200},
+                {label:"Light Fixtures & Lighting Control",total:134265},
+                {label:"Low Voltage (infrastructure only — vendor TBD)",total:0},
+                {label:"Earthwork",total:72750},
+                {label:"Concrete & Asphalt Sitework",total:75843},
+                {label:"Landscaping, Pavers & Irrigation",total:160105},
+                {label:"Site Utilities",total:80500},
+                {label:"General Conditions",total:295720},
+                {label:"Insurance (1.00%)",total:52276},
+                {label:"Overhead & Fee (2.75%)",total:145196},
+                {label:"Construction Contingency (5.00%)",total:261380},
+              ];
 
 function Budget({committed}){
   const mobile=useIsMobile();
-  const [osloOpen,setOsloOpen]=useState(false);
-  const [seekOpen,setSeekOpen]=useState(false);
+  const [openMap,setOpenMap]=useState(()=>Object.fromEntries(COST_SECTIONS.map(s=>[s.label,!!s.open])));
+  const [hardOpen,setHardOpen]=useState(false);
+  const toggle=l=>setOpenMap(m=>({...m,[l]:!m[l]}));
   const pKey=v=>fmt$(Math.round(v/KEYS));
   const pGSF=v=>"$"+(v/GSF).toFixed(2);
+  const fmtVar=v=>{const r=Math.round(v);return r===0?"–":r<0?`(${fmt$(-r)})`:fmt$(r);};
+  const varColor=v=>Math.round(v)<0?B.danger:Math.round(v)>0?"#2a6b3f":B.muted;
   const ColHead=({label})=><div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",textAlign:"right"}}>{label}</div>;
   const SU=({label,total,bold,indent,muted,pct})=>(
     <div style={{display:"grid",gridTemplateColumns:mobile?`30px 1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:bold?B.offwhite:B.white,alignItems:"baseline"}}>
@@ -2004,28 +2072,82 @@ function Budget({committed}){
       {!mobile&&<span style={{textAlign:"right",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{pGSF(amount)}/sf</span>}
     </div>
   );
-  const SectionToggle=({label,total,open,onToggle,note})=>(
-    <div onClick={onToggle} style={{display:"grid",gridTemplateColumns:"1fr 110px auto",gap:8,padding:"10px 14px",background:open?B.navy:B.light,cursor:"pointer",alignItems:"center",marginBottom:open?0:1}}>
-      <span style={{fontSize:12,fontWeight:600,color:open?B.white:B.navy,letterSpacing:"0.03em"}}>{label}{note&&<span style={{fontSize:10,fontWeight:400,marginLeft:8,opacity:0.7}}>{note}</span>}</span>
-      <span style={{textAlign:"right",fontSize:12,fontWeight:700,color:open?B.white:B.navy}}>{fmt$(total)}</span>
-      <span style={{fontSize:11,color:open?"rgba(255,255,255,0.5)":B.muted}}>{open?"▲":"▼"}</span>
-    </div>
-  );
+  // Costs-to-date grid
+  const cols=mobile?"1fr 78px 78px 78px":"1fr 105px 105px 105px 105px";
+  const CRow=({label,budget,spent,expected,note,bold,indent,onClick,open,dark})=>{
+    const v=budget-expected;
+    const fg=dark?B.white:B.navy;
+    return(
+      <div onClick={onClick} style={{display:"grid",gridTemplateColumns:cols,gap:8,padding:`${bold?"10px":"7px"} 14px`,borderBottom:`1px solid ${B.light}`,background:dark?B.navy:bold?B.offwhite:B.white,cursor:onClick?"pointer":"default",alignItems:"baseline"}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:6,minWidth:0}}>
+          {indent&&<span style={{display:"inline-block",width:12,flexShrink:0}}/>}
+          <div style={{minWidth:0}}>
+            <span style={{fontSize:bold?13:12,fontWeight:bold?700:400,color:fg}}>{label}</span>
+            {onClick&&<span style={{fontSize:10,color:B.muted,marginLeft:6}}>{open?"▲":"▼"}</span>}
+            {note&&<div style={{fontSize:10,color:B.muted,marginTop:2}}>{note}</div>}
+          </div>
+        </div>
+        <div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:bold?700:400,color:fg}}>{fmt$(Math.round(budget))}</div>
+        <div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:bold?700:400,color:dark?"rgba(255,255,255,0.8)":B.muted}}>{fmt$(Math.round(spent))}</div>
+        <div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:bold?700:400,color:fg}}>{fmt$(Math.round(expected))}</div>
+        {!mobile&&<div style={{textAlign:"right",fontSize:bold?13:12,fontWeight:700,color:dark?(Math.round(v)<0?"#f0a0a0":"#a8d5b5"):varColor(v)}}>{fmtVar(v)}</div>}
+      </div>
+    );
+  };
+  const spentPct=TOTAL_SPENT/TOTAL_BUDGET;
+  const overLines=COST_SECTIONS.flatMap(s=>s.children).filter(c=>c.budget-c.expected<-0.5).sort((a,b)=>(a.budget-a.expected)-(b.budget-b.expected));
   return(
     <div style={{padding:"1.25rem 0"}}>
       <div style={g4(mobile)}>
         {[
-          ["Total Uses (current)",fmt$(TOTAL_USES),B.navy],
-          ["Total Sources (Debt + Equity)",fmt$(DEBT+EQUITY),B.blue],
-          ["Funding Gap",fmt$(FUNDING_GAP),FUNDING_GAP>0?B.danger:"#2a6b3f"],
-          ["LP Equity Committed",fmt$(committed)+` / ${fmt$(LP_EQUITY_TARGET)}`,committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],
-        ].map(([l,v,c])=>(
+          ["Total Budget",fmt$(Math.round(TOTAL_BUDGET)),B.navy,"Incl. contingency"],
+          ["Spent to Date",fmt$(Math.round(TOTAL_SPENT)),B.blue,`${(spentPct*100).toFixed(1)}% of budget · thru ${COST_ASOF}`],
+          ["Expected at Completion",fmt$(Math.round(TOTAL_EXPECTED)),B.sage,`${fmtVar(TOTAL_BUDGET-TOTAL_EXPECTED)} vs budget`],
+          ["Funding Gap",fmt$(Math.round(FUNDING_GAP)),FUNDING_GAP>0?B.danger:"#2a6b3f",`Budget vs Sources · ${fmt$(Math.round(EXPECTED_GAP))} on Expected`],
+        ].map(([l,v,c,sub])=>(
           <div key={l} style={SC(c)}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
             <div style={{fontSize:mobile?15:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",marginTop:4}}>{sub}</div>
           </div>
         ))}
       </div>
+
+      <div style={{marginBottom:"1.5rem"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:"0.75rem",flexWrap:"wrap",gap:6}}>
+          <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700}}>Uses · Budget vs. Costs to Date</div>
+          <div style={{fontSize:11,color:B.muted}}>Spent through {COST_ASOF} · Variance = Budget less Expected</div>
+        </div>
+        <div style={{height:6,borderRadius:3,background:B.light,overflow:"hidden",marginBottom:"0.75rem"}}>
+          <div style={{width:`${Math.min(100,spentPct*100)}%`,height:"100%",background:B.blue}}/>
+        </div>
+        <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:cols,gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+            <div/><ColHead label="Budget"/><ColHead label="Spent"/><ColHead label="Expected"/>{!mobile&&<ColHead label="Variance"/>}
+          </div>
+          {COST_SECTIONS.map(sec=>(
+            <Fragment key={sec.label}>
+              <CRow label={sec.label} budget={sec.budget} spent={sec.spent} expected={sec.expected} bold onClick={()=>toggle(sec.label)} open={openMap[sec.label]}/>
+              {openMap[sec.label]&&sec.children.map(c=>(
+                <CRow key={c.label} indent {...c}/>
+              ))}
+            </Fragment>
+          ))}
+          <CRow label="Total Uses" budget={TOTAL_BUDGET} spent={TOTAL_SPENT} expected={TOTAL_EXPECTED} bold dark/>
+          <div style={{padding:"8px 14px",background:B.offwhite,fontSize:11,color:B.muted}}>
+            Expected: {pKey(TOTAL_EXPECTED)}/key · {pGSF(TOTAL_EXPECTED)}/sf · {KEYS} keys · {GSF.toLocaleString()} GSF
+          </div>
+        </div>
+        {overLines.length>0&&(
+          <div style={{marginTop:"0.75rem",padding:"0.85rem 1rem",borderRadius:8,background:B.danger+"0d",border:`1px solid ${B.danger}33`}}>
+            <div style={{fontSize:12,fontWeight:700,color:B.danger,marginBottom:4}}>Lines expected over budget: {fmt$(Math.round(-overLines.reduce((a,c)=>a+c.budget-c.expected,0)))}</div>
+            <div style={{fontSize:11,color:B.navy,lineHeight:1.6}}>
+              {overLines.map(c=>`${c.label} ${fmtVar(c.budget-c.expected)}`).join(" · ")}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{...g2(mobile),alignItems:"start",gap:mobile?"1rem":"1.5rem"}}>
         <div>
           <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Sources</div>
@@ -2042,152 +2164,59 @@ function Budget({committed}){
             <SU label="Remaining to raise" total={Math.max(0,LP_TARGET-committed)} pct="" muted/>
             <TotalBar label="Total Sources" amount={DEBT+EQUITY}/>
           </div>
-
-          <div style={{marginTop:"1.5rem"}}>
-            <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Returns Summary</div>
-            <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
-              <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-                <div/>{!mobile&&<ColHead label="Cash Out"/>}{!mobile&&<ColHead label="Profit"/>}<ColHead label="IRR"/><ColHead label="MOIC"/>
-              </div>
-              {[
-                ["Unlevered","(8,433,945)","13,340,350","14.52%","2.65x"],
-                ["Levered","(2,530,290)","9,601,910","24.51%","3.78x"],
-                ["Limited Partner","(3,108,666)","7,081,353","22.63%","3.28x"],
-                ["Sponsor","(345,407)","2,520,557","34.73%","8.30x"],
-              ].map(([label,out,profit,irr,moic])=>(
-                <div key={label} style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
-                  <span style={{fontSize:mobile?11:13,fontWeight:600,color:B.navy}}>{label}</span>
-                  {!mobile&&<span style={{textAlign:"right",fontSize:12,color:B.muted}}>{out}</span>}
-                  {!mobile&&<span style={{textAlign:"right",fontSize:12,color:"#2a6b3f",fontWeight:600}}>{profit}</span>}
-                  <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{irr}</span>
-                  <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{moic}</span>
-                </div>
-              ))}
-              <div style={{padding:"8px 14px",background:B.offwhite}}>
-                <div style={{fontSize:11,color:B.muted}}>Exit: May 2036 · 9.00% cap rate · $13,167,519 sale price · 9yr hold from operations</div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div>
-          <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Uses</div>
-          <div style={{borderRadius:8,border:`1px solid ${B.steel}`,overflow:"hidden"}}>
-            <div style={{display:"grid",gridTemplateColumns:mobile?`30px 1fr 90px`:`40px 1fr 110px 90px 80px`,gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
-              <div/><div/><ColHead label="Total"/>{!mobile&&<ColHead label="Per Key"/>}{!mobile&&<ColHead label="Per SF"/>}
+          <div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>Returns Summary <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}>(Model v8, pre-update)</span></div>
+          <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${B.steel}`}}>
+            <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"8px 14px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`}}>
+              <div/>{!mobile&&<ColHead label="Cash Out"/>}{!mobile&&<ColHead label="Profit"/>}<ColHead label="IRR"/><ColHead label="MOIC"/>
             </div>
             {[
-              {label:"Acquisition & Land Purchase",total:USE_ACQUISITION,pct:"13.3%",children:[
-                {label:"Land Purchase (115 N Barton)",total:450000,pct:"5.3%"},
-                {label:"Closing Costs",total:9003,pct:"0.1%"},
-                {label:"Pre-Acquisition Due Diligence",total:11386,pct:"0.1%"},
-                {label:"Land Purchase — 109 Barton",total:680000,pct:"8.1%"},
-                {label:"Closing Costs — 109 Barton",total:14000,pct:"0.2%"},
-                {label:"Due Diligence — 109 Barton",total:11700,pct:"0.1%"},
-              ]},
-              {label:"Soft Costs",total:USE_SOFT,pct:"8.7%",children:[
-                {label:"Architect — Design Phase",total:170000,pct:"2.0%"},
-                {label:"Zoning",total:5000,pct:"0.1%"},
-                {label:"Taxes",total:18917,pct:"0.2%"},
-                {label:"Insurance",total:40000,pct:"0.5%"},
-                {label:"Design",total:50000,pct:"0.6%"},
-                {label:"Permit",total:30000,pct:"0.4%"},
-                {label:"Signage",total:20000,pct:"0.2%"},
-                {label:"Other",total:25000,pct:"0.3%"},
-                {label:"Development Fee",total:296453,pct:"3.5%"},
-                {label:"Acquisition Fee",total:9329,pct:"0.1%"},
-                {label:"Project Management",total:75000,pct:"0.9%"},
-                {label:"Lender Legal",total:20000,pct:"0.2%"},
-                {label:"Lender Underwriting Fee",total:5000,pct:"0.1%"},
-                {label:"Acquisition Fee (109 Barton)",total:14000,pct:"0.2%"},
-              ]},
-              {label:"Hard Costs",total:USE_HARD,pct:"63.2%",children:[
-                {label:"Permits",total:0,pct:"0.0%"},
-                {label:"Winter Conditions Allowance",total:0,pct:"0.0%"},
-                {label:"Survey and Layout",total:14500,pct:"0.2%"},
-                {label:"Cleaning and Protection",total:104872,pct:"1.2%"},
-                {label:"Site Requirements",total:33400,pct:"0.4%"},
-                {label:"Demolition",total:51250,pct:"0.6%"},
-                {label:"Cast-in-place Concrete",total:252209,pct:"2.8%"},
-                {label:"Gypsum Floor Topping",total:0,pct:"0.0%"},
-                {label:"Masonry",total:178666,pct:"2.0%"},
-                {label:"Structural Steel",total:184500,pct:"2.0%"},
-                {label:"Misc Metals",total:119127,pct:"1.3%"},
-                {label:"Rough Carpentry",total:363005,pct:"4.0%"},
-                {label:"Finish Carpentry",total:112664,pct:"1.3%"},
-                {label:"Insulation",total:142000,pct:"1.6%"},
-                {label:"Siding & Deck",total:181602,pct:"2.0%"},
-                {label:"Roofing",total:117715,pct:"1.3%"},
-                {label:"Fireproofing",total:0,pct:"0.0%"},
-                {label:"Joint Sealants",total:0,pct:"0.0%"},
-                {label:"Doors, Frames and Hardware",total:122922,pct:"1.4%"},
-                {label:"Overhead Doors",total:0,pct:"0.0%"},
-                {label:"Storefront",total:16168,pct:"0.2%"},
-                {label:"Windows & Sliding Doors",total:87875,pct:"1.0%"},
-                {label:"Interior Glazing",total:13138,pct:"0.1%"},
-                {label:"Gypsum Board & Insulation",total:145546,pct:"1.6%"},
-                {label:"EIFS & Scaffolding",total:77700,pct:"0.9%"},
-                {label:"Tile",total:105267,pct:"1.2%"},
-                {label:"LVT Flooring",total:61280,pct:"0.7%"},
-                {label:"Carpet Tile Flooring",total:0,pct:"0.0%"},
-                {label:"Painting",total:106885,pct:"1.2%"},
-                {label:"Specialties",total:14445,pct:"0.2%"},
-                {label:"Signage",total:5000,pct:"0.1%"},
-                {label:"Toilet Accessories",total:10795,pct:"0.1%"},
-                {label:"Fireplaces (infrastructure only — see Value Engineering)",total:0,pct:"0.0%"},
-                {label:"Appliances",total:79073,pct:"0.9%"},
-                {label:"Closets",total:11850,pct:"0.1%"},
-                {label:"Window Treatments",total:36493,pct:"0.4%"},
-                {label:"Cabinets",total:49750,pct:"0.6%"},
-                {label:"Countertops",total:45689,pct:"0.5%"},
-                {label:"Elevator",total:144000,pct:"1.6%"},
-                {label:"Trash Chute",total:0,pct:"0.0%"},
-                {label:"Fire Protection",total:157955,pct:"1.8%"},
-                {label:"Plumbing",total:381800,pct:"4.2%"},
-                {label:"Plumbing Fixtures",total:0,pct:"0.0%"},
-                {label:"HVAC",total:354068,pct:"3.9%"},
-                {label:"Electrical",total:525200,pct:"5.8%"},
-                {label:"Light Fixtures & Lighting Control",total:134265,pct:"1.5%"},
-                {label:"Low Voltage (infrastructure only — vendor TBD)",total:0,pct:"0.0%"},
-                {label:"Earthwork",total:72750,pct:"0.8%"},
-                {label:"Concrete & Asphalt Sitework",total:75843,pct:"0.8%"},
-                {label:"Landscaping, Pavers & Irrigation",total:160105,pct:"1.8%"},
-                {label:"Site Utilities",total:80500,pct:"0.9%"},
-                {label:"General Conditions",total:295720,pct:"3.3%"},
-                {label:"Insurance (1.00%)",total:52276,pct:"0.6%"},
-                {label:"Overhead & Fee (2.75%)",total:145196,pct:"1.6%"},
-                {label:"Construction Contingency (5.00%)",total:261380,pct:"2.9%"},
-              ]},
-              {label:"FF&E & OS&E",total:USE_FFE,pct:"6.0%",children:[
-                {label:"Furniture",total:296118,pct:"3.5%"},
-                {label:"Fixtures",total:30900,pct:"0.4%"},
-                {label:"Operating Supplies",total:85107,pct:"1.0%"},
-                {label:"Freight / Storage / Install",total:130807,pct:"1.6%"},
-              ]},
-              {label:"Interest Reserve + Loan Fees",total:USE_INTEREST,pct:"3.4%",children:[]},
-              {label:"Pre-Opening Costs",total:USE_PREOPENING,pct:"1.7%",children:[
-                {label:"Operating Shortfall",total:125000,pct:"1.5%"},
-                {label:"General Marketing",total:25000,pct:"0.3%"},
-              ]},
-              {label:"Contingency (ECG owner-level, separate from OSLO's own contingency inside Hard Costs)",total:USE_CONTINGENCY,pct:"3.8%",children:[
-                {label:"ECG Hard Cost Contingency (5% of OSLO cost, excl. OSLO's own contingency)",total:ECG_HARD_COST_CONTINGENCY,pct:"3.0%"},
-                {label:"5% of Soft Costs",total:USE_SOFT_CONTINGENCY,pct:"0.8%"},
-              ]},
-            ].map(section=>(
-              <BudgetSection key={section.label} section={section} pKey={pKey} pGSF={pGSF}/>
+              ["Unlevered","(8,433,945)","13,340,350","14.52%","2.65x"],
+              ["Levered","(2,530,290)","9,601,910","24.51%","3.78x"],
+              ["Limited Partner","(3,108,666)","7,081,353","22.63%","3.28x"],
+              ["Sponsor","(345,407)","2,520,557","34.73%","8.30x"],
+            ].map(([label,out,profit,irr,moic])=>(
+              <div key={label} style={{display:"grid",gridTemplateColumns:mobile?"1fr 60px 60px":"1fr 100px 80px 60px 60px",gap:8,padding:"9px 14px",borderBottom:`1px solid ${B.light}`,background:B.white}}>
+                <span style={{fontSize:mobile?11:13,fontWeight:600,color:B.navy}}>{label}</span>
+                {!mobile&&<span style={{textAlign:"right",fontSize:12,color:B.muted}}>{out}</span>}
+                {!mobile&&<span style={{textAlign:"right",fontSize:12,color:"#2a6b3f",fontWeight:600}}>{profit}</span>}
+                <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{irr}</span>
+                <span style={{textAlign:"right",fontSize:12,color:B.blue,fontWeight:600}}>{moic}</span>
+              </div>
             ))}
-            <TotalBar label="Total Uses" amount={TOTAL_USES}/>
+            <div style={{padding:"8px 14px",background:B.offwhite}}>
+              <div style={{fontSize:11,color:B.muted}}>Exit: May 2036 · 9.00% cap rate · $13,167,519 sale price · 9yr hold from operations. Based on $8,433,945 total cost and May 2027 opening; not yet rerun for current budget or Oct 2027 completion.</div>
+            </div>
           </div>
         </div>
       </div>
 
+      <div style={{marginTop:"0.5rem"}}>
+        <div onClick={()=>setHardOpen(o=>!o)} style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:hardOpen?B.navy:B.light,cursor:"pointer",borderRadius:hardOpen?"8px 8px 0 0":8}}>
+          <span style={{fontSize:12,fontWeight:600,color:hardOpen?B.white:B.navy}}>Reference: OSLO trade detail (8/12/26)<span style={{fontSize:10,fontWeight:400,marginLeft:8,opacity:0.7}}>Sums to $5,686,444. Current OSLO total $5,666,386. Line detail not yet updated.</span></span>
+          <span style={{fontSize:11,color:hardOpen?"rgba(255,255,255,0.5)":B.muted}}>{hardOpen?"▲":"▼"}</span>
+        </div>
+        {hardOpen&&(
+          <div style={{border:`1px solid ${B.steel}`,borderTop:"none",borderRadius:"0 0 8px 8px",overflow:"hidden"}}>
+            {HARD_DETAIL_0812.filter(r=>r.total>0).map((r,i)=>(
+              <div key={r.label} style={{display:"grid",gridTemplateColumns:"1fr 110px",gap:8,padding:"6px 14px",borderBottom:`1px solid ${B.light}`,background:i%2?"#fafbfc":B.white}}>
+                <span style={{fontSize:12,color:B.navy}}>{r.label}</span>
+                <span style={{fontSize:12,color:B.navy,textAlign:"right"}}>{fmt$(r.total)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{marginTop:"1rem",fontSize:11,color:B.muted}}>
-        21-key option · {GSF.toLocaleString()} GSF · Analysis start May 2026 · Operations start May 2027 · Exit May 2036. Hard cost figures from OSLO Builders budget dated 7/29/26 (supersedes 12/4/2025 GMP and the prior $5,144,475 placeholder). Model v8 — Horizon Loan Terms.
+        Source: Construction Costs to Date workbook. Spent reflects Bill.com and Horizon *1633 activity through {COST_ASOF}. Budget = original soft costs + current OSLO hard costs. Expected assumes no contingency draw. Funding gap measured against committed Sources of {fmt$(DEBT+EQUITY)}.
       </div>
       {FUNDING_GAP>0 && (
         <div style={{marginTop:"0.75rem",padding:"0.85rem 1rem",borderRadius:8,background:B.danger+"12",border:`1px solid ${B.danger}44`}}>
-          <div style={{fontSize:12,fontWeight:700,color:B.danger}}>Funding gap: {fmt$(FUNDING_GAP)}</div>
-          <div style={{fontSize:11,color:B.navy,marginTop:2}}>Total Uses now exceeds committed Sources (Debt + Equity) by this amount, driven by OSLO's 7/29 budget update. Value engineering, additional equity, or a contingency draw need to close this before GMP is locked.</div>
+          <div style={{fontSize:12,fontWeight:700,color:B.danger}}>Funding gap: {fmt$(Math.round(FUNDING_GAP))} on budget · {fmt$(Math.round(EXPECTED_GAP))} on expected spend</div>
+          <div style={{fontSize:11,color:B.navy,marginTop:2}}>Total budget exceeds committed Sources (Debt + Equity). Value engineering, additional equity, or a reduced contingency need to close this before GMP is locked.</div>
         </div>
       )}
     </div>
