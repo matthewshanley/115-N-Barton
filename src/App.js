@@ -358,10 +358,6 @@ function Dashboard({contacts,tasks,miles,setNav}){
   const committed=lps.filter(c=>c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0);
   const activeLenders=lenders.filter(c=>!["Not contacted","Passed"].includes(c.status)).length;
   const highTasks=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").length;
-  const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
-  const GS=new Date("2026-08-01"),GE=new Date("2026-12-31"),GT=GE-GS;
-  const tP=d=>((new Date(d)-GS)/GT)*100;
-  const nowP=Math.min(100,Math.max(0,((today-GS)/GT)*100));
   const urgT=tasks.filter(t=>t.priority==="High"&&normalizeStatus(t.status)!=="Complete").slice(0,4);
   const wLPs=lps.filter(c=>["Data room accessed","In conversation","Soft commit","Committed"].includes(c.status)).slice(0,6);
   const remaining=Math.max(0,LP_EQUITY_TARGET-committed);
@@ -374,18 +370,26 @@ function Dashboard({contacts,tasks,miles,setNav}){
       </div>
       <div style={g2(mobile)}>
         <div style={card}>
-          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Project timeline</div>
-          <div style={{marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:B.muted,marginBottom:4}}><span>8/1</span><span>Today</span><span>12/31</span></div>
-            <div style={{height:6,background:B.light,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${nowP}%`,background:B.blue,borderRadius:3}}/></div>
-          </div>
-          {miles.slice(0,6).map(m=>{
-            const s=new Date(m.start),e=new Date(m.end),left=tP(m.start),width=((e-s)/GT)*100;
-            return(<div key={m.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <div style={{fontSize:11,color:B.navy,width:mobile?120:160,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</div>
-              <div style={{flex:1,height:6,background:B.light,borderRadius:3,position:"relative"}}><div style={{position:"absolute",left:`${left}%`,width:`${Math.max(width,2)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:3}}/></div>
-            </div>);
-          })}
+          <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>Construction schedule <span style={{marginLeft:8,fontSize:11,color:B.blue,fontWeight:400,cursor:"pointer",textTransform:"none",letterSpacing:0}} onClick={()=>setNav("Timeline")}>View timeline →</span></div>
+          {(()=>{
+            const total=wdBetween(CONSTRUCTION_START,SC_CURRENT)+1, done=Math.min(total,wdBetween(CONSTRUCTION_START,SCHED_TODAY));
+            const look=schedLookahead(14,true).slice(0,6);
+            return(<>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                <span style={{fontSize:13,fontWeight:700,color:B.navy}}>Substantial Completion {fmtD(SC_CURRENT)}</span>
+                {SC_SLIP>0&&<span style={{fontSize:11,color:B.danger,fontWeight:600}}>+{SC_SLIP} workdays vs {fmtD(SC_BASE)}</span>}
+              </div>
+              <div style={{height:6,background:B.light,borderRadius:3,overflow:"hidden",marginBottom:4}}><div style={{height:"100%",width:`${done/total*100}%`,background:B.blue,borderRadius:3}}/></div>
+              <div style={{fontSize:10,color:B.muted,marginBottom:10}}>{Math.round(done/total*100)}% of construction workdays elapsed</div>
+              <div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>Next 2 weeks</div>
+              {look.map((t,i)=>(
+                <div key={t.group+t.name+i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11,padding:"4px 0",borderBottom:`1px solid ${B.light}`}}>
+                  <span style={{color:B.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.owner&&<span style={{color:B.gold}}>● </span>}{t.name}</span>
+                  <span style={{color:t.changed?B.danger:B.muted,whiteSpace:"nowrap"}}>{fmtD(t.cS)} – {fmtD(t.cF)}</span>
+                </div>
+              ))}
+            </>);
+          })()}
         </div>
         <div style={card}>
           <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>High-priority tasks <span style={{marginLeft:8,background:B.danger+"20",color:B.danger,padding:"1px 6px",borderRadius:3,fontSize:10}}>{highTasks} open</span></div>
@@ -647,94 +651,367 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   </div>);
 }
 
-// ── Timeline ───────────────────────────────────────────────────────────────
-const pC={"Approvals":B.blue,"Site Prep":B.sage,"Remediation/Demo":B.danger,"Structural":B.gold};
-const GS=new Date("2026-08-01"),GE=new Date("2026-12-31"),GT=GE-GS;
-const tP=d=>((new Date(d)-GS)/GT)*100;
-const wP=(s,e)=>Math.max(((new Date(e)-new Date(s))/GT)*100,1);
-const WS=[];
-for(let d=new Date(GS); d<=GE; d.setDate(d.getDate()+7)){
-  WS.push({label:`${d.getMonth()+1}/${d.getDate()}`,pct:tP(new Date(d))});
+// ── Timeline (OSLO construction schedule) ─────────────────────────────────
+// Source of truth: OSLO Builders schedule. Detail from 10/7/26 issue; summary rows updated from the 10/14/26 OAC printout.
+// Calendar matches OSLO's MS Project file (Mon to Fri, less the holidays below). Finish = start + duration - 1 workday.
+const SCHED_HOL=new Set(["2026-11-26","2026-11-27","2026-12-25","2026-12-31","2027-01-01","2027-05-31","2027-07-05","2027-09-06"]);
+const sd=s=>new Date(s+"T00:00:00Z");
+const ds=d=>d.toISOString().slice(0,10);
+const isWD=d=>{const w=d.getUTCDay();return w!==0&&w!==6&&!SCHED_HOL.has(ds(d));};
+function addWD(s,n){const d=sd(s);while(!isWD(d))d.setUTCDate(d.getUTCDate()+1);let c=1;while(c<n){d.setUTCDate(d.getUTCDate()+1);if(isWD(d))c++;}return ds(d);}
+function wdBetween(a,b){if(b<=a)return 0;const d=sd(a);let c=0;while(ds(d)<b){d.setUTCDate(d.getUTCDate()+1);if(isWD(d))c++;}return c;}
+const fmtD=s=>{if(!s)return"–";const[y,m,d]=s.split("-");return`${+m}/${+d}/${y.slice(2)}`;};
+const SCHED_TODAY=(()=>{const t=new Date();return`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;})();
+
+const SCHED_BASE="10/7/26";
+const SCHED_UPDATE="10/14/26";
+const SC_BASE="2027-10-15";
+const SC_CURRENT="2027-11-01"; // Construction summary finish per 10/14/26 update
+const CONSTRUCTION_START="2026-09-11";
+
+const LV_NOTE="LV, data, and camera rough-in must ride with this window.";
+const DFH_NOTE="Lock hardware selection and door prep must be settled before this.";
+const T=(name,start,dur,x={})=>({name,start,dur,...x});
+const SCHED_GROUPS=[
+  {label:"Drawings & Preconstruction",tasks:[
+    T("IFC Set","2026-10-05",1),
+    T("Interiors Set","2026-09-29",15,{owner:"SEEK / Rebel interiors set. Drives finish submittals."}),
+    T("Awards","2026-09-23",40),
+  ]},
+  {label:"Submittals: High Priority",actual:"2026-09-23",tasks:[
+    T("Siding & Balcony Ceiling Samples","2026-09-23",20),
+    T("Elevator Shop Drawings","2026-09-25",20),
+    T("Anchor Bolt Shop Drawings","2026-09-29",5,{done:true}),
+    T("Steel Shop Drawings","2026-09-29",10),
+    T("Rebar Shop Drawings","2026-09-30",5,{done:true}),
+    T("Window Shop Drawings","2026-10-02",10,{done:true}),
+    T("Truss Shop Drawings","2026-10-05",20),
+    T("Panelized Wall Shop Drawings","2026-10-05",20),
+    T("Exacor Underlayment","2026-10-05",20),
+    T("Masonry","2026-10-14",10),
+    T("Roofing","2026-10-14",15),
+    T("Electrical","2026-10-14",20),
+    T("Low Voltage / Security","2026-10-14",20,{owner:"LV vendor decision and scope split with Oslo needed."}),
+    T("Fire Protection","2026-10-14",20),
+    T("Plumbing Fixtures","2026-10-14",20),
+    T("Mechanical","2026-10-14",20),
+    T("Appliances","2026-10-14",20),
+    T("Millwork Shop Drawings","2026-10-27",35),
+  ]},
+  {label:"Submittals: Low Priority",tasks:[
+    T("Carpet","2026-11-03",20),
+    T("Floor Tile","2026-11-03",20),
+    T("Wall Tile","2026-11-03",20),
+    T("Window Treatments","2026-11-03",20,{owner:"Listed with a \"?\" by Oslo. Confirm GC vs. owner FF&E scope."}),
+    T("Toilet Accessories","2026-11-03",20),
+    T("Glass Shower Enclosures","2026-11-03",30),
+    T("Mirrors","2026-11-03",20),
+    T("Wall Covering","2026-11-03",30),
+  ]},
+  {label:"Material Lead Times",tasks:[
+    T("Rebar","2026-10-07",4),
+    T("Structural Steel","2026-10-13",20),
+    T("Windows (16 wks)","2026-10-16",80),
+    T("Siding","2026-10-21",50),
+    T("Balcony & Eyebrow Soffit","2026-10-21",50),
+    T("Elevator (12 wks)","2026-10-23",60),
+    T("Breeze Wall Brick","2026-10-28",30),
+    T("Trusses","2026-11-02",15),
+    T("Panelized Walls","2026-11-02",15),
+    T("Exacor Underlayment","2026-11-02",20),
+    T("Roofing","2026-11-04",20),
+    T("Appliances","2026-11-11",80),
+    T("Plumbing Roughs","2026-11-11",30),
+    T("Mechanical","2026-11-11",40),
+    T("Light Fixtures","2026-11-11",50),
+    T("Electrical Equipment","2026-11-11",50),
+    T("Carpet","2026-12-03",60),
+    T("Floor Tile","2026-12-03",50),
+    T("Wall Tile","2026-12-03",40),
+    T("Mirrors","2026-12-03",30),
+    T("Millwork","2026-12-17",50),
+    T("Glass Shower Enclosures","2026-12-17",50),
+  ]},
+  {label:"Site Prep",tasks:[
+    T("Abatement","2026-09-11",6),
+    T("Demolition & Debris Removal","2026-09-15",14),
+  ]},
+  {label:"Substructure",cur:{start:"2026-10-02",finish:"2027-01-13"},tasks:[
+    T("Excavation","2026-10-02",6,{cur:{start:"2026-10-02",dur:11},actual:"2026-10-02",note:"Extended 6 to 11 days (unsuitable soils). PCO 001, $25,000, pending against contingency."}),
+    T("Footings","2026-10-12",10,{cur:{start:"2026-10-19",dur:10},note:"Start moved 10/12 to 10/19."}),
+    T("Foundation Walls","2026-10-26",15,{note:"10/7 start overlaps the revised footing window. Expect a reissued date."}),
+    T("Footing Curing (before CMU / steel)","2026-10-26",7),
+    T("Backfill Foundations","2027-01-04",3),
+  ]},
+  {label:"Superstructure",tasks:[
+    T("CMU: Footings to 2nd Floor","2026-11-16",5),
+    T("Masonry Inspection","2026-11-23",5),
+    T("2nd Floor Structural Steel","2026-12-02",10),
+    T("Pour 2nd Floor Deck","2026-12-16",2),
+    T("Steel Inspections","2026-12-16",5),
+    T("CMU: 2nd Floor","2026-12-18",3),
+    T("1st Floor Lobby Framing","2026-12-18",5),
+    T("Waterproof & Encase Below-Grade Steel","2026-12-23",5),
+    T("2nd Floor Walls","2026-12-23",5),
+    T("3rd Floor Trusses & Walls","2027-01-04",10),
+    T("CMU: 3rd Floor","2027-01-18",3),
+    T("4th Floor Trusses & Walls","2027-01-21",10),
+    T("CMU: 4th Floor","2027-02-04",3),
+    T("Set Elevator Hoist Beam","2027-02-09",2),
+    T("Roof Trusses, Sheathing, Parapet, Eyebrow","2027-02-09",8),
+    T("Steel Stairs","2027-02-19",20),
+    T("Garage Ceiling Framing","2027-03-10",5),
+    T("1st Floor Rough Framing Inspections","2027-03-15",2),
+  ]},
+  {label:"Exterior Enclosure",tasks:[
+    T("Roofing","2027-02-19",10),
+    T("Windows","2027-02-19",15),
+    T("Breeze Wall Masonry","2027-03-08",20),
+    T("Siding","2027-03-12",20),
+    T("Garage Ceiling Stucco","2027-04-05",8),
+    T("Balcony Ceilings","2027-04-09",5),
+    T("Eyebrow Soffit","2027-04-09",5),
+  ]},
+  {label:"Elevator",tasks:[
+    T("Elevator Construction (5 wks)","2027-03-10",25),
+  ]},
+  {label:"MEPFP Rough",tasks:[
+    T("Underslab Plumbing","2026-12-18",8),
+    T("Underslab Electric","2026-12-18",5),
+    T("Underslab MEP Inspections","2027-01-04",3),
+    T("Slab on Grade: Lobby","2027-01-07",3),
+    T("1st Floor MEPFP Rough-in","2027-01-27",30,{owner:LV_NOTE}),
+    T("2nd Floor MEPFP Rough-in","2027-01-27",20,{owner:LV_NOTE}),
+    T("2nd Floor Rough Inspections","2027-02-24",3),
+    T("Garage Ceiling Plumbing Rough","2027-02-24",10),
+    T("3rd Floor MEPFP Rough-in","2027-02-24",20,{owner:LV_NOTE}),
+    T("1st Floor Rough Inspections","2027-03-10",3),
+    T("3rd Floor Rough Inspections","2027-03-24",3),
+    T("4th Floor MEPFP Rough-in","2027-03-24",20,{owner:LV_NOTE}),
+    T("4th Floor Rough Inspections","2027-04-21",3),
+  ]},
+  ...[
+    ["1st Floor",[["Insulation","2027-03-15",2],["Insulation Inspection","2027-03-17",2],["Drywall","2027-04-14",4],["Taping & Sanding","2027-04-20",8],["Spray Fireproofing on Steel","2027-04-21",4],["Prime & 1st Coat","2027-04-30",2],["Bathroom Tile","2027-06-02",6],["Flooring","2027-06-16",4],["Doors, Frames & Hardware","2027-06-22",4],["Millwork","2027-06-22",8],["Countertop Field Measure & Fab","2027-07-02",20],["Countertops","2027-08-02",2],["Backsplash Tile","2027-08-04",5],["Appliances","2027-08-04",2],["Final Paint","2027-08-11",10],["MEPFP Trim","2027-08-11",8],["Toilet Accessories","2027-08-25",2]]],
+    ["2nd Floor",[["Insulation","2027-03-12",4],["Insulation Inspection","2027-03-18",2],["Drywall & Tile Backer","2027-03-22",6],["Taping & Sanding","2027-03-30",10],["Prime & 1st Coat","2027-04-13",3],["Shower Pans & Tile","2027-04-16",25],["Flooring","2027-04-16",10],["Doors, Frames & Hardware","2027-04-30",10],["Millwork & Running Trim","2027-04-30",15],["Countertop Field Measure & Fab","2027-05-21",20],["Interior Glazing","2027-05-21",5],["Countertops","2027-06-21",4],["Backsplash Tile","2027-06-25",8],["Appliances","2027-06-25",5],["Final Paint","2027-07-08",20],["MEPFP Trim","2027-07-08",10],["Toilet Accessories","2027-07-29",5],["Carpet: Common Corridor","2027-08-05",4]]],
+    ["3rd Floor",[["Insulation","2027-03-18",4],["Insulation Inspection","2027-03-24",2],["Drywall & Tile Backer","2027-03-30",6],["Taping & Sanding","2027-04-07",10],["Prime & 1st Coat","2027-04-21",3],["Flooring","2027-04-30",10],["Doors, Frames & Hardware","2027-05-14",10],["Shower Pans & Tile","2027-05-21",25],["Millwork & Running Trim","2027-05-21",15],["Countertop Field Measure & Fab","2027-06-14",20],["Interior Glazing","2027-06-28",5],["Countertops","2027-07-13",4],["Backsplash Tile","2027-07-19",8],["Appliances","2027-07-19",5],["Final Paint","2027-07-29",15],["MEPFP Trim","2027-07-29",10],["Carpet: Common Corridor","2027-08-19",4],["Toilet Accessories","2027-08-19",5]]],
+    ["4th Floor",[["Insulation","2027-03-26",4],["Insulation Inspection","2027-04-01",2],["Drywall & Tile Backer","2027-04-07",6],["Taping & Sanding","2027-04-15",10],["Prime & 1st Coat","2027-04-29",3],["Flooring","2027-05-14",10],["Doors, Frames & Hardware","2027-05-28",10],["Millwork & Running Trim","2027-06-14",15],["Shower Pans & Tile","2027-06-28",25],["Countertop Field Measure & Fab","2027-07-06",20],["Countertops","2027-08-03",4],["Interior Glazing","2027-08-03",5],["Backsplash Tile","2027-08-09",8],["Appliances","2027-08-09",5],["Final Paint","2027-08-19",15],["MEPFP Trim","2027-08-19",10],["Carpet: Common Corridor","2027-09-10",4],["Toilet Accessories","2027-09-10",5]]],
+  ].map(([fl,rows])=>({label:`Interiors: ${fl}`,tasks:rows.map(([n,s,d])=>T(n,s,d,n.startsWith("Doors")?{owner:DFH_NOTE}:{}))})),
+  {label:"Sitework",tasks:[
+    T("Water Service","2027-01-07",10),
+    T("Sanitary Sewer","2027-01-07",10),
+    T("Storm Sewer incl. Oil Separator","2027-01-07",10),
+    T("Site Electric","2027-02-10",10),
+    T("Permeable Paver Drainage","2027-05-24",10),
+    T("Hardscape & Permeable Pavers","2027-06-08",25),
+    T("Plantings & Garden Beds","2027-07-14",20),
+  ]},
+  {label:"Closeout & Completion",tasks:[
+    T("Final Inspections: Certificate of Occupancy","2027-09-17",3),
+    T("Punchlist Walk","2027-09-17",5),
+    T("Punchlist Work","2027-09-24",15),
+    T("Substantial Completion",SC_BASE,1,{ms:true,cur:{start:SC_CURRENT,dur:1},note:"10/14 update: Construction finish moves to 11/1/27."}),
+  ]},
+  {label:"Owner Items",tasks:[
+    T("Owner FF&E","2027-10-18",1,{ms:true,owner:"Shown as one day after SC. FF&E, TVs, Wi-Fi, and locks need a real install window."}),
+  ]},
+].map(g=>{
+  const tasks=g.tasks.map(t=>{
+    const bFin=addWD(t.start,t.dur);
+    const cS=t.cur?t.cur.start:t.start, cF=t.cur?addWD(t.cur.start,t.cur.dur):bFin;
+    return {...t,group:g.label,bFin,cS,cF,changed:!!t.cur&&(cS!==t.start||cF!==bFin),slip:t.cur?wdBetween(bFin,cF)-wdBetween(cF,bFin):0};
+  });
+  const bS=tasks.reduce((m,t)=>t.start<m?t.start:m,"9999"),bF=tasks.reduce((m,t)=>t.bFin>m?t.bFin:m,"0000");
+  let cS=tasks.reduce((m,t)=>t.cS<m?t.cS:m,"9999"),cF=tasks.reduce((m,t)=>t.cF>m?t.cF:m,"0000");
+  if(g.cur){cS=g.cur.start;cF=g.cur.finish;}
+  return {...g,tasks,bS,bF,cS,cF,changed:cS!==bS||cF!==bF};
+});
+const SCHED_ALL=SCHED_GROUPS.flatMap(g=>g.tasks);
+const SC_SLIP=wdBetween(SC_BASE,SC_CURRENT);
+const taskStatus=t=>t.done||t.cF<SCHED_TODAY?"Complete":t.cS<=SCHED_TODAY?"In progress":"Upcoming";
+const STATUS_COL={"Complete":"#2a6b3f","In progress":B.blue,"Upcoming":B.muted};
+const NON_FIELD=new Set(["Drawings & Preconstruction","Submittals: High Priority","Submittals: Low Priority","Material Lead Times"]);
+const isField=t=>!NON_FIELD.has(t.group);
+function schedLookahead(days=21,fieldOrOwnerOnly=false){
+  const end=(()=>{const d=sd(SCHED_TODAY);d.setUTCDate(d.getUTCDate()+days);return ds(d);})();
+  return SCHED_ALL.filter(t=>!t.done&&t.cS<=end&&t.cF>=SCHED_TODAY&&(!fieldOrOwnerOnly||isField(t)||t.owner))
+    .sort((a,b)=>(isField(b)-isField(a))||a.cS.localeCompare(b.cS)||a.cF.localeCompare(b.cF));
 }
+const SCHED_MILESTONES=(()=>{
+  const g=l=>SCHED_GROUPS.find(x=>x.label===l);
+  const t=(gl,n)=>g(gl).tasks.find(x=>x.name===n);
+  const fin=(gl,n)=>{const x=t(gl,n);return{b:x.bFin,c:x.cur?x.cF:null};};
+  return [
+    {label:"Footings complete",...fin("Substructure","Footings")},
+    {label:"Substructure complete",b:g("Substructure").bF,c:g("Substructure").cF},
+    {label:"Roof framing complete",...fin("Superstructure","Roof Trusses, Sheathing, Parapet, Eyebrow")},
+    {label:"Windows installed (dried in)",...fin("Exterior Enclosure","Windows")},
+    {label:"Elevator complete",...fin("Elevator","Elevator Construction (5 wks)")},
+    {label:"MEPFP rough complete (4th fl insp.)",...fin("MEPFP Rough","4th Floor Rough Inspections")},
+    {label:"Final inspections / CO start",b:t("Closeout & Completion","Final Inspections: Certificate of Occupancy").start,c:null},
+    {label:"Substantial Completion",b:SC_BASE,c:SC_CURRENT,key:true},
+    {label:"Owner FF&E",b:"2027-10-18",c:null},
+  ];
+})();
 
-function Timeline({miles,setMiles,onSave}){
+const G_START="2026-09-01",G_END="2027-11-30";
+const G_SPAN=sd(G_END)-sd(G_START);
+const gP=s=>Math.min(100,Math.max(0,((sd(s)-sd(G_START))/G_SPAN)*100));
+const gW=(s,f)=>Math.max(0.35,((sd(f)-sd(s))/G_SPAN)*100+ (1/ (G_SPAN/86400000))*100);
+const G_MONTHS=(()=>{const out=[];const d=sd(G_START);while(ds(d)<=G_END){out.push({label:d.toLocaleString("en-US",{month:"short",timeZone:"UTC"})+(d.getUTCMonth()===0||out.length===0?` ${String(d.getUTCFullYear()).slice(2)}`:""),pct:gP(ds(d))});d.setUTCMonth(d.getUTCMonth()+1);}return out;})();
+
+function Timeline(){
   const mobile=useIsMobile();
-  const [editing,setEditing]=useState(null); // milestone id, or "__new__", or null
-  const [form,setForm]=useState({});
-  const [saving,setSaving]=useState(false);
-  const nowP=tP(today);
-
-  function openNew(){
-    setForm({id:`m-${Date.now()}`,label:"",start:todayStr,end:todayStr,phase:Object.keys(pC)[0],notes:""});
-    setEditing("__new__");
-  }
-
-  async function save(){
-    setSaving(true);
-    try{
-      await onSave("milestones",[form]);
-      setMiles(prev => editing==="__new__" ? [...prev, {...form}] : prev.map(m=>m.id===form.id?{...form}:m));
-      setEditing(null);
-    }finally{setSaving(false);}
-  }
-
-  async function removePhase(){
-    if(!form.id) return;
-    setSaving(true);
-    try{
-      await sbDelete("milestones", form.id);
-      setMiles(prev => prev.filter(m=>m.id!==form.id));
-      setEditing(null);
-    }finally{setSaving(false);}
-  }
-
-  const sorted = miles.slice().sort((a,b)=>(a.start||"").localeCompare(b.start||""));
-  return(<div style={{padding:"1rem 0"}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap",marginBottom:"0.75rem"}}>
-      <div style={{fontSize:11,color:B.muted}}>115 N Barton — demolition and construction schedule, tactical view</div>
-      <button onClick={openNew} style={btn()}>+ Add phase</button>
-    </div>
-    <div style={{fontSize:11,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:"1rem",display:"flex",gap:16,flexWrap:"wrap"}}>
-      {Object.entries(pC).map(([ph,col])=><span key={ph} style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:2,background:col,display:"inline-block"}}/>{ph}</span>)}
-    </div>
-    <div style={{...card,overflowX:"auto"}}>
-      <div style={{display:"flex",marginBottom:8,marginLeft:mobile?110:200,position:"relative",height:20}}>
-        {WS.map(q=><div key={q.label} style={{position:"absolute",left:`${q.pct}%`,fontSize:10,color:B.muted,letterSpacing:"0.02em",whiteSpace:"nowrap",transform:"translateX(-50%)"}}>{q.label}</div>)}
+  const defaultOpen=Object.fromEntries(SCHED_GROUPS.map(g=>[g.label,g.tasks.some(t=>taskStatus(t)==="In progress")||g.changed]));
+  const [open,setOpen]=useState(defaultOpen);
+  const [ownerOnly,setOwnerOnly]=useState(false);
+  const [sel,setSel]=useState(null);
+  const allOpen=SCHED_GROUPS.every(g=>open[g.label]);
+  const setAll=v=>setOpen(Object.fromEntries(SCHED_GROUPS.map(g=>[g.label,v])));
+  const nowP=gP(SCHED_TODAY);
+  const LW=mobile?150:250;
+  const daysToSC=Math.round((sd(SC_CURRENT)-sd(SCHED_TODAY))/86400000);
+  const totalWD=wdBetween(CONSTRUCTION_START,SC_CURRENT)+1;
+  const doneWD=Math.min(totalWD,wdBetween(CONSTRUCTION_START,SCHED_TODAY));
+  const ownerOpen=SCHED_ALL.filter(t=>t.owner&&taskStatus(t)!=="Complete").length;
+  const look=schedLookahead(21);
+  const groups=SCHED_GROUPS.map(g=>({...g,shown:ownerOnly?g.tasks.filter(t=>t.owner):g.tasks})).filter(g=>!ownerOnly||g.shown.length>0);
+  const H=({children})=><div style={{fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",color:B.muted,fontWeight:700,marginBottom:"0.75rem"}}>{children}</div>;
+  const Bar=({t,isGroup})=>{
+    const st=isGroup?null:taskStatus(t);
+    const col=isGroup?B.navy:(t.ms?B.danger:STATUS_COL[st]);
+    const bS=isGroup?t.bS:t.start, bF=isGroup?t.bF:t.bFin;
+    return(
+      <div style={{flex:1,height:isGroup?18:16,position:"relative",minWidth:mobile?560:720}}>
+        {G_MONTHS.map(m=><div key={m.label+m.pct} style={{position:"absolute",left:`${m.pct}%`,top:0,bottom:0,width:1,background:B.light}}/>)}
+        {t.changed&&<div title={`10/7: ${fmtD(bS)} to ${fmtD(bF)}`} style={{position:"absolute",left:`${gP(bS)}%`,width:`${gW(bS,bF)}%`,top:"50%",height:4,marginTop:-2,background:B.steel,borderRadius:2}}/>}
+        {t.ms&&!isGroup
+          ?<div style={{position:"absolute",left:`calc(${gP(t.cS)}% - 6px)`,top:"50%",marginTop:-6,width:12,height:12,background:col,transform:"rotate(45deg)"}}/>
+          :<div style={{position:"absolute",left:`${gP(t.cS)}%`,width:`${gW(t.cS,t.cF)}%`,top:isGroup?4:3,bottom:isGroup?4:3,background:col,opacity:isGroup?0.9:(t.changed?0.95:0.8),borderRadius:3,outline:t.changed?`1.5px solid ${B.danger}`:"none"}}/>}
+        <div style={{position:"absolute",left:`${nowP}%`,top:-2,bottom:-2,width:1.5,background:B.danger,zIndex:2}}/>
       </div>
-      {sorted.map(m=>(<div key={m.id} style={{marginBottom:14}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}} onClick={()=>{setEditing(m.id);setForm({...m});}}>
-          <div style={{width:mobile?104:192,flexShrink:0,fontSize:mobile?10:12,color:B.navy,fontWeight:editing===m.id?700:600,cursor:"pointer",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",position:"sticky",left:0,zIndex:2,background:B.white,paddingRight:8}}>{m.label}</div>
-          <div style={{flex:1,height:20,background:B.light,borderRadius:4,position:"relative",cursor:"pointer",minWidth:400}}>
-            <div style={{position:"absolute",left:`${Math.max(0,tP(m.start))}%`,width:`${wP(m.start,m.end)}%`,height:"100%",background:pC[m.phase]||B.muted,borderRadius:4,opacity:0.85}}/>
-            <div style={{position:"absolute",left:`${nowP}%`,top:0,bottom:0,width:1.5,background:B.danger,zIndex:1}}/>
-          </div>
+    );
+  };
+  return(<div style={{padding:"1.25rem 0"}}>
+    <div style={g4(mobile)}>
+      {[
+        ["Substantial Completion",fmtD(SC_CURRENT),B.navy,`10/7 schedule: ${fmtD(SC_BASE)}`],
+        ["Schedule variance",`+${SC_SLIP} workdays`,SC_SLIP>0?B.danger:"#2a6b3f",`Per ${SCHED_UPDATE} update`],
+        ["Days to SC",daysToSC,B.blue,`${Math.round(doneWD/totalWD*100)}% of construction workdays elapsed`],
+        ["Open owner items",ownerOpen,ownerOpen>0?B.gold:"#2a6b3f","Tasks that depend on NBHD decisions"],
+      ].map(([l,v,c,sub])=>(
+        <div key={l} style={SC(c)}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+          <div style={{fontSize:mobile?17:22,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",marginTop:4}}>{sub}</div>
         </div>
-        {m.notes && <div style={{marginLeft:mobile?112:200,fontSize:11,color:B.muted,marginTop:3,maxWidth:560}} title={m.notes}>{m.notes}</div>}
-      </div>))}
-      {sorted.length===0 && <div style={{fontSize:13,color:B.muted,padding:"1rem 0"}}>No phases yet. Click "+ Add phase" to start.</div>}
+      ))}
     </div>
-    {editing&&<div style={{...card,marginTop:"1rem"}}>
-      <div style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.05em",textTransform:"uppercase",marginBottom:"0.75rem"}}>{editing==="__new__"?"New phase":"Edit phase"}</div>
-      <div style={{marginBottom:12}}>
-        <label style={lS}>Label</label>
-        <input value={form.label||""} onChange={e=>setForm(f=>({...f,label:e.target.value}))} style={iS} placeholder="e.g. Rough-in electrical" autoFocus={editing==="__new__"}/>
+
+    <div style={{marginBottom:"1.25rem",padding:"0.85rem 1rem",borderRadius:8,background:B.danger+"0d",border:`1px solid ${B.danger}33`}}>
+      <div style={{fontSize:12,fontWeight:700,color:B.danger,marginBottom:4}}>{SCHED_UPDATE} update: completion moves {SC_SLIP} workdays, {fmtD(SC_BASE)} to {fmtD(SC_CURRENT)}</div>
+      <div style={{fontSize:11,color:B.navy,lineHeight:1.6}}>
+        Excavation extended from 6 to 11 days (10/2 to 10/16). Footings moved from a 10/12 to a 10/19 start, finishing 10/30. Substructure now finishes 1/13/27. PCO 001 ($25,000, unsuitable soils) is pending against Oslo's contingency.
+        Task detail below Substructure still reflects the {SCHED_BASE} issue until Oslo reissues the full schedule. Foundation walls still show a 10/26 start, which overlaps the revised footing window.
       </div>
-      <div style={{display:"grid",gridTemplateColumns:mobile?"1fr 1fr":"1fr 1fr 1fr",gap:12,marginBottom:12}}>
-        <div><label style={lS}>Start</label><input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} style={iS}/></div>
-        <div><label style={lS}>End</label><input type="date" value={form.end||""} onChange={e=>setForm(f=>({...f,end:e.target.value}))} style={iS}/></div>
-        <div style={mobile?{gridColumn:"span 2"}:{}}><label style={lS}>Phase</label><select value={form.phase||""} onChange={e=>setForm(f=>({...f,phase:e.target.value}))} style={iS}>{Object.keys(pC).map(p=><option key={p}>{p}</option>)}</select></div>
+    </div>
+
+    <div style={{...g2(mobile),alignItems:"start"}}>
+      <div style={card}>
+        <H>Key milestones</H>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 74px 74px",gap:8,fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",paddingBottom:6,borderBottom:`1px solid ${B.steel}`}}>
+          <div/><div style={{textAlign:"right"}}>{SCHED_BASE}</div><div style={{textAlign:"right"}}>{SCHED_UPDATE}</div>
+        </div>
+        {SCHED_MILESTONES.map(m=>{
+          const eff=m.c||m.b, done=eff<SCHED_TODAY;
+          return(
+            <div key={m.label} style={{display:"grid",gridTemplateColumns:"1fr 74px 74px",gap:8,padding:"7px 0",borderBottom:`1px solid ${B.light}`,alignItems:"baseline"}}>
+              <span style={{fontSize:12,color:B.navy,fontWeight:m.key?700:400}}>{done?"✓ ":""}{m.label}</span>
+              <span style={{fontSize:12,color:m.c&&m.c!==m.b?B.muted:B.navy,textAlign:"right",textDecoration:m.c&&m.c!==m.b?"line-through":"none"}}>{fmtD(m.b)}</span>
+              <span style={{fontSize:12,textAlign:"right",fontWeight:m.c?700:400,color:m.c&&m.c>m.b?B.danger:m.c?B.navy:B.muted}}>{m.c?fmtD(m.c):"Not reissued"}</span>
+            </div>
+          );
+        })}
       </div>
-      <div style={{marginBottom:12}}>
-        <label style={lS}>Status / notes</label>
-        <textarea value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} style={{...iS,height:70,resize:"vertical"}}/>
+      <div style={card}>
+        <H>3-week lookahead <span style={{fontWeight:400,textTransform:"none",letterSpacing:0}}>· {look.length} tasks</span></H>
+        <div style={{maxHeight:330,overflowY:"auto"}}>
+          {look.map((t,i)=>{
+            const st=taskStatus(t);
+            const hdr=i===0||isField(look[i-1])!==isField(t);
+            return(<Fragment key={t.group+t.name+i}>
+              {hdr&&<div style={{fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase",padding:"8px 0 2px"}}>{isField(t)?"Field":"Design, submittals & procurement"}</div>}
+              <div style={{display:"flex",gap:10,alignItems:"baseline",padding:"7px 0",borderBottom:`1px solid ${B.light}`}}>
+                <span style={{width:8,height:8,borderRadius:"50%",background:STATUS_COL[st],flexShrink:0,marginTop:3}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,color:B.navy,fontWeight:600}}>{t.name}{t.owner&&<span title={t.owner} style={{marginLeft:6,fontSize:10,color:B.gold}}>● Owner</span>}</div>
+                  <div style={{fontSize:10,color:B.muted}}>{t.group}</div>
+                </div>
+                <div style={{fontSize:11,color:t.changed?B.danger:B.navy,whiteSpace:"nowrap"}}>{fmtD(t.cS)} – {fmtD(t.cF)}</div>
+              </div>
+            </Fragment>);
+          })}
+          {look.length===0&&<div style={{fontSize:12,color:B.muted}}>Nothing scheduled in the next three weeks.</div>}
+        </div>
       </div>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={save} style={btn()} disabled={saving||!form.label}>{saving?"Saving…":"Save"}</button>
-        <button onClick={()=>setEditing(null)} style={btn(true)}>Cancel</button>
-        {editing!=="__new__" && <button onClick={removePhase} style={{...btn(),background:B.danger}} disabled={saving}>Delete</button>}
+    </div>
+
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",margin:"0.5rem 0 0.75rem"}}>
+      <H>OSLO schedule</H>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button onClick={()=>setOwnerOnly(o=>!o)} style={btn(!ownerOnly)}>{ownerOnly?"Showing owner items":"Owner items only"}</button>
+        <button onClick={()=>setAll(!allOpen)} style={btn(true)}>{allOpen?"Collapse all":"Expand all"}</button>
       </div>
-    </div>}
-    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem"}}>Click any phase row to edit dates, phase, or notes. Use "+ Add phase" to add a new one.</div>
+    </div>
+    <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:10,color:B.muted,letterSpacing:"0.04em",marginBottom:8}}>
+      {[["Complete","#2a6b3f"],["In progress",B.blue],["Upcoming",B.muted]].map(([l,c])=><span key={l} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:12,height:8,background:c,borderRadius:2,display:"inline-block"}}/>{l}</span>)}
+      <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:12,height:8,borderRadius:2,outline:`1.5px solid ${B.danger}`,display:"inline-block"}}/>Changed in {SCHED_UPDATE} update</span>
+      <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:12,height:3,background:B.steel,display:"inline-block"}}/>{SCHED_BASE} dates</span>
+      <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:2,height:10,background:B.danger,display:"inline-block"}}/>Today</span>
+      <span style={{color:B.gold}}>● Owner dependency</span>
+    </div>
+    <div style={{...card,padding:0,overflowX:"auto"}}>
+      <div style={{display:"flex",position:"sticky",top:0,background:B.offwhite,borderBottom:`1px solid ${B.steel}`,zIndex:3}}>
+        <div style={{width:LW,flexShrink:0,position:"sticky",left:0,background:B.offwhite,zIndex:4,padding:"8px 12px",fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase"}}>Task</div>
+        <div style={{flex:1,position:"relative",height:30,minWidth:mobile?560:720,marginRight:12}}>
+          {G_MONTHS.map(m=><div key={m.label+m.pct} style={{position:"absolute",left:`${m.pct}%`,top:9,fontSize:10,color:B.muted,whiteSpace:"nowrap",paddingLeft:3}}>{m.label}</div>)}
+        </div>
+      </div>
+      {groups.map(g=>(
+        <Fragment key={g.label}>
+          <div onClick={()=>setOpen(o=>({...o,[g.label]:!o[g.label]}))} style={{display:"flex",alignItems:"center",borderBottom:`1px solid ${B.light}`,background:"#f8f9fb",cursor:"pointer"}}>
+            <div style={{width:LW,flexShrink:0,position:"sticky",left:0,background:"#f8f9fb",zIndex:2,padding:"8px 12px",boxSizing:"border-box"}}>
+              <div style={{fontSize:mobile?11:12,fontWeight:700,color:B.navy,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{open[g.label]?"▾":"▸"} {g.label}</div>
+              <div style={{fontSize:10,color:g.changed?B.danger:B.muted}}>{fmtD(g.cS)} – {fmtD(g.cF)}{g.changed?` (was ${fmtD(g.bF)})`:""}</div>
+            </div>
+            <div style={{flex:1,marginRight:12,padding:"6px 0"}}><Bar t={g} isGroup/></div>
+          </div>
+          {open[g.label]&&g.shown.map((t,i)=>{
+            const isSel=sel===t.group+t.name;
+            return(
+            <Fragment key={t.name+i}>
+              <div onClick={()=>setSel(isSel?null:t.group+t.name)} style={{display:"flex",alignItems:"center",borderBottom:`1px solid ${B.light}`,background:isSel?"#f3f6f9":B.white,cursor:"pointer"}}>
+                <div style={{width:LW,flexShrink:0,position:"sticky",left:0,background:isSel?"#f3f6f9":B.white,zIndex:2,padding:"5px 12px 5px 24px",boxSizing:"border-box"}}>
+                  <div style={{fontSize:mobile?10:11.5,color:B.navy,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.owner&&<span style={{color:B.gold,marginRight:4}}>●</span>}{t.name}</div>
+                  <div style={{fontSize:10,color:t.changed?B.danger:B.muted}}>{fmtD(t.cS)}{t.ms?"":` – ${fmtD(t.cF)}`} · {t.cur?t.cur.dur:t.dur}d{t.changed&&t.slip?` · +${t.slip}d`:""}</div>
+                </div>
+                <div style={{flex:1,marginRight:12,padding:"4px 0"}}><Bar t={t}/></div>
+              </div>
+              {isSel&&(
+                <div style={{padding:"8px 12px 10px 24px",borderBottom:`1px solid ${B.light}`,background:"#f3f6f9",fontSize:11,color:B.navy,lineHeight:1.6,position:"sticky",left:0,maxWidth:mobile?320:760}}>
+                  <div><b>{SCHED_BASE}:</b> {fmtD(t.start)} – {fmtD(t.bFin)} ({t.dur} workdays){t.cur&&<> · <b>{SCHED_UPDATE}:</b> {fmtD(t.cS)} – {fmtD(t.cF)} ({t.cur.dur} workdays)</>}</div>
+                  <div><b>Status:</b> {taskStatus(t)}{t.actual?` · Actual start ${fmtD(t.actual)}`:""}</div>
+                  {t.note&&<div><b>Note:</b> {t.note}</div>}
+                  {t.owner&&<div style={{color:"#8a6d1f"}}><b>Owner:</b> {t.owner}</div>}
+                </div>
+              )}
+            </Fragment>);
+          })}
+        </Fragment>
+      ))}
+    </div>
+    <div style={{fontSize:11,color:B.muted,marginTop:"0.75rem",lineHeight:1.6}}>
+      Source: OSLO Builders Construction Schedule {SCHED_BASE} (task detail) and {SCHED_UPDATE} OAC printout (summary updates). Finish dates use Oslo's workday calendar. Click any task for dates and notes. Status is based on scheduled dates, not field-verified progress.
+    </div>
   </div>);
 }
 
@@ -3279,7 +3556,8 @@ export default function App(){
     }
   }, []);
 
-  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Value Engineering","Lessons Learned","Lenders","Risks","Capital Timing","OAC","Import"];
+  // Hidden (components kept): "Value Engineering", "Capital Timing", "OAC"
+  const TABS=["Dashboard","CRM","Timeline","Tasks","Budget","Lessons Learned","Lenders","Risks","Import"];
 
   const mobile=useIsMobile();
 
@@ -3303,7 +3581,7 @@ export default function App(){
     <div style={{maxWidth:1400,margin:"0 auto",padding:mobile?"0 0.75rem 3rem":"0 2rem 3rem"}}>
       {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles} setNav={setNav}/>}
       {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
-      {nav==="Timeline"&&<Timeline miles={miles} setMiles={setMiles} onSave={handleSave}/>}
+      {nav==="Timeline"&&<Timeline/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
       {nav==="Value Engineering"&&<ValueEngineering/>}
