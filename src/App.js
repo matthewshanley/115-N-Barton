@@ -125,7 +125,7 @@ function taskToRow(t) {
     task_id: String(t.id),
     workstream: t.workstream || "",
     title: t.title || "",
-    owner: t.owner || "Jimmy",
+    owner: t.owner || "Matt",
     status: t.status || "Not Started",
     due_date: t.due || null,
     priority: t.priority || "Medium",
@@ -140,7 +140,7 @@ function rowToTask(r) {
     task_id: r.task_id,
     workstream: r.workstream || "",
     title: r.title || "",
-    owner: r.owner || "Jimmy",
+    owner: r.owner || "Matt",
     status: r.status || "Not Started",
     due: r.due_date || "",
     priority: r.priority || "Medium",
@@ -181,7 +181,7 @@ function riskToRow(r) {
     likelihood: r.likelihood || "Medium",
     impact: r.impact || "Medium",
     mitigation: r.mitigation || "",
-    owner: r.owner || "Jimmy",
+    owner: r.owner || "Matt",
     status: r.status || "Open",
     updated_at: new Date().toISOString(),
   };
@@ -195,7 +195,7 @@ function rowToRisk(r) {
     likelihood: r.likelihood || "Medium",
     impact: r.impact || "Medium",
     mitigation: r.mitigation || "",
-    owner: r.owner || "Jimmy",
+    owner: r.owner || "Matt",
     status: r.status || "Open",
   };
 }
@@ -203,18 +203,17 @@ function rowToRisk(r) {
 // ── Hardcoded LP seed data (from Juniper Square + DocSend exports) ─────────
 const SEED_LPS = [
   // Committed — Co-GP
-  {id:"lp-js-5066035-0",type:"LP",name:"Michael Hobbs",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"",email:"mikehobbs1919@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
-  {id:"lp-js-5066034-0",type:"LP",name:"Kevin Werner",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"Renovo Financial",email:"kevin@renovofinancial.com",phone:"(312) 543-1379",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 19400 Ravine, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
-  {id:"lp-js-5066033-0",type:"LP",name:"Jay Weaver",tag:"Co-GP",likelihood:"High",expectedAmount:128630,status:"Committed",priority:"Medium",firm:"Quartz Lake Capital",email:"weaver@quartzlakecap.com",phone:"(312) 925-0792",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
-  {id:"lp-js-5065902-0",type:"LP",name:"Jimmy Georgantas",tag:"Co-GP",likelihood:"High",expectedAmount:13126,status:"Committed",priority:"Medium",firm:"NBHD Hotels",email:"jimmy@nbhdhotels.com",phone:"(815) 302-7392",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5066035-0",type:"LP",name:"Michael Hobbs",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5066034-0",type:"LP",name:"Kevin Werner",tag:"Co-GP",likelihood:"High",expectedAmount:257260,status:"Committed",priority:"Medium",firm:"Renovo Financial",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC, 19400 Ravine, 18 W Merchant",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
+  {id:"lp-js-5066033-0",type:"LP",name:"Jay Weaver",tag:"Co-GP",likelihood:"High",expectedAmount:128630,status:"Committed",priority:"Medium",firm:"Quartz Lake Capital",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"NB Expansion General Partner Fund LLC",whatTheyCareAbout:"",howWeKnowThem:"Co-GP",nextStep:"",notes:""},
   // Juniper Square — 18 W Investors
   {id:"lp-js-6236327-0",type:"LP",name:"Anthony Disano",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236328-0",type:"LP",name:"Jonathan Gordon",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236328-1",type:"LP",name:"Dana Gordon",tag:"18 W Investor",likelihood:"High",expectedAmount:null,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236329-0",type:"LP",name:"Daniel Rosen",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
-  {id:"lp-js-6236331-0",type:"LP",name:"Jack Krasaeath",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"jack.krasaeath@diverseyrealestate.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
-  {id:"lp-js-6236332-0",type:"LP",name:"Ian Murphy",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"ian.murphy@cbre.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
-  {id:"lp-js-6236337-0",type:"LP",name:"Robert Rothschild",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"rob@rothschildagency.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236331-0",type:"LP",name:"Jack Krasaeath",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236332-0",type:"LP",name:"Ian Murphy",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
+  {id:"lp-js-6236337-0",type:"LP",name:"Robert Rothschild",tag:"18 W Investor",likelihood:"High",expectedAmount:25000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236338-0",type:"LP",name:"Roger Schoenfeld",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236342-0",type:"LP",name:"Thomas Bohac",tag:"18 W Investor",likelihood:"High",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236336-0",type:"LP",name:"Allen Samuel",tag:"18 W Investor",likelihood:"Low",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
@@ -232,20 +231,20 @@ const SEED_LPS = [
   {id:"lp-js-6236340-0",type:"LP",name:"Steven B. Nasatir",tag:"18 W Investor",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   {id:"lp-js-6236340-1",type:"LP",name:"Brandon Nasatir",tag:"18 W Investor",likelihood:"Low",expectedAmount:null,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"18 W Investor",nextStep:"",notes:""},
   // DocSend — LP Deck viewers
-  {id:"lp-ds-001",type:"LP",name:"Ian Braverman",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Harrison Street",email:"ibraverman@harrisonst.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-002",type:"LP",name:"Ryan Grommes",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"RLE Partners",email:"rgrommes@rlepartners.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-003",type:"LP",name:"Dominic Sergi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"West Shore CG",email:"ds@westshorecg.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-004",type:"LP",name:"Daniel Arnstein",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"djarnstein@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-005",type:"LP",name:"Robert Becker",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"rhbecker7@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-006",type:"LP",name:"Liz Roch",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"lizroch1@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-008",type:"LP",name:"Mason Phelps",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"mason1741@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-009",type:"LP",name:"Dan Drex",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"dandrex@me.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-011",type:"LP",name:"Tony Olson",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Webster CM",email:"tolson@webstercm.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-012",type:"LP",name:"Lauren Mead",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"laurenmead15@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-013",type:"LP",name:"Joydeep Dasmunshi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"joydeepdm@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-014",type:"LP",name:"Michael Glicken",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Morgan Stanley",email:"michael.glicken@ms.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-015",type:"LP",name:"Derrick Watts",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Derrick Watts Advisory",email:"derrick@derrickwattsadvisory.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
-  {id:"lp-ds-016",type:"LP",name:"John Gavin",tag:"DocSend",likelihood:"Low",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"jpgavin23@gmail.com",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-001",type:"LP",name:"Ian Braverman",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Harrison Street",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-002",type:"LP",name:"Ryan Grommes",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"RLE Partners",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-003",type:"LP",name:"Dominic Sergi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"West Shore CG",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-004",type:"LP",name:"Daniel Arnstein",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-005",type:"LP",name:"Robert Becker",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-006",type:"LP",name:"Liz Roch",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-008",type:"LP",name:"Mason Phelps",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-009",type:"LP",name:"Dan Drex",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-011",type:"LP",name:"Tony Olson",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"Webster CM",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-012",type:"LP",name:"Lauren Mead",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-013",type:"LP",name:"Joydeep Dasmunshi",tag:"DocSend",likelihood:"Medium",expectedAmount:50000,status:"Data room accessed",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-014",type:"LP",name:"Michael Glicken",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Morgan Stanley",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-015",type:"LP",name:"Derrick Watts",tag:"DocSend",likelihood:"Low",expectedAmount:25000,status:"Deck sent",priority:"Medium",firm:"Derrick Watts Advisory",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
+  {id:"lp-ds-016",type:"LP",name:"John Gavin",tag:"DocSend",likelihood:"Low",expectedAmount:50000,status:"Deck sent",priority:"Medium",firm:"",email:"",phone:"",title:"",linkedinUrl:"",bio:"",relationship:"",whatTheyCareAbout:"",howWeKnowThem:"",nextStep:"",notes:""},
 ];
 const B={navy:"#021d2b",blue:"#033b57",steel:"#ccd5de",sage:"#5e7361",white:"#ffffff",offwhite:"#f4f6f8",muted:"#6b8497",border:"#ccd5de",danger:"#7a1e1e",gold:"#c9a84c",light:"#e8edf1"};
 const FONT="'Gill Sans','Gill Sans MT','Trebuchet MS',sans-serif";
@@ -255,7 +254,7 @@ const statCol=s=>LP_STAT_COL[s]||LN_STAT_COL[s]||B.muted;
 const LP_STATUSES=["Deck sent","Data room accessed","In conversation","Soft commit","Committed","Passed"];
 const LN_STATUSES=["Not contacted","Outreach sent","Term sheet requested","Term sheet received","In diligence","Committed","Passed"];
 const PRIORITIES=["High","Medium","Low"];
-const OWNERS=["Jimmy","Jonathan","Jackson","Matt","Eric","Jason"];
+const OWNERS=["Jonathan","Jackson","Matt","Eric","Jason"];
 const TASK_STATUS_DISPLAY=["Not Started","In Progress","Complete","Overdue","Blocked"];
 const fmt$=n=>(!n&&n!==0)?"—":"$"+Number(n).toLocaleString();
 const initials=n=>(n||"?").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"?";
@@ -364,7 +363,7 @@ function Dashboard({contacts,tasks,miles,setNav}){
   return(
     <div style={{padding:"1.25rem 0"}}>
       <div style={g4(mobile)}>
-        {[["LP equity target",fmt$(LP_EQUITY_TARGET),B.navy],["Committed capital",fmt$(committed),"#2a6b3f"],["Remaining to raise",fmt$(remaining),committed>=LP_EQUITY_TARGET?"#2a6b3f":B.danger],["Active lenders",activeLenders,B.sage]].map(([l,v,c])=>(
+        {[["Equity contributed",fmt$(Math.round(EQUITY_CONTRIBUTED)),"#2a6b3f"],["Investors",`${INVESTORS.length}`,B.navy],["Construction loan",fmt$(5925000),B.blue],["Substantial Completion",fmtD(SC_CURRENT),SC_SLIP>0?B.danger:B.sage]].map(([l,v,c])=>(
           <div key={l} style={SC(c)}><div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div><div style={{fontSize:mobile?18:24,fontWeight:700,color:B.white}}>{v}</div></div>
         ))}
       </div>
@@ -405,22 +404,135 @@ function Dashboard({contacts,tasks,miles,setNav}){
       </div>
       <div style={card}>
         <div style={{fontSize:11,letterSpacing:"0.07em",textTransform:"uppercase",color:B.muted,fontWeight:600,marginBottom:"0.75rem"}}>
-          Warm LP pipeline <span style={{marginLeft:8,fontSize:11,color:B.blue,fontWeight:400,cursor:"pointer",textTransform:"none",letterSpacing:0}} onClick={()=>setNav("CRM")}>View all →</span>
+          Largest investors <span style={{marginLeft:8,fontSize:11,color:B.blue,fontWeight:400,cursor:"pointer",textTransform:"none",letterSpacing:0}} onClick={()=>setNav("Investors")}>View all →</span>
         </div>
-        {wLPs.length===0?<div style={{fontSize:13,color:B.muted}}>No warm prospects yet.</div>:
-          <div style={{maxHeight:320,overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
-            {wLPs.map(c=>(
-              <div key={c.id} onClick={()=>setNav("CRM")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
-                <Avatar name={c.name} color={B.navy}/>
-                <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div><div style={{fontSize:11,color:B.muted}}>{c.firm||c.tag||""}</div></div>
-                {!mobile&&<div style={{fontSize:13,color:B.navy,fontWeight:600}}>{fmt$(c.expectedAmount)}</div>}
-                <div style={{display:"flex",alignItems:"center",fontSize:11,color:statCol(c.status)}}><Pip color={statCol(c.status)}/>{mobile?c.status.split(" ")[0]:c.status}</div>
-              </div>
-            ))}
-          </div>}
+        {[...INVESTORS].sort((x,y)=>y.contributed-x.contributed).slice(0,6).map(i=>(
+          <div key={i.name} onClick={()=>setNav("Investors")} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${B.light}`,cursor:"pointer"}}>
+            <Avatar name={i.name} color={B.navy}/>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:B.navy,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i.name}</div><div style={{fontSize:11,color:B.muted}}>{i.fund==="gp"?"GP Fund":"Class A"} · {i.vehicle}</div></div>
+            <div style={{fontSize:13,color:B.navy,fontWeight:600}}>{fmt$(Math.round(i.contributed))}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
+}
+
+// ── Investors ──────────────────────────────────────────────────────────────
+// Source: NBHD Barton Investors LLC positions export (Juniper Square). Names and amounts only.
+// No addresses, account IDs, legal trust names, emails, or phone numbers are stored in the code.
+const INVESTOR_ASOF="10/19/26";
+const INVESTORS=[
+  {name:"Kevin Werner",vehicle:"Individual",fund:"gp",committed:205800.0,contributed:178859.8,unfunded:26940.2,pct:39.2,match:["Kevin Werner"]},
+  {name:"Michael Hobbs",vehicle:"Trust",fund:"gp",committed:205800.0,contributed:178859.8,unfunded:26940.2,pct:39.2,match:["Michael Hobbs"]},
+  {name:"Jay Weaver",vehicle:"IRA LLC",fund:"gp",committed:102900.0,contributed:89429.9,unfunded:13470.1,pct:19.6,match:["Jay Weaver"]},
+  {name:"ECG (Jonathan Gordon)",vehicle:"LLC",fund:"gp",committed:10500.0,contributed:10500.0,unfunded:0.0,pct:2.0,match:["Jonathan Gordon"],note:"$1,374.50 balance paid 6/25/26 via Bill.com. Not yet reflected in Juniper Square."},
+  {name:"Matt Bayer & Sean Koelbl (MBB Investments)",vehicle:"LLC",fund:"lp",committed:600000.0,contributed:600000.0,unfunded:0.0,pct:26.67,match:["Matt Bayer","Sean Koelbl"]},
+  {name:"A3 Capital Group (Anthony Casaccio, Dominic Sergi)",vehicle:"LLC",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Anthony Casaccio","Lauren Kearney","Dominic Sergi"]},
+  {name:"Charlie Bachtell",vehicle:"LLC",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Charlie Bachtell","VALENTINA MARIA COPPOLA TREVINO"]},
+  {name:"Daniel Arnstein",vehicle:"Individual",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Daniel Arnstein"]},
+  {name:"David Gilbert",vehicle:"Trust",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["David Gilbert"]},
+  {name:"Douglas & Elizabeth Roch",vehicle:"Trust",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Douglas J Roch"]},
+  {name:"Eric Lohmueller",vehicle:"Individual",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Eric Lohmueller"]},
+  {name:"George & Bonnie Ribet",vehicle:"Joint",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Bonnie Ribet","George Ribet"]},
+  {name:"Israel Levy",vehicle:"Trust",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Israel Levy"]},
+  {name:"John Fife",vehicle:"Trust",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["John Fife"]},
+  {name:"Jordon Maloni",vehicle:"Individual",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Jordon Maloni"]},
+  {name:"Ryan Grommes",vehicle:"Individual",fund:"lp",committed:100000.0,contributed:100000.0,unfunded:0.0,pct:4.44,match:["Ryan Grommes"]},
+  {name:"Anthony Disano",vehicle:"LLC",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Anthony Disano"]},
+  {name:"Jonathan Metzl",vehicle:"Individual",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Jonathan Metzl"]},
+  {name:"Joydeep Dasmunshi",vehicle:"Individual",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Joydeep Dasmunshi"]},
+  {name:"Keith Olsen",vehicle:"Individual",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Keith Olsen"]},
+  {name:"Lauren & Jacob Hamlin",vehicle:"Joint",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Jacob Ryan Hamlin","Lauren Michelle Hamlin"]},
+  {name:"Rafael Murdakhaiev",vehicle:"Individual",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Rafael Murdakhaiev"]},
+  {name:"Tony & Izabel Olson",vehicle:"Trust",fund:"lp",committed:50000.0,contributed:50000.0,unfunded:0.0,pct:2.22,match:["Izabel Olson","Tony Olson","Mary Sullivan"]},
+  {name:"Robert Rothschild",vehicle:"Trust",fund:"lp",committed:45000.0,contributed:45000.0,unfunded:0.0,pct:2.0,match:["Robert Rothschild"]},
+  {name:"Brian & Susan Keenan",vehicle:"Joint",fund:"lp",committed:30000.0,contributed:30000.0,unfunded:0.0,pct:1.33,match:["Brian Keenan","Susan Diltz Keenan"]},
+  {name:"Eric Augustyn",vehicle:"LLC",fund:"lp",committed:25000.0,contributed:25000.0,unfunded:0.0,pct:1.11,match:["Eric Augustyn"]},
+  {name:"Ian Braverman",vehicle:"Individual",fund:"lp",committed:25000.0,contributed:25000.0,unfunded:0.0,pct:1.11,match:["Ian Braverman"]},
+  {name:"Jack Krasaeath",vehicle:"LLC",fund:"lp",committed:25000.0,contributed:25000.0,unfunded:0.0,pct:1.11,match:["Jack Krasaeath"]},
+  {name:"Roger Schoenfeld",vehicle:"Individual",fund:"lp",committed:25000.0,contributed:25000.0,unfunded:0.0,pct:1.11,match:["Roger Schoenfeld"]},
+  {name:"Thomas Bohac",vehicle:"Individual",fund:"lp",committed:25000.0,contributed:25000.0,unfunded:0.0,pct:1.11,match:["Thomas Bohac"]},
+];
+
+const INV_LP=INVESTORS.filter(i=>i.fund==="lp");
+const INV_GP=INVESTORS.filter(i=>i.fund==="gp");
+const INV_LP_TOTAL=INV_LP.reduce((s,i)=>s+i.contributed,0);
+const INV_GP_COMMITTED=INV_GP.reduce((s,i)=>s+i.committed,0);
+const INV_GP_CONTRIB=INV_GP.reduce((s,i)=>s+i.contributed,0);
+const INV_GP_UNFUNDED=INV_GP.reduce((s,i)=>s+i.unfunded,0);
+const EQUITY_CONTRIBUTED=INV_LP_TOTAL+INV_GP_CONTRIB; // Barton Investors: Class A + GP Fund as Class B
+const HORIZON_MIN_EQUITY=2575000;
+const INVESTOR_NAMES=new Set(INVESTORS.flatMap(i=>i.match.map(n=>n.toLowerCase())));
+const isInvestorContact=c=>INVESTOR_NAMES.has(String(c.name||"").trim().toLowerCase());
+
+function InvestorTable({rows,title,note}){
+  const mobile=useIsMobile();
+  const cols=mobile?"1fr 90px 90px":"1fr 110px 120px 120px 110px 80px";
+  const tot=k=>rows.reduce((s,r)=>s+r[k],0);
+  return(
+    <div style={{...card,padding:0,overflow:"hidden",marginBottom:"1.25rem"}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${B.steel}`,display:"flex",justifyContent:"space-between",alignItems:"baseline",flexWrap:"wrap",gap:6}}>
+        <span style={{fontSize:12,fontWeight:700,color:B.navy,letterSpacing:"0.06em",textTransform:"uppercase"}}>{title} <span style={{fontWeight:400,color:B.muted,textTransform:"none",letterSpacing:0}}>· {rows.length}</span></span>
+        {note&&<span style={{fontSize:11,color:B.muted}}>{note}</span>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:cols,gap:8,padding:"8px 16px",background:B.offwhite,borderBottom:`1px solid ${B.steel}`,fontSize:10,color:B.muted,letterSpacing:"0.06em",textTransform:"uppercase"}}>
+        <div>Investor</div>{!mobile&&<div>Vehicle</div>}<div style={{textAlign:"right"}}>Committed</div><div style={{textAlign:"right"}}>Contributed</div>{!mobile&&<div style={{textAlign:"right"}}>Unfunded</div>}{!mobile&&<div style={{textAlign:"right"}}>% of entity</div>}
+      </div>
+      {rows.map((r,i)=>(
+        <div key={r.name} style={{display:"grid",gridTemplateColumns:cols,gap:8,padding:"8px 16px",borderBottom:`1px solid ${B.light}`,background:i%2?"#fafbfc":B.white,fontSize:12,alignItems:"baseline"}}>
+          <div><div style={{color:B.navy,fontWeight:600}}>{r.name}</div>{r.note&&<div style={{fontSize:10,color:B.muted,fontWeight:400}}>{r.note}</div>}</div>
+          {!mobile&&<div style={{color:B.muted}}>{r.vehicle}</div>}
+          <div style={{textAlign:"right",color:B.navy}}>{fmt$(Math.round(r.committed))}</div>
+          <div style={{textAlign:"right",color:"#2a6b3f",fontWeight:600}}>{fmt$(Math.round(r.contributed))}</div>
+          {!mobile&&<div style={{textAlign:"right",color:r.unfunded>0?B.danger:B.muted}}>{r.unfunded>0?fmt$(Math.round(r.unfunded)):"–"}</div>}
+          {!mobile&&<div style={{textAlign:"right",color:B.muted}}>{r.pct.toFixed(2)}%</div>}
+        </div>
+      ))}
+      <div style={{display:"grid",gridTemplateColumns:cols,gap:8,padding:"10px 16px",background:B.navy,fontSize:12,fontWeight:700,color:B.white}}>
+        <div>Total</div>{!mobile&&<div/>}<div style={{textAlign:"right"}}>{fmt$(Math.round(tot("committed")))}</div><div style={{textAlign:"right"}}>{fmt$(Math.round(tot("contributed")))}</div>{!mobile&&<div style={{textAlign:"right"}}>{tot("unfunded")>0?fmt$(Math.round(tot("unfunded"))):"–"}</div>}{!mobile&&<div/>}
+      </div>
+    </div>
+  );
+}
+
+function Investors({contacts,setContacts,onSave,onDelete}){
+  const mobile=useIsMobile();
+  const [sub,setSub]=useState("Investors");
+  const prospects=contacts.filter(c=>c.type==="LP"&&!isInvestorContact(c)).length;
+  const lenders=contacts.filter(c=>c.type==="Lender").length;
+  const tB=a=>({fontSize:11,padding:"10px 16px",cursor:"pointer",letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:FONT,fontWeight:600,background:"none",border:"none",borderBottom:a?`2px solid ${B.navy}`:"2px solid transparent",color:a?B.navy:B.muted});
+  return(<div style={{padding:"1rem 0"}}>
+    <div style={{display:"flex",borderBottom:`1px solid ${B.steel}`,marginBottom:"1rem",flexWrap:"wrap"}}>
+      {[["Investors",INVESTORS.length],["Prospects",prospects],["Lenders",lenders]].map(([t,n])=>(
+        <button key={t} onClick={()=>setSub(t)} style={tB(sub===t)}>{t} ({n})</button>
+      ))}
+    </div>
+    {sub==="Investors"&&(<>
+      <div style={g4(mobile)}>
+        {[
+          ["Equity contributed",fmt$(Math.round(EQUITY_CONTRIBUTED)),"#2a6b3f","Barton Investors LLC, Class A + Class B"],
+          ["Class A investors",fmt$(INV_LP_TOTAL),B.navy,`${INV_LP.length} investors · fully funded`],
+          ["GP Fund (Class B)",fmt$(Math.round(INV_GP_CONTRIB)),B.blue,`of ${fmt$(INV_GP_COMMITTED)} committed · ${fmt$(Math.round(INV_GP_UNFUNDED))} unfunded`],
+          ["vs. Horizon minimum",`${EQUITY_CONTRIBUTED>=HORIZON_MIN_EQUITY?"+":""}${fmt$(Math.round(EQUITY_CONTRIBUTED-HORIZON_MIN_EQUITY))}`,EQUITY_CONTRIBUTED>=HORIZON_MIN_EQUITY?B.sage:B.danger,`Minimum equity ${fmt$(HORIZON_MIN_EQUITY)}`],
+        ].map(([l,v,c,s])=>(
+          <div key={l} style={SC(c)}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{l}</div>
+            <div style={{fontSize:mobile?15:20,fontWeight:700,color:B.white,lineHeight:1.2}}>{v}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",marginTop:4}}>{s}</div>
+          </div>
+        ))}
+      </div>
+      <InvestorTable rows={INV_LP} title="NBHD Barton Investors, LLC · Class A" note="% of Class A"/>
+      <InvestorTable rows={INV_GP} title="NB Expansion GP Fund LLC · Class A" note={`Invested in Barton Investors as Class B`}/>
+      <div style={{marginTop:"-0.5rem",marginBottom:"1.25rem",padding:"0.7rem 1rem",borderRadius:8,background:B.gold+"18",border:`1px solid ${B.gold}55`,fontSize:11,color:B.navy}}>
+        <b>Co-GP capital:</b> use of the GP Fund contribution without a recap is still to be confirmed. Class A alone is {fmt$(INV_LP_TOTAL)}, {fmt$(HORIZON_MIN_EQUITY-INV_LP_TOTAL)} below Horizon's {fmt$(HORIZON_MIN_EQUITY)} minimum equity.
+      </div>
+      <div style={{fontSize:11,color:B.muted}}>Source: Juniper Square positions export, {INVESTOR_ASOF}. Names and amounts only. Contact details, addresses, and account information stay in Juniper Square.</div>
+    </>)}
+    {sub==="Prospects"&&<CRM contacts={contacts} setContacts={setContacts} onSave={onSave} onDelete={onDelete} mode="LP"/>}
+    {sub==="Lenders"&&<CRM contacts={contacts} setContacts={setContacts} onSave={onSave} onDelete={onDelete} mode="Lender"/>}
+  </div>);
 }
 
 // ── CRM ────────────────────────────────────────────────────────────────────
@@ -485,9 +597,10 @@ function LPPipeline({lps,onSelectLikelihood,likelihoodFilter,onOpenDetail}){
   );
 }
 
-function CRM({contacts,setContacts,onSave,onDelete}){
+function CRM({contacts:allContacts,setContacts,onSave,onDelete,mode}){
   const mobile=useIsMobile();
-  const [tab,setTab]=useState("LP");
+  const contacts=mode==="LP"?allContacts.filter(c=>!(c.type==="LP"&&isInvestorContact(c))):allContacts;
+  const [tab,setTab]=useState(mode||"LP");
   const [sf,setSf]=useState([]); // status filter — empty = all
   const [lf,setLf]=useState([]); // likelihood filter
   const [tf,setTf]=useState([]); // tag filter
@@ -516,8 +629,8 @@ function CRM({contacts,setContacts,onSave,onDelete}){
   async function submit(){
     setSaving(true);
     try{
-      const ex=contacts.find(c=>c.id===form.id);
-      const up=ex?contacts.map(c=>c.id===form.id?{...form}:c):[...contacts,{...form}];
+      const ex=allContacts.find(c=>c.id===form.id);
+      const up=ex?allContacts.map(c=>c.id===form.id?{...form}:c):[...allContacts,{...form}];
       await onSave("contacts",[form]);
       setContacts(up);
       if(sel?.id===form.id)setSel({...form});
@@ -528,7 +641,7 @@ function CRM({contacts,setContacts,onSave,onDelete}){
     setSaving(true);
     try{
       await onDelete("contacts",id);
-      setContacts(contacts.filter(c=>c.id!==id));
+      setContacts(allContacts.filter(c=>c.id!==id));
       goBack();
     }finally{setSaving(false);}
   }
@@ -601,11 +714,11 @@ function CRM({contacts,setContacts,onSave,onDelete}){
 
   return(<div style={{padding:"1rem 0"}}>
     <div style={{display:"flex",gap:0,marginBottom:"1rem",borderBottom:`1px solid ${B.steel}`}}>
-      {["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf([]);setLf([]);setTf([]);}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
+      {!mode&&["LP","Lender"].map(t=>(<button key={t} onClick={()=>{setTab(t);setSf([]);setLf([]);setTf([]);}} style={tB(tab===t)}>{t}s ({contacts.filter(c=>c.type===t).length})</button>))}
       <div style={{flex:1}}/><button onClick={openNew} style={{...btn(),fontSize:11,margin:"4px 0"}}>+ Add {tab}</button>
     </div>
 
-    {tab==="LP"&&<LPPipeline lps={lps} onSelectLikelihood={v=>setLf(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v])} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
+    {tab==="LP"&&!mode&&<LPPipeline lps={lps} onSelectLikelihood={v=>setLf(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v])} likelihoodFilter={lf} onOpenDetail={openDetail}/>}
 
     {tab==="Lender"&&(
       <div style={g4(mobile)}>
@@ -1532,7 +1645,7 @@ function LessonsLearned(){
 }
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
-const ET={id:null,title:"",workstream:"",owner:"Jimmy",due:"",priority:"Medium",status:"Not Started",notes:""};
+const ET={id:null,title:"",workstream:"",owner:"Matt",due:"",priority:"Medium",status:"Not Started",notes:""};
 const taskStatusColor={"Not Started":B.muted,"In Progress":B.blue,"Complete":"#2a6b3f","Overdue":B.danger,"Blocked":B.danger};
 
 function Tasks({tasks,setTasks,onSave,onDelete}){
@@ -1710,7 +1823,7 @@ function Tasks({tasks,setTasks,onSave,onDelete}){
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 14px"}}>
               <div style={{gridColumn:"span 2"}}><label style={lS}>Title</label><input value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} style={iS}/></div>
               <div><label style={lS}>Workstream</label><input value={form.workstream||""} onChange={e=>setForm(f=>({...f,workstream:e.target.value}))} style={iS}/></div>
-              <div><label style={lS}>Owner</label><select value={form.owner||"Jimmy"} onChange={e=>setForm(f=>({...f,owner:e.target.value}))} style={iS}>{OWNERS.map(o=><option key={o}>{o}</option>)}</select></div>
+              <div><label style={lS}>Owner</label><select value={form.owner||"Matt"} onChange={e=>setForm(f=>({...f,owner:e.target.value}))} style={iS}>{OWNERS.map(o=><option key={o}>{o}</option>)}</select></div>
               <div><label style={lS}>Priority</label><select value={form.priority||"Medium"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))} style={iS}>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select></div>
               <div><label style={lS}>Status</label><select value={form.status||"Not Started"} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={iS}>{TASK_STATUS_DISPLAY.map(s=><option key={s}>{s}</option>)}</select></div>
               <div style={{gridColumn:"span 2"}}><label style={lS}>Due date</label><input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} style={iS}/></div>
@@ -1929,7 +2042,7 @@ function mergeTasks(rows,existing){
     const rawId=r['Task_ID']&&r['Task_ID'].trim()?r['Task_ID'].trim():null;
     const due=normalizeDate(r['Due_Date_Parsed']||r['Due_Date']||'');
     const ex=rawId?existing.find(t=>String(t.id)===rawId):existing.find(t=>t.title&&t.title.trim().toLowerCase()===r['Title'].trim().toLowerCase());
-    const sheetData={id:rawId||ex?.id||`task-${Date.now()}-${i}`,title:r['Title'].trim(),workstream:r['Workstream']||'',owner:r['Owner']||'Jimmy',due,priority:mapPriority(r['Priority'])};
+    const sheetData={id:rawId||ex?.id||`task-${Date.now()}-${i}`,title:r['Title'].trim(),workstream:r['Workstream']||'',owner:r['Owner']||'Matt',due,priority:mapPriority(r['Priority'])};
     if(ex)return{...ex,...sheetData,status:normalizeStatus(ex.status)!=='Not Started'?ex.status:mapTaskStatus(r['Status']||''),notes:ex.notes&&ex.notes!==r['Notes']?ex.notes:(r['Notes']||ex.notes||'')};
     return{...sheetData,status:mapTaskStatus(r['Status']||''),notes:r['Notes']||''};
   });
@@ -2437,7 +2550,7 @@ function Budget({committed}){
               <div style={{fontSize:11,color:B.muted,paddingLeft:8}}>SOFR +2.95% · Floor 4.0% / Ceiling 10% · Loan fee 0.25% · 24 mo construction → 60 mo perm at 5-yr Treasury +2.50%</div>
             </div>
             <SU label="LP Equity (target)" total={LP_TARGET} bold pct="30%"/>
-            <SU label="Committed to date" total={committed} pct={`${Math.round(committed/LP_TARGET*100)}%`} muted/>
+            <SU label="Contributed to date" total={committed} pct={`${Math.round(committed/LP_TARGET*100)}%`} muted/>
             <SU label="Remaining to raise" total={Math.max(0,LP_TARGET-committed)} pct="" muted/>
             <TotalBar label="Total Sources" amount={DEBT+EQUITY}/>
           </div>
@@ -2661,7 +2774,7 @@ const RISK_SCORE = { "Low": 1, "Medium": 2, "High": 3 };
 const scoreColor = score => score >= 6 ? B.danger : score >= 3 ? B.gold : "#2a6b3f";
 const scoreLabel = score => score >= 6 ? "Critical" : score >= 4 ? "High" : score >= 3 ? "Medium" : "Low";
 
-const ER = { id: null, category: "Market", description: "", likelihood: "Medium", impact: "Medium", mitigation: "", owner: "Jimmy", status: "Open" };
+const ER = { id: null, category: "Market", description: "", likelihood: "Medium", impact: "Medium", mitigation: "", owner: "Matt", status: "Open" };
 
 function Risks({ risks, setRisks, onSave, onDelete }) {
   const mobile=useIsMobile();
@@ -3176,6 +3289,9 @@ function OACPrep(){
   useEffect(()=>{(async()=>{
     try{
       let rows=(await sbFetch("oac_todos")).map(rowToTodo);
+      // Remove legacy OAC to-dos (pre-October 2026 format)
+      const legacy=rows.filter(r=>!/^(ag|ac|dc)\|/.test(String(r.id)));
+      if(legacy.length){await Promise.all(legacy.map(r=>sbDelete("oac_todos",encodeURIComponent(r.id)).catch(()=>{})));rows=rows.filter(r=>!legacy.includes(r));}
       if(!rows.some(r=>oacKind(r.id)==="ag")){
         try{await sbUpsert("oac_todos",OAC_SEED.map(todoToRow));}catch(e){}
         rows=[...OAC_SEED,...rows];
@@ -3778,7 +3894,7 @@ export default function App(){
   }, []);
 
   // Hidden (components kept): "Value Engineering", "Capital Timing"
-  const TABS=["Dashboard","CRM","Timeline","OAC","Tasks","Budget","Lessons Learned","Lender","Risks","Import"];
+  const TABS=["Dashboard","Investors","Timeline","OAC","Tasks","Budget","Lessons Learned","Lender","Risks","Import"];
 
   const mobile=useIsMobile();
 
@@ -3801,10 +3917,10 @@ export default function App(){
     </div>
     <div style={{maxWidth:1400,margin:"0 auto",padding:mobile?"0 0.75rem 3rem":"0 2rem 3rem"}}>
       {nav==="Dashboard"&&<Dashboard contacts={contacts} tasks={tasks} miles={miles} setNav={setNav}/>}
-      {nav==="CRM"&&<CRM contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
+      {nav==="Investors"&&<Investors contacts={contacts} setContacts={setContacts} onSave={handleSave} onDelete={handleDelete}/>}
       {nav==="Timeline"&&<Timeline/>}
       {nav==="Tasks"&&<Tasks tasks={tasks} setTasks={setTasks} onSave={handleSave} onDelete={handleDelete}/>}
-      {nav==="Budget"&&<Budget committed={contacts.filter(c=>c.type==="LP"&&c.status==="Committed").reduce((s,c)=>s+(Number(c.expectedAmount)||0),0)}/>}
+      {nav==="Budget"&&<Budget committed={EQUITY_CONTRIBUTED}/>}
       {nav==="Value Engineering"&&<ValueEngineering/>}
       {nav==="Lessons Learned"&&<LessonsLearned/>}
       {nav==="Lender"&&<LenderMatrix/>}
